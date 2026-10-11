@@ -17,7 +17,9 @@ export function checkPackageScripts(baseDir = rootDir) {
         entry.name === 'node_modules' ||
         entry.name === '.git' ||
         entry.name === 'dist' ||
-        entry.name === '.next'
+        entry.name === '.next' ||
+        entry.name === '.tmp' ||
+        entry.name === 'storybook-static'
       ) {
         continue;
       }
@@ -47,29 +49,40 @@ export function checkPackageScripts(baseDir = rootDir) {
 
     const scripts = pkg.scripts || {};
     for (const [scriptName, scriptCmd] of Object.entries(scripts)) {
+      if (typeof scriptCmd !== 'string') continue;
       const trimmed = scriptCmd.trim().toLowerCase();
-      // Banned echo/no-ops for test:e2e
-      if (scriptName === 'test:e2e') {
-        if (
-          trimmed.startsWith('echo ') ||
-          trimmed === 'exit 0' ||
-          trimmed === ':' ||
-          trimmed === 'true'
-        ) {
+
+      // Check for banned dummy / no-op scripts
+      if (
+        trimmed.startsWith('echo ') ||
+        trimmed === 'echo' ||
+        trimmed === 'true' ||
+        trimmed === 'exit 0' ||
+        trimmed === ':' ||
+        trimmed.includes('--passwithnotests')
+      ) {
+        errors.push(
+          `Package "${pkg.name || relPath}" defines a banned dummy/no-op in script "${scriptName}": "${scriptCmd}".`
+        );
+      }
+    }
+
+    // If package has a src/ folder (except root), require real typecheck and test scripts
+    const pkgDir = path.dirname(filePath);
+    const srcDir = path.join(pkgDir, 'src');
+    const isRoot = path.resolve(pkgDir) === path.resolve(baseDir);
+
+    if (!isRoot && fs.existsSync(srcDir)) {
+      const srcFiles = fs.readdirSync(srcDir);
+      if (srcFiles.length > 0) {
+        if (!scripts.typecheck) {
           errors.push(
-            `Package "${pkg.name || relPath}" contains a dummy/no-op "${scriptName}" script: "${scriptCmd}". Packages with nothing to test must not define test:e2e.`
+            `Package "${pkg.name || relPath}" contains a "src" directory but is missing required "typecheck" script.`
           );
         }
-      }
-
-      // Any script that is an echo placeholder for a test
-      if (scriptName.startsWith('test') && trimmed.startsWith('echo ')) {
-        // test:e2e is already caught; flag any dummy echo test
-        if (scriptName === 'test:e2e') {
-          // already added
-        } else if (trimmed.includes('test:e2e')) {
+        if (!scripts.test) {
           errors.push(
-            `Package "${pkg.name || relPath}" defines an echo placeholder in "${scriptName}": "${scriptCmd}"`
+            `Package "${pkg.name || relPath}" contains a "src" directory but is missing required "test" script.`
           );
         }
       }

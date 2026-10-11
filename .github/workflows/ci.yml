@@ -8,11 +8,11 @@ on:
 
 jobs:
   validate:
-    name: Validate, Lint, Typecheck, Test
+    name: Validate, Scripts, Lint, Typecheck, Test, E2E
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
@@ -23,50 +23,86 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-          
+
       - name: Install dependencies
         run: pnpm install
 
+      - name: Cache MongoDB Binary
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/mongodb-binaries
+            ${{ github.workspace }}/.tmp/mongodb-binaries
+          key: ${{ runner.os }}-mongodb-7.0.14
+          restore-keys: |
+            ${{ runner.os }}-mongodb-
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Script Check (No-Op & Echo Checker)
+        run: pnpm run check:scripts
+
       - name: Typecheck
         run: pnpm run typecheck
-        
+
       - name: Lint
         run: pnpm run lint
-        
+
       - name: Unit & Contract Tests
         run: pnpm run test
-        
+
       - name: E2E Tests
         run: pnpm run test:e2e
 
   security:
-    name: Security Scan
+    name: Security Scan & Audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Production Dependency Security Audit
+        run: pnpm audit --prod --audit-level=high
+
       - name: Run Secret Scan
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
   build:
     name: Build & Preview Deploy
     runs-on: ubuntu-latest
     needs: validate
     steps:
       - uses: actions/checkout@v4
+
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
           version: 8
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
+
       - name: Install dependencies
         run: pnpm install
+
       - name: Build
-        run: pnpm -r run build
-      - name: Preview Deploy
-        run: echo "Simulating preview deploy"
+        run: pnpm -r --if-present run build

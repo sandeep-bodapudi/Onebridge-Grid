@@ -2,11 +2,5 @@
   "name": "@onebridge/payments",
   "version": "1.0.0",
   "private": true,
-  "scripts": {
-    "dev": "echo 'dev payments'",
-    "lint": "echo 'lint payments'",
-    "typecheck": "echo 'typecheck payments'",
-    "test": "echo 'test payments'",
-    "contracts:gen": "echo 'contracts:gen payments'"
-  }
+  "scripts": {}
 }

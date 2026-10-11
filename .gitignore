@@ -6,4 +6,7 @@ test-results
 playwright-report
 storybook-static
 .env
+src/**/*.js
+src/**/*.d.ts
+src/**/*.js.map
 

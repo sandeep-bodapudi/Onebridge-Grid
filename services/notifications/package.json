@@ -2,11 +2,5 @@
   "name": "@onebridge/notifications",
   "version": "1.0.0",
   "private": true,
-  "scripts": {
-    "dev": "echo 'dev notifications'",
-    "lint": "echo 'lint notifications'",
-    "typecheck": "echo 'typecheck notifications'",
-    "test": "echo 'test notifications'",
-    "contracts:gen": "echo 'contracts:gen notifications'"
-  }
+  "scripts": {}
 }

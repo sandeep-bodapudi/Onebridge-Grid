@@ -8,10 +8,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "node dist/main.js",
-    "lint": "echo 'lint identity'",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "contracts:gen": "echo 'contracts:gen identity'"
+    "test": "vitest run"
   },
   "dependencies": {
     "@nestjs/common": "10.4.4",

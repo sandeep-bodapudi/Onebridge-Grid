@@ -6,11 +6,14 @@
   "types": "./src/index.ts",
   "scripts": {
     "contracts:gen": "openapi-typescript openapi.yaml -o src/api-types.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "build": "tsc"
   },
   "devDependencies": {
     "openapi-typescript": "^6.7.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^5.0.3"
   },
   "dependencies": {
     "openapi-fetch": "^0.8.2"

@@ -3,12 +3,13 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "seed": "tsx services/identity/src/infrastructure/seed.ts",
     "lint": "eslint .",
-    "typecheck": "pnpm -r run typecheck",
-    "test": "cross-env TEMP=D:\\temp TMP=D:\\temp pnpm -r run test && cross-env TEMP=D:\\temp TMP=D:\\temp vitest run tests/check-no-echo-scripts.spec.ts tests/workspace.spec.ts",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "pnpm -r --if-present run test && vitest run tests/check-no-echo-scripts.spec.ts tests/workspace.spec.ts",
     "test:e2e": "playwright test",
     "check:scripts": "node scripts/check-no-echo-scripts.mjs",
-    "contracts:gen": "pnpm -r run contracts:gen"
+    "contracts:gen": "pnpm -r --if-present run contracts:gen"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

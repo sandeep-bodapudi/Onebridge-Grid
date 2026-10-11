@@ -2,11 +2,5 @@
   "name": "@onebridge/media",
   "version": "1.0.0",
   "private": true,
-  "scripts": {
-    "dev": "echo 'dev media'",
-    "lint": "echo 'lint media'",
-    "typecheck": "echo 'typecheck media'",
-    "test": "echo 'test media'",
-    "contracts:gen": "echo 'contracts:gen media'"
-  }
+  "scripts": {}
 }

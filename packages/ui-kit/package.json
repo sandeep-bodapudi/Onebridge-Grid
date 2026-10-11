@@ -9,9 +9,7 @@
     "dev": "storybook dev -p 6006",
     "build": "storybook build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "lint": "echo 'lint ui-kit'",
-    "contracts:gen": "echo 'contracts:gen ui-kit'"
+    "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
     "react": "^18.2.0",

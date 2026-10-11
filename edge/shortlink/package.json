@@ -2,11 +2,5 @@
   "name": "@onebridge/shortlink",
   "version": "1.0.0",
   "private": true,
-  "scripts": {
-    "dev": "echo 'dev shortlink'",
-    "lint": "echo 'lint shortlink'",
-    "typecheck": "echo 'typecheck shortlink'",
-    "test": "echo 'test shortlink'",
-    "contracts:gen": "echo 'contracts:gen shortlink'"
-  }
+  "scripts": {}
 }
