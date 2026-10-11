@@ -16,12 +16,13 @@ import {
   CreateIndexesOptions,
 } from 'mongodb';
 import { getCollectionClassification } from './collection-registry.js';
+import { MongoConnectionHandle } from './connection-handle.js';
 
 export class GlobalRepository<T extends Document> {
   protected readonly collection: Collection<T>;
   public readonly collectionName: string;
 
-  constructor(db: Db, collectionName: string) {
+  constructor(dbOrHandle: Db | MongoConnectionHandle, collectionName: string) {
     const classification = getCollectionClassification(collectionName);
     if (classification !== 'global') {
       throw new Error(
@@ -29,6 +30,7 @@ export class GlobalRepository<T extends Document> {
       );
     }
     this.collectionName = collectionName;
+    const db = dbOrHandle instanceof MongoConnectionHandle ? dbOrHandle._getInternalDb() : dbOrHandle;
     this.collection = db.collection<T>(collectionName);
   }
 

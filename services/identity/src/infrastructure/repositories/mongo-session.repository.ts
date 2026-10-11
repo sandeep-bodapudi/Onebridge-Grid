@@ -1,48 +1,100 @@
-import { Db, GlobalRepository } from '@onebridge/shared';
+import { GlobalRepository, MongoConnectionHandle } from '@onebridge/shared';
 import { Session, SessionFamily } from '../../domain/session.js';
+import { ISessionRepository } from '../../application/auth.service.js';
 
-interface MongoSessionDoc extends Session {
-  id: string;
+interface MongoSessionBaseDoc {
+  type: 'session' | 'family';
+  sessionId?: string;
+  familyId: string;
+  userId?: string;
+  refreshTokenHash?: string;
+  usedRefreshTokenHashes?: string[];
+  expiresAt?: Date | string;
+  createdAt?: string;
+  lastActiveAt?: string;
+  isRevoked?: boolean;
+  revokedAt?: string;
+  userAgent?: string;
+  ipAddress?: string;
 }
 
-interface MongoSessionFamilyDoc extends SessionFamily {
-  id: string;
-}
+export class MongoSessionRepository implements ISessionRepository {
+  private repo: GlobalRepository<MongoSessionBaseDoc>;
 
-export class MongoSessionRepository {
-  private sessionsRepo: GlobalRepository<MongoSessionDoc>;
-  private familiesRepo: GlobalRepository<MongoSessionFamilyDoc>;
+  constructor(dbOrHandle: MongoConnectionHandle | unknown) {
+    this.repo = new GlobalRepository<MongoSessionBaseDoc>(dbOrHandle as MongoConnectionHandle, 'sessions');
+  }
 
-  constructor(db: Db) {
-    this.sessionsRepo = new GlobalRepository<MongoSessionDoc>(db, 'sessions');
-    // Session families stored within the global sessions collection or separate index
-    this.familiesRepo = new GlobalRepository<MongoSessionFamilyDoc>(db, 'sessions');
+  async ensureIndexes(): Promise<void> {
+    await this.repo.createIndex({ userId: 1 });
+    await this.repo.createIndex({ familyId: 1 });
+    await this.repo.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
   }
 
   async saveFamily(family: SessionFamily): Promise<void> {
-    await this.familiesRepo.replaceOne(
-      { familyId: family.familyId, type: 'family' } as any,
-      { ...family, id: `family-${family.familyId}`, type: 'family' } as any,
+    await this.repo.replaceOne(
+      { familyId: family.familyId, type: 'family' },
+      {
+        type: 'family',
+        familyId: family.familyId,
+        userId: family.userId,
+        usedRefreshTokenHashes: family.usedRefreshTokenHashes,
+        isRevoked: family.isRevoked,
+        revokedAt: family.revokedAt,
+        createdAt: family.createdAt,
+      },
       { upsert: true }
     );
   }
 
   async findFamilyById(familyId: string): Promise<SessionFamily | undefined> {
-    const doc = await this.familiesRepo.findOne({ familyId, type: 'family' } as any);
-    return doc ? (doc as unknown as SessionFamily) : undefined;
+    const doc = await this.repo.findOne({ familyId, type: 'family' });
+    if (!doc) return undefined;
+    return {
+      familyId: doc.familyId,
+      userId: doc.userId || '',
+      usedRefreshTokenHashes: doc.usedRefreshTokenHashes || [],
+      isRevoked: doc.isRevoked || false,
+      revokedAt: doc.revokedAt,
+      createdAt: doc.createdAt || new Date().toISOString(),
+    };
   }
 
   async saveSession(session: Session): Promise<void> {
-    await this.sessionsRepo.replaceOne(
-      { sessionId: session.sessionId, type: 'session' } as any,
-      { ...session, id: session.sessionId, type: 'session' } as any,
+    await this.repo.replaceOne(
+      { sessionId: session.sessionId, type: 'session' },
+      {
+        type: 'session',
+        sessionId: session.sessionId,
+        familyId: session.familyId,
+        userId: session.userId,
+        refreshTokenHash: session.refreshTokenHash,
+        expiresAt: session.expiresAt,
+        createdAt: session.createdAt,
+        lastActiveAt: session.lastActiveAt,
+        isRevoked: session.isRevoked,
+        userAgent: session.userAgent,
+        ipAddress: session.ipAddress,
+      },
       { upsert: true }
     );
   }
 
   async findSessionById(sessionId: string): Promise<Session | undefined> {
-    const doc = await this.sessionsRepo.findOne({ sessionId, type: 'session' } as any);
-    return doc ? (doc as unknown as Session) : undefined;
+    const doc = await this.repo.findOne({ sessionId, type: 'session' });
+    if (!doc || !doc.sessionId) return undefined;
+    return {
+      sessionId: doc.sessionId,
+      familyId: doc.familyId,
+      userId: doc.userId || '',
+      refreshTokenHash: doc.refreshTokenHash || '',
+      expiresAt: doc.expiresAt instanceof Date ? doc.expiresAt.toISOString() : (doc.expiresAt || ''),
+      createdAt: doc.createdAt || '',
+      lastActiveAt: doc.lastActiveAt || '',
+      isRevoked: doc.isRevoked || false,
+      userAgent: doc.userAgent,
+      ipAddress: doc.ipAddress,
+    };
   }
 
   async findSessionsByUserId(
@@ -50,15 +102,26 @@ export class MongoSessionRepository {
     limit = 20,
     offset = 0
   ): Promise<{ items: Session[]; total: number }> {
-    const filter = { userId, type: 'session', isRevoked: false } as any;
-    const total = await this.sessionsRepo.countDocuments(filter);
-    const docs = await this.sessionsRepo.find(filter, {
+    const filter = { userId, type: 'session' as const, isRevoked: false };
+    const total = await this.repo.countDocuments(filter);
+    const docs = await this.repo.find(filter, {
       sort: { lastActiveAt: -1 },
       skip: offset,
       limit,
     });
     return {
-      items: docs as unknown as Session[],
+      items: docs.filter(d => Boolean(d.sessionId)).map(d => ({
+        sessionId: d.sessionId!,
+        familyId: d.familyId,
+        userId: d.userId || '',
+        refreshTokenHash: d.refreshTokenHash || '',
+        expiresAt: d.expiresAt instanceof Date ? d.expiresAt.toISOString() : (d.expiresAt || ''),
+        createdAt: d.createdAt || '',
+        lastActiveAt: d.lastActiveAt || '',
+        isRevoked: d.isRevoked || false,
+        userAgent: d.userAgent,
+        ipAddress: d.ipAddress,
+      })),
       total,
     };
   }
@@ -66,9 +129,9 @@ export class MongoSessionRepository {
   async revokeSession(sessionId: string): Promise<void> {
     const session = await this.findSessionById(sessionId);
     if (session) {
-      await this.sessionsRepo.updateOne(
-        { sessionId, type: 'session' } as any,
-        { $set: { isRevoked: true } as any }
+      await this.repo.updateOne(
+        { sessionId, type: 'session' },
+        { $set: { isRevoked: true } }
       );
       if (session.familyId) {
         await this.revokeFamily(session.familyId);
@@ -77,13 +140,13 @@ export class MongoSessionRepository {
   }
 
   async revokeFamily(familyId: string): Promise<void> {
-    await this.familiesRepo.updateOne(
-      { familyId, type: 'family' } as any,
-      { $set: { isRevoked: true, revokedAt: new Date().toISOString() } as any }
+    await this.repo.updateOne(
+      { familyId, type: 'family' },
+      { $set: { isRevoked: true, revokedAt: new Date().toISOString() } }
     );
-    await this.sessionsRepo.updateMany(
-      { familyId, type: 'session' } as any,
-      { $set: { isRevoked: true } as any }
+    await this.repo.updateMany(
+      { familyId, type: 'session' },
+      { $set: { isRevoked: true } }
     );
   }
 }

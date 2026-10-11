@@ -1,5 +1,6 @@
-import { Db, GlobalRepository } from '@onebridge/shared';
+import { GlobalRepository, MongoConnectionHandle } from '@onebridge/shared';
 import { OtpChallenge, RateLimitEntry } from '../../domain/otp-challenge.js';
+import { IOtpRepository } from '../../application/auth.service.js';
 
 interface MongoOtpDocument {
   id: string;
@@ -20,18 +21,22 @@ interface MongoRateLimitDocument {
   resetAt: Date;
 }
 
-export class MongoOtpRepository {
+export class MongoOtpRepository implements IOtpRepository {
   private challengesRepo: GlobalRepository<MongoOtpDocument>;
   private rateLimitsRepo: GlobalRepository<MongoRateLimitDocument>;
 
-  constructor(db: Db) {
-    this.challengesRepo = new GlobalRepository<MongoOtpDocument>(db, 'otp_challenges');
-    this.rateLimitsRepo = new GlobalRepository<MongoRateLimitDocument>(db, 'rate_limits');
+  constructor(dbOrHandle: MongoConnectionHandle | unknown) {
+    this.challengesRepo = new GlobalRepository<MongoOtpDocument>(dbOrHandle as MongoConnectionHandle, 'otp_challenges');
+    this.rateLimitsRepo = new GlobalRepository<MongoRateLimitDocument>(dbOrHandle as MongoConnectionHandle, 'rate_limits');
   }
 
   async createIndexes(): Promise<void> {
-    // MongoDB TTL Index for automated expiry
+    await this.ensureIndexes();
+  }
+
+  async ensureIndexes(): Promise<void> {
     await this.challengesRepo.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+    await this.challengesRepo.createIndex({ phone: 1 });
     await this.rateLimitsRepo.createIndex({ resetAt: 1 }, { expireAfterSeconds: 0 });
   }
 
@@ -66,7 +71,6 @@ export class MongoOtpRepository {
 
   async savePhoneRateLimit(phone: string, entry: RateLimitEntry): Promise<void> {
     const key = `phone:${phone}`;
-    // TTL index resetAt set 2 hours in the future
     const resetAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
     await this.rateLimitsRepo.replaceOne(
       { key },

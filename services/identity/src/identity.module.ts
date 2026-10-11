@@ -1,5 +1,5 @@
 import { Module, DynamicModule, Global } from '@nestjs/common';
-import { Db, MongoClient, FakeOtpSender, FakeEventBus } from '@onebridge/shared';
+import { MongoConnectionHandle, connectMongo, FakeOtpSender, FakeEventBus } from '@onebridge/shared';
 import { IdentityEnvConfig, loadAndValidateEnv } from './config/env.js';
 import { KeyService } from './application/key.service.js';
 import { TokenService } from './application/token.service.js';
@@ -19,7 +19,7 @@ import { CsrfOriginGuard } from './presentation/guards/csrf-origin.guard.js';
 
 export interface IdentityModuleOptions {
   envConfig?: IdentityEnvConfig;
-  db?: Db;
+  connectionHandle?: MongoConnectionHandle;
 }
 
 @Global()
@@ -40,7 +40,7 @@ export class IdentityModule {
 
     const tokenServiceProvider = {
       provide: TokenService,
-      useFactory: (sessionRepo: MongoSessionRepository) => new TokenService(sessionRepo as any, config.jwtSecret),
+      useFactory: (sessionRepo: MongoSessionRepository) => new TokenService(sessionRepo, config.jwtSecret),
       inject: [MongoSessionRepository],
     };
 
@@ -64,37 +64,47 @@ export class IdentityModule {
         serviceKeyGuardProvider,
         csrfOriginGuardProvider,
         {
-          provide: 'MONGO_DB',
+          provide: MongoConnectionHandle,
           useFactory: async () => {
-            if (options.db) return options.db;
-            const client = new MongoClient(config.mongoUri);
-            await client.connect();
-            return client.db();
+            if (options.connectionHandle) return options.connectionHandle;
+            return connectMongo(config.mongoUri);
           },
         },
         {
           provide: MongoPersonRepository,
-          useFactory: (db: Db, keyService: KeyService) => new MongoPersonRepository(db, keyService),
-          inject: ['MONGO_DB', KeyService],
+          useFactory: async (handle: MongoConnectionHandle, keyService: KeyService) => {
+            const repo = new MongoPersonRepository(handle, keyService);
+            await repo.ensureIndexes();
+            return repo;
+          },
+          inject: [MongoConnectionHandle, KeyService],
         },
         {
           provide: MongoSessionRepository,
-          useFactory: (db: Db) => new MongoSessionRepository(db),
-          inject: ['MONGO_DB'],
+          useFactory: async (handle: MongoConnectionHandle) => {
+            const repo = new MongoSessionRepository(handle);
+            await repo.ensureIndexes();
+            return repo;
+          },
+          inject: [MongoConnectionHandle],
         },
         {
           provide: MongoOtpRepository,
-          useFactory: async (db: Db) => {
-            const repo = new MongoOtpRepository(db);
-            await repo.createIndexes();
+          useFactory: async (handle: MongoConnectionHandle) => {
+            const repo = new MongoOtpRepository(handle);
+            await repo.ensureIndexes();
             return repo;
           },
-          inject: ['MONGO_DB'],
+          inject: [MongoConnectionHandle],
         },
         {
           provide: MongoMembershipRepository,
-          useFactory: (db: Db) => new MongoMembershipRepository(db),
-          inject: ['MONGO_DB'],
+          useFactory: async (handle: MongoConnectionHandle) => {
+            const repo = new MongoMembershipRepository(handle);
+            await repo.ensureIndexes();
+            return repo;
+          },
+          inject: [MongoConnectionHandle],
         },
         {
           provide: AuthService,
@@ -107,12 +117,12 @@ export class IdentityModule {
             const fakeEventBus = new FakeEventBus();
             const oauthVerifier = new FakeOAuthVerifier(config.nodeEnv === 'production');
             return new AuthService({
-              personRepo: personRepo as any,
-              sessionRepo: sessionRepo as any,
-              otpRepo: otpRepo as any,
+              persons: personRepo,
+              sessions: sessionRepo,
+              otpChallenges: otpRepo,
               otpSender: fakeOtpSender,
               eventBus: fakeEventBus,
-              oauthVerifier: oauthVerifier as any,
+              oauthVerifier: oauthVerifier,
               jwtSecret: config.jwtSecret,
             });
           },
@@ -126,12 +136,12 @@ export class IdentityModule {
           provide: RbacService,
           useFactory: (membershipRepo: MongoMembershipRepository, personRepo: MongoPersonRepository) => {
             const fakeEventBus = new FakeEventBus();
-            return new RbacService(membershipRepo as any, personRepo as any, fakeEventBus);
+            return new RbacService(membershipRepo, personRepo, fakeEventBus);
           },
           inject: [MongoMembershipRepository, MongoPersonRepository],
         },
       ],
-      exports: [AuthService, MfaService, RbacService, TokenService, 'IDENTITY_ENV_CONFIG'],
+      exports: [AuthService, MfaService, RbacService, TokenService, 'IDENTITY_ENV_CONFIG', MongoConnectionHandle],
     };
   }
 }

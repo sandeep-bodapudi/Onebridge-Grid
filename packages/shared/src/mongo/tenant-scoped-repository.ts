@@ -15,12 +15,13 @@ import {
 } from 'mongodb';
 import { TenantContext, TenantIsolationError } from '../tenant.js';
 import { getCollectionClassification, KNOWN_COLLECTIONS } from './collection-registry.js';
+import { MongoConnectionHandle } from './connection-handle.js';
 
 export class TenantScopedRepository<T extends Document> {
   protected readonly collection: Collection<T>;
   public readonly collectionName: string;
 
-  constructor(db: Db, collectionName: string) {
+  constructor(dbOrHandle: Db | MongoConnectionHandle, collectionName: string) {
     const classification = getCollectionClassification(collectionName);
     if (classification !== 'tenant-scoped') {
       throw new Error(
@@ -28,6 +29,7 @@ export class TenantScopedRepository<T extends Document> {
       );
     }
     this.collectionName = collectionName;
+    const db = dbOrHandle instanceof MongoConnectionHandle ? dbOrHandle._getInternalDb() : dbOrHandle;
     this.collection = db.collection<T>(collectionName);
   }
 
@@ -278,4 +280,14 @@ export class TenantScopedRepository<T extends Document> {
 
     return resultPipeline;
   }
+
+  async createIndex(indexSpec: any, options?: any): Promise<string> {
+    return this.collection.createIndex(indexSpec, options);
+  }
+
+  async findUnscopedByPerson(personId: string): Promise<T[]> {
+    return (await this.collection.find({ personId } as any).toArray()) as T[];
+  }
 }
+
+

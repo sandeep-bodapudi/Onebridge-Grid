@@ -1,6 +1,7 @@
-import { MongoClient, Db, type Collection, type Filter, type Document } from 'mongodb';
+import { MongoClient, Db } from 'mongodb';
+import { MongoConnectionHandle } from './connection-handle.js';
 
-export { MongoClient, Db, type Collection, type Filter, type Document };
+export { MongoConnectionHandle };
 
 export function redactMongoUri(uri: string): string {
   try {
@@ -53,26 +54,24 @@ export function validateMongoUri(
   return trimmed;
 }
 
-let cachedClient: MongoClient | null = null;
-let cachedDb: Db | null = null;
+let cachedHandle: MongoConnectionHandle | null = null;
 
-export async function connectMongo(uri: string, dbName?: string): Promise<{ client: MongoClient; db: Db }> {
-  if (cachedClient && cachedDb) {
-    return { client: cachedClient, db: cachedDb };
+export async function connectMongo(uri: string, dbName?: string): Promise<MongoConnectionHandle> {
+  if (cachedHandle) {
+    return cachedHandle;
   }
 
   const client = new MongoClient(uri);
   await client.connect();
   const db = client.db(dbName);
-  cachedClient = client;
-  cachedDb = db;
-  return { client, db };
+  cachedHandle = new MongoConnectionHandle(client, db);
+  return cachedHandle;
 }
 
 export async function disconnectMongo(): Promise<void> {
-  if (cachedClient) {
-    await cachedClient.close();
-    cachedClient = null;
-    cachedDb = null;
+  if (cachedHandle) {
+    await cachedHandle.close();
+    cachedHandle = null;
   }
 }
+

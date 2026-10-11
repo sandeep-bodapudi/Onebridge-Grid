@@ -1,6 +1,7 @@
-import { Db, GlobalRepository } from '@onebridge/shared';
+import { GlobalRepository, MongoConnectionHandle } from '@onebridge/shared';
 import { Person } from '../../domain/person.js';
 import { KeyService } from '../../application/key.service.js';
+import { IPersonRepository } from '../../application/auth.service.js';
 
 interface MongoPersonDoc {
   userId: string;
@@ -17,14 +18,19 @@ interface MongoPersonDoc {
   updatedAt: string;
 }
 
-export class MongoPersonRepository {
+export class MongoPersonRepository implements IPersonRepository {
   private repo: GlobalRepository<MongoPersonDoc>;
 
   constructor(
-    db: Db,
+    dbOrHandle: MongoConnectionHandle | unknown,
     private keyService: KeyService
   ) {
-    this.repo = new GlobalRepository<MongoPersonDoc>(db, 'persons');
+    this.repo = new GlobalRepository<MongoPersonDoc>(dbOrHandle as MongoConnectionHandle, 'persons');
+  }
+
+  async ensureIndexes(): Promise<void> {
+    await this.repo.createIndex({ phone: 1 }, { unique: true, sparse: true });
+    await this.repo.createIndex({ email: 1 }, { unique: true, sparse: true });
   }
 
   private toDomain(doc: MongoPersonDoc): Person {
@@ -33,45 +39,49 @@ export class MongoPersonRepository {
       phone: doc.phone,
       email: doc.email,
       name: doc.name,
-      authProviders: (doc.authProviders as any) || [],
+      authProviders: (doc.authProviders as ('otp' | 'google' | 'microsoft')[]) || [],
       mfa: {
         enabled: doc.mfa?.enabled || false,
         secret: doc.mfa?.secret ? this.keyService.decrypt(doc.mfa.secret) : undefined,
       },
-      roles: (doc.roles as any) || [],
+      roles: doc.roles || [],
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
     return person;
   }
 
-  private toDoc(person: Partial<Person> & { userId: string }): MongoPersonDoc {
-    const now = new Date().toISOString();
+  private toDoc(person: Person): MongoPersonDoc {
     return {
       userId: person.userId,
       phone: person.phone,
       email: person.email,
       name: person.name,
-      authProviders: person.authProviders || [],
+      authProviders: person.authProviders,
       mfa: {
         enabled: person.mfa?.enabled || false,
-        // Encrypt TOTP secret at rest
         secret: person.mfa?.secret ? this.keyService.encrypt(person.mfa.secret) : undefined,
       },
-      roles: person.roles || [],
-      createdAt: person.createdAt || now,
-      updatedAt: person.updatedAt || now,
+      roles: person.roles,
+      createdAt: person.createdAt,
+      updatedAt: person.updatedAt,
     };
   }
 
-  async create(personData: Partial<Person> & { userId: string }): Promise<Person> {
-    const doc = this.toDoc(personData);
-    await this.repo.replaceOne({ userId: doc.userId }, doc, { upsert: true });
-    return this.toDomain(doc);
+  async create(person: Omit<Person, 'createdAt' | 'updatedAt'>): Promise<Person> {
+    const now = new Date().toISOString();
+    const fullPerson: Person = {
+      ...person,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const doc = this.toDoc(fullPerson);
+    await this.repo.insertOne(doc);
+    return fullPerson;
   }
 
-  async save(personData: Partial<Person> & { id?: string; userId?: string }): Promise<Person> {
-    const userId = personData.userId || personData.id || `person-${Math.random().toString(36).substring(2, 9)}`;
+  async createPerson(personData: Omit<Person, 'userId' | 'createdAt' | 'updatedAt'>, idGenerator?: () => string): Promise<Person> {
+    const userId = idGenerator ? idGenerator() : `usr_${Math.random().toString(36).substring(2, 9)}`;
     return this.create({ ...personData, userId });
   }
 
@@ -86,7 +96,7 @@ export class MongoPersonRepository {
   }
 
   async findByEmail(email: string): Promise<Person | undefined> {
-    const doc = await this.repo.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } as any });
+    const doc = await this.repo.findOne({ email: { $regex: `^${email}$`, $options: 'i' } as unknown as string });
     return doc ? this.toDomain(doc) : undefined;
   }
 
