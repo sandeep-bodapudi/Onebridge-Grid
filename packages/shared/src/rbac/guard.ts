@@ -5,23 +5,23 @@ export const PERMISSIONS_METADATA_KEY = 'rbac:permissions';
 export const ROLES_METADATA_KEY = 'rbac:roles';
 
 export function RequirePermission(...permissions: Capability[]) {
-  return (target: any, _key?: string | symbol, descriptor?: TypedPropertyDescriptor<any>) => {
+  return (target: object, _key?: string | symbol, descriptor?: TypedPropertyDescriptor<unknown>) => {
     if (descriptor) {
-      (descriptor.value as any)[PERMISSIONS_METADATA_KEY] = permissions;
+      ((descriptor.value as unknown) as Record<string, unknown>)[PERMISSIONS_METADATA_KEY] = permissions;
       return descriptor;
     }
-    (target as any)[PERMISSIONS_METADATA_KEY] = permissions;
+    ((target as unknown) as Record<string, unknown>)[PERMISSIONS_METADATA_KEY] = permissions;
     return target;
   };
 }
 
 export function RequireRole(...roles: Role[]) {
-  return (target: any, _key?: string | symbol, descriptor?: TypedPropertyDescriptor<any>) => {
+  return (target: object, _key?: string | symbol, descriptor?: TypedPropertyDescriptor<unknown>) => {
     if (descriptor) {
-      (descriptor.value as any)[ROLES_METADATA_KEY] = roles;
+      ((descriptor.value as unknown) as Record<string, unknown>)[ROLES_METADATA_KEY] = roles;
       return descriptor;
     }
-    (target as any)[ROLES_METADATA_KEY] = roles;
+    ((target as unknown) as Record<string, unknown>)[ROLES_METADATA_KEY] = roles;
     return target;
   };
 }
@@ -43,11 +43,20 @@ export function assertPermission(
   }
 }
 
+export interface RbacExecutionContext {
+  getHandler?: () => unknown;
+  getClass?: () => unknown;
+  handler?: unknown;
+  targetClass?: unknown;
+  switchToHttp?: () => { getRequest(): unknown };
+  request?: unknown;
+}
+
 export class RbacGuard {
-  canActivate(context: any): boolean {
-    const handler = context.getHandler ? context.getHandler() : context.handler;
-    const targetClass = context.getClass ? context.getClass() : context.targetClass;
-    const request = context.switchToHttp ? context.switchToHttp().getRequest() : context.request || context;
+  canActivate(context: RbacExecutionContext): boolean {
+    const handler = (context.getHandler ? context.getHandler() : context.handler) as Record<string, unknown> | undefined;
+    const targetClass = (context.getClass ? context.getClass() : context.targetClass) as Record<string, unknown> | undefined;
+    const request = (context.switchToHttp ? context.switchToHttp().getRequest() : context.request || context) as Record<string, unknown>;
 
     const requiredPermissions: Capability[] =
       (handler && (handler[PERMISSIONS_METADATA_KEY] || (handler.value && handler.value[PERMISSIONS_METADATA_KEY]))) ||

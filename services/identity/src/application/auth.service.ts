@@ -1,19 +1,48 @@
 import crypto from 'node:crypto';
-import { FakeOtpSender, FakeEventBus, Logger } from '@onebridge/shared';
-import { InMemoryPersonRepository } from '../infrastructure/repositories/in-memory-person.repository.js';
-import { InMemorySessionRepository } from '../infrastructure/repositories/in-memory-session.repository.js';
-import { InMemoryOtpRepository } from '../infrastructure/repositories/in-memory-otp.repository.js';
+import { FakeOtpSender, FakeEventBus } from '@onebridge/shared';
 import { OtpService } from './otp.service.js';
 import { TokenService } from './token.service.js';
 import { MfaService } from './mfa.service.js';
 import { Person } from '../domain/person.js';
-
+import { Session, SessionFamily } from '../domain/session.js';
+import { OtpChallenge, RateLimitEntry } from '../domain/otp-challenge.js';
 import { IOAuthVerifier } from './oauth-verifier.js';
 
+export interface IPersonRepository {
+  create(person: Omit<Person, 'createdAt' | 'updatedAt'>): Promise<Person>;
+  createPerson(personData: Omit<Person, 'userId' | 'createdAt' | 'updatedAt'>, idGenerator?: () => string): Promise<Person>;
+  findById(userId: string): Promise<Person | undefined>;
+  findByPhone(phone: string): Promise<Person | undefined>;
+  findByEmail(email: string): Promise<Person | undefined>;
+  update(person: Person): Promise<void>;
+}
+
+export interface ISessionRepository {
+  saveFamily(family: SessionFamily): Promise<void>;
+  findFamilyById(familyId: string): Promise<SessionFamily | undefined>;
+  saveSession(session: Session): Promise<void>;
+  findSessionById(sessionId: string): Promise<Session | undefined>;
+  findSessionsByUserId(userId: string, limit?: number, offset?: number): Promise<{ items: Session[]; total: number }>;
+  revokeSession(sessionId: string): Promise<void>;
+  revokeFamily(familyId: string): Promise<void>;
+}
+
+export interface IOtpRepository {
+  save(challenge: OtpChallenge): Promise<void>;
+  findLatestByPhone(phone: string): Promise<OtpChallenge | undefined>;
+  getPhoneRateLimit(phone: string): Promise<RateLimitEntry>;
+  savePhoneRateLimit(phone: string, entry: RateLimitEntry): Promise<void>;
+  getIpRateLimit(ip: string): Promise<RateLimitEntry>;
+  saveIpRateLimit(ip: string, entry: RateLimitEntry): Promise<void>;
+}
+
 export interface AuthServiceConfig {
-  personRepo: any;
-  sessionRepo: any;
-  otpRepo: any;
+  personRepo?: IPersonRepository;
+  persons?: IPersonRepository;
+  sessionRepo?: ISessionRepository;
+  sessions?: ISessionRepository;
+  otpRepo?: IOtpRepository;
+  otpChallenges?: IOtpRepository;
   otpSender: FakeOtpSender;
   eventBus: FakeEventBus;
   jwtSecret: string;
@@ -29,8 +58,8 @@ export interface VerifyOtpResult {
 }
 
 export class AuthService {
-  private personRepo: any;
-  private sessionRepo: any;
+  private personRepo: IPersonRepository;
+  private sessionRepo: ISessionRepository;
   public otpService: OtpService;
   public tokenService: TokenService;
   public mfaService: MfaService;
@@ -38,10 +67,18 @@ export class AuthService {
   private oauthVerifier?: IOAuthVerifier;
 
   constructor(config: AuthServiceConfig) {
-    this.personRepo = config.personRepo;
-    this.sessionRepo = config.sessionRepo;
-    this.otpService = new OtpService(config.otpRepo, config.otpSender);
-    this.tokenService = new TokenService(config.sessionRepo, config.jwtSecret);
+    const personRepo = config.persons || config.personRepo;
+    const sessionRepo = config.sessions || config.sessionRepo;
+    const otpRepo = config.otpChallenges || config.otpRepo;
+
+    if (!personRepo || !sessionRepo || !otpRepo) {
+      throw new Error('AuthService requires personRepo, sessionRepo, and otpRepo.');
+    }
+
+    this.personRepo = personRepo;
+    this.sessionRepo = sessionRepo;
+    this.otpService = new OtpService(otpRepo, config.otpSender);
+    this.tokenService = new TokenService(sessionRepo, config.jwtSecret);
     this.mfaService = new MfaService();
     this.eventBus = config.eventBus;
     this.oauthVerifier = config.oauthVerifier;
@@ -59,56 +96,108 @@ export class AuthService {
     provider: 'google' | 'microsoft',
     idToken: string,
     deviceLabel: string,
-    ipAddress: string
+    ipAddress: string,
+    correlationId = 'unknown'
   ): Promise<VerifyOtpResult> {
     if (!this.oauthVerifier) {
-      throw new Error('OAuth verifier is not configured');
+      throw new Error('OAuthVerifier is not configured.');
     }
-    const user = await this.oauthVerifier.verifyIdToken(provider, idToken);
-    const result = await this.handleOAuthLogin(
-      provider,
-      {
-        sub: user.sub,
-        email: user.email,
-        emailVerified: user.emailVerified,
-        name: user.name,
-      },
-      deviceLabel,
-      ipAddress
+
+    // 1. Verify idToken with provider
+    const profile = await this.oauthVerifier.verifyIdToken(provider, idToken);
+
+    // 2. Link or create Person (Rule AC-4)
+    let person: Person | undefined;
+
+    if (profile.email && profile.emailVerified) {
+      person = await this.personRepo.findByEmail(profile.email);
+    }
+
+    if (!person && profile.phone && profile.phoneVerified) {
+      person = await this.personRepo.findByPhone(profile.phone);
+    }
+
+    if (person) {
+      // Link provider if not already linked
+      const providers = person.authProviders || [];
+      if (!providers.includes(provider)) {
+        providers.push(provider);
+        person.authProviders = providers;
+        await this.personRepo.update(person);
+      }
+    } else {
+      // Create new Person
+      const userId = `usr_${crypto.randomBytes(12).toString('hex')}`;
+      person = await this.personRepo.create({
+        userId,
+        email: profile.emailVerified ? profile.email : undefined,
+        phone: profile.phoneVerified ? profile.phone : undefined,
+        name: profile.name,
+        authProviders: [provider],
+        mfa: { enabled: false },
+      });
+
+      await this.eventBus.publish({
+        eventId: crypto.randomUUID(),
+        type: 'user.registered',
+        version: '1.0.0',
+        tenantId: 'global',
+        occurredAt: new Date().toISOString(),
+        correlationId,
+      });
+    }
+
+    // Check MFA requirements
+    const isOwnerOrAdmin = (person.roles || []).some(
+      (r) => (r.role === 'Owner' || r.role === 'Admin') && r.plan === 'Business'
     );
+    const mfaEnforced = isOwnerOrAdmin || (person.mfa && person.mfa.enabled);
+
+    if (mfaEnforced) {
+      if (!person.mfa || !person.mfa.enabled) {
+        const mfaTicket = this.tokenService.generateMfaTicket(person.userId);
+        return {
+          status: 'mfa_setup_required',
+          mfaTicket,
+          userId: person.userId,
+        };
+      } else {
+        const mfaTicket = this.tokenService.generateMfaTicket(person.userId);
+        return {
+          status: 'mfa_required',
+          mfaTicket,
+          userId: person.userId,
+        };
+      }
+    }
+
+    // Issue tokens and session
+    const familyId = `fam_${crypto.randomBytes(12).toString('hex')}`;
+    const sessionId = `ses_${crypto.randomBytes(12).toString('hex')}`;
+
+    const tokens = await this.tokenService.createSessionFamily(
+      person.userId,
+      deviceLabel,
+      ipAddress,
+      familyId,
+      sessionId
+    );
+
+    await this.eventBus.publish({
+      eventId: crypto.randomUUID(),
+      type: 'user.authenticated',
+      version: '1.0.0',
+      tenantId: 'global',
+      occurredAt: new Date().toISOString(),
+      correlationId,
+    });
+
     return {
       status: 'authenticated',
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-      userId: result.userId,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      userId: person.userId,
     };
-  }
-
-  verifyAccessToken(authHeader?: string) {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new Error('Missing or invalid Authorization header');
-    }
-    const token = authHeader.substring(7);
-    const decoded = this.tokenService.verifyAccessToken(token);
-    if (!decoded) {
-      throw new Error('Expired or invalid access token');
-    }
-    return decoded;
-  }
-
-  async rotateTokens(oldRefreshToken?: string, deviceLabel = 'Unknown', ipAddress = '127.0.0.1') {
-    if (!oldRefreshToken) {
-      throw new Error('Missing refresh token');
-    }
-    return this.tokenService.rotateRefreshToken(oldRefreshToken, deviceLabel, ipAddress);
-  }
-
-  async logout(refreshToken: string) {
-    return this.tokenService.revokeRefreshToken(refreshToken);
-  }
-
-  async revokeSession(sessionId: string, userId: string) {
-    return this.revokeUserSession(userId, sessionId);
   }
 
   async verifyOtpAndLogin(
@@ -116,17 +205,15 @@ export class AuthService {
     code: string,
     deviceLabel: string,
     ipAddress: string,
-    correlationId = 'corr-unknown'
+    correlationId = 'unknown'
   ): Promise<VerifyOtpResult> {
     // 1. Verify OTP
     await this.otpService.verifyOtp(phone, code, ipAddress);
 
     // 2. Find or create Person
     let person = await this.personRepo.findByPhone(phone);
-    let isNewUser = false;
 
     if (!person) {
-      isNewUser = true;
       const userId = `usr_${crypto.randomBytes(12).toString('hex')}`;
       person = await this.personRepo.create({
         userId,
@@ -143,202 +230,169 @@ export class AuthService {
         tenantId: 'global',
         occurredAt: new Date().toISOString(),
         correlationId,
-        aggregateVersion: 1,
-        payload: {
-          userId: person.userId,
-          phone: person.phone,
-          authProvider: 'otp',
-        },
       });
-
-      Logger.log('User registered via OTP', { correlationId });
     }
 
-    // 3. Check MFA policy
-    const mfaRequired = this.checkUserMfaRequirement(person);
-    if (mfaRequired && !person.mfa.enabled) {
-      const mfaTicket = this.generateMfaTicket(person.userId);
-      return { status: 'mfa_setup_required', mfaTicket, userId: person.userId };
+    // 3. Check MFA Requirements (AC-8: Mandatory for Owner/Admin on Business plan)
+    const isOwnerOrAdmin = (person.roles || []).some(
+      (r) => (r.role === 'Owner' || r.role === 'Admin') && r.plan === 'Business'
+    );
+    const mfaEnforced = isOwnerOrAdmin || (person.mfa && person.mfa.enabled);
+
+    if (mfaEnforced) {
+      if (!person.mfa || !person.mfa.enabled) {
+        // Enforce setup before completing login
+        const mfaTicket = this.tokenService.generateMfaTicket(person.userId);
+        return {
+          status: 'mfa_setup_required',
+          mfaTicket,
+          userId: person.userId,
+        };
+      } else {
+        // Standard MFA challenge
+        const mfaTicket = this.tokenService.generateMfaTicket(person.userId);
+        return {
+          status: 'mfa_required',
+          mfaTicket,
+          userId: person.userId,
+        };
+      }
     }
 
-    if (person.mfa.enabled) {
-      const mfaTicket = this.generateMfaTicket(person.userId);
-      return { status: 'mfa_required', mfaTicket, userId: person.userId };
-    }
+    // 4. Issue standard tokens and establish session family
+    const familyId = `fam_${crypto.randomBytes(12).toString('hex')}`;
+    const sessionId = `ses_${crypto.randomBytes(12).toString('hex')}`;
 
-    // 4. Create Session & Tokens
-    const sessionResult = await this.tokenService.createSessionFamily(person.userId, deviceLabel, ipAddress);
+    const tokens = await this.tokenService.createSessionFamily(
+      person.userId,
+      deviceLabel,
+      ipAddress,
+      familyId,
+      sessionId
+    );
+
+    // Emit user.authenticated domain event
+    await this.eventBus.publish({
+      eventId: crypto.randomUUID(),
+      type: 'user.authenticated',
+      version: '1.0.0',
+      tenantId: 'global',
+      occurredAt: new Date().toISOString(),
+      correlationId,
+    });
+
     return {
       status: 'authenticated',
-      accessToken: sessionResult.accessToken,
-      refreshToken: sessionResult.refreshToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       userId: person.userId,
     };
   }
 
-  async handleOAuthLogin(
-    provider: 'google' | 'microsoft',
-    profile: {
-      sub: string;
-      email?: string;
-      emailVerified?: boolean;
-      phone?: string;
-      phoneVerified?: boolean;
-      name?: string;
-    },
+  async verifyMfaAndCompleteLogin(
+    mfaTicket: string,
+    totpCode: string,
     deviceLabel: string,
-    ipAddress = '127.0.0.1',
-    correlationId = 'corr-unknown'
-  ): Promise<{ userId: string; accessToken: string; refreshToken: string }> {
-    const hasVerifiedEmail = Boolean(profile.email && profile.emailVerified);
-    const hasVerifiedPhone = Boolean(profile.phone && profile.phoneVerified);
-
-    if (!hasVerifiedEmail && !hasVerifiedPhone) {
-      throw new Error('Cannot link unverified OAuth identity');
-    }
-
-    // AC-4: Link to an existing person by verified email or phone only
-    let person: Person | undefined;
-    if (hasVerifiedEmail && profile.email) {
-      person = await this.personRepo.findByEmail(profile.email);
-    }
-    if (!person && hasVerifiedPhone && profile.phone) {
-      person = await this.personRepo.findByPhone(profile.phone);
-    }
-
-    if (person) {
-      if (!person.authProviders.includes(provider)) {
-        person.authProviders.push(provider);
-        await this.personRepo.update(person);
-      }
-    } else {
-      const userId = `usr_${crypto.randomBytes(12).toString('hex')}`;
-      person = await this.personRepo.create({
-        userId,
-        email: hasVerifiedEmail ? profile.email : undefined,
-        phone: hasVerifiedPhone ? profile.phone : undefined,
-        name: profile.name,
-        authProviders: [provider],
-        mfa: { enabled: false },
-      });
-
-      if (!person) {
-        throw new Error('Failed to create person');
-      }
-
-      await this.eventBus.publish({
-        eventId: crypto.randomUUID(),
-        type: 'user.registered',
-        version: '1.0.0',
-        tenantId: 'global',
-        occurredAt: new Date().toISOString(),
-        correlationId,
-        aggregateVersion: 1,
-        payload: {
-          userId: person.userId,
-          phone: person.phone || 'none',
-          authProvider: provider,
-        },
-      });
-    }
-
-    if (!person) {
-      throw new Error('User profile could not be determined');
-    }
-
-    const sessionResult = await this.tokenService.createSessionFamily(person.userId, deviceLabel, ipAddress);
-    return {
-      userId: person.userId,
-      accessToken: sessionResult.accessToken,
-      refreshToken: sessionResult.refreshToken,
-    };
-  }
-
-  private generateMfaTicket(userId: string): string {
-    return crypto.randomBytes(24).toString('hex') + ':' + userId;
-  }
-
-  private parseMfaTicket(ticket: string): string {
-    const parts = ticket.split(':');
-    if (parts.length !== 2 || !parts[1]) {
-      throw new Error('Invalid MFA ticket');
-    }
-    return parts[1];
-  }
-
-  async verifyMfaChallenge(ticket: string, code: string, deviceLabel: string, ipAddress: string): Promise<{ accessToken: string; refreshToken: string }> {
-    const userId = this.parseMfaTicket(ticket);
+    ipAddress: string,
+    correlationId = 'unknown'
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const userId = this.tokenService.verifyMfaTicket(mfaTicket);
     const person = await this.personRepo.findById(userId);
-    if (!person || !person.mfa.enabled || !person.mfa.secret) {
-      throw new Error('MFA is not enabled for this user');
+
+    if (!person || !person.mfa || !person.mfa.secret) {
+      throw new Error('MFA not configured for user');
     }
 
-    const isValid = this.mfaService.verifyTotp(person.mfa.secret, code);
+    const isValid = this.mfaService.verifyTotp(person.mfa.secret, totpCode);
     if (!isValid) {
-      throw new Error('Invalid TOTP code');
+      throw new Error('Invalid MFA verification code');
     }
 
-    const session = await this.tokenService.createSessionFamily(person.userId, deviceLabel, ipAddress);
-    return {
-      accessToken: session.accessToken,
-      refreshToken: session.refreshToken,
-    };
+    const familyId = `fam_${crypto.randomBytes(12).toString('hex')}`;
+    const sessionId = `ses_${crypto.randomBytes(12).toString('hex')}`;
+
+    const tokens = await this.tokenService.createSessionFamily(
+      userId,
+      deviceLabel,
+      ipAddress,
+      familyId,
+      sessionId
+    );
+
+    await this.eventBus.publish({
+      eventId: crypto.randomUUID(),
+      type: 'user.authenticated',
+      version: '1.0.0',
+      tenantId: 'global',
+      occurredAt: new Date().toISOString(),
+      correlationId,
+    });
+
+    return tokens;
   }
 
-  async setupMfaForUser(userId: string): Promise<{ secret: string; qrUri: string }> {
+  async completeMfaSetupAndLogin(
+    mfaTicket: string,
+    totpSecret: string,
+    totpCode: string,
+    deviceLabel: string,
+    ipAddress: string,
+    correlationId = 'unknown'
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const userId = this.tokenService.verifyMfaTicket(mfaTicket);
     const person = await this.personRepo.findById(userId);
+
     if (!person) {
       throw new Error('User not found');
     }
 
-    const setup = this.mfaService.generateSetup(person.phone || person.email || person.userId);
-    person.mfa.secret = setup.secret;
-    await this.personRepo.update(person);
-
-    return setup;
-  }
-
-  async confirmMfaSetup(userId: string, code: string): Promise<boolean> {
-    const person = await this.personRepo.findById(userId);
-    if (!person || !person.mfa.secret) {
-      throw new Error('MFA setup not initialized');
-    }
-
-    const isValid = this.mfaService.verifyTotp(person.mfa.secret, code);
+    const isValid = this.mfaService.verifyTotp(totpSecret, totpCode);
     if (!isValid) {
-      throw new Error('Invalid TOTP code');
+      throw new Error('Invalid MFA verification code');
     }
 
-    person.mfa.enabled = true;
-    person.mfa.verifiedAt = new Date().toISOString();
-    await this.personRepo.update(person);
-    return true;
-  }
-
-  private checkUserMfaRequirement(person: Person): boolean {
-    if (!person.roles || person.roles.length === 0) {
-      return false;
-    }
-    return person.roles.some((r: { role: 'Owner' | 'Admin' | 'Member'; plan: string }) =>
-      this.mfaService.isMfaMandatory({ role: r.role, plan: r.plan })
-    );
-  }
-
-  async createSessionForUser(userId: string, deviceLabel: string, ipAddress: string) {
-    const result = await this.tokenService.createSessionFamily(userId, deviceLabel, ipAddress);
-    return {
-      sessionId: result.session.sessionId,
-      familyId: result.session.familyId,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
+    person.mfa = {
+      enabled: true,
+      secret: totpSecret,
     };
+    await this.personRepo.update(person);
+
+    const familyId = `fam_${crypto.randomBytes(12).toString('hex')}`;
+    const sessionId = `ses_${crypto.randomBytes(12).toString('hex')}`;
+
+    const tokens = await this.tokenService.createSessionFamily(
+      userId,
+      deviceLabel,
+      ipAddress,
+      familyId,
+      sessionId
+    );
+
+    await this.eventBus.publish({
+      eventId: crypto.randomUUID(),
+      type: 'user.authenticated',
+      version: '1.0.0',
+      tenantId: 'global',
+      occurredAt: new Date().toISOString(),
+      correlationId,
+    });
+
+    return tokens;
   }
 
-  async listUserSessions(userId: string, limit = 20, offset = 0) {
+  async refreshToken(refreshToken: string, deviceLabel: string, ipAddress: string) {
+    return this.tokenService.rotateRefreshToken(refreshToken, deviceLabel, ipAddress);
+  }
+
+  async logout(refreshToken: string) {
+    return this.tokenService.revokeRefreshToken(refreshToken);
+  }
+
+  async listSessions(userId: string, limit = 20, offset = 0) {
     return this.sessionRepo.findSessionsByUserId(userId, limit, offset);
   }
 
-  async revokeUserSession(userId: string, sessionId: string) {
+  async revokeSession(userId: string, sessionId: string) {
     const session = await this.sessionRepo.findSessionById(sessionId);
     if (!session || session.userId !== userId) {
       throw new Error('Session not found or not owned by user');

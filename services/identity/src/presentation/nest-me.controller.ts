@@ -5,7 +5,6 @@ import {
   HttpCode,
   HttpStatus,
   UnauthorizedException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { RbacService, MeResult } from '../application/rbac.service.js';
 import { TokenService } from '../application/token.service.js';

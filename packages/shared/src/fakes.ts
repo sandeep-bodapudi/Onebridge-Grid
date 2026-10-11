@@ -1,19 +1,19 @@
 export interface Notifier { send(to: string, message: string): Promise<void>; }
-export interface OtpSender { sendOtp(phone: string, email?: string, code?: string): Promise<any>; verifyOtp(phone: string, code: string): Promise<boolean>; }
+export interface OtpSender { sendOtp(phone: string, email?: string, code?: string): Promise<{ channel?: string; success: boolean }>; verifyOtp(phone: string, code: string): Promise<boolean>; }
 export interface PaymentGateway { createOrder(amount: number): Promise<string>; verifyPayment(orderId: string): Promise<boolean>; }
 export interface GstVerifier { verify(gstin: string): Promise<boolean>; }
 export interface Courier { createShipment(address: string): Promise<string>; }
 export interface UrlSafetyChecker { isSafe(url: string): Promise<boolean>; }
 export interface BotChallenge { verifyToken(token: string): Promise<boolean>; }
 export interface KeyService { encrypt(data: string): Promise<string>; decrypt(data: string): Promise<string>; }
-export interface EventBus { publish(event: any): Promise<void>; }
-export interface PlanLimits { getForTenant(tenantId: string): Promise<any>; }
+export interface EventBus { publish(event: unknown): Promise<void>; }
+export interface PlanLimits { getForTenant(tenantId: string): Promise<Record<string, unknown>>; }
 
 export class FakeProvider {
-  public calls: any[] = [];
+  public calls: Array<{ name: string; args: unknown }> = [];
   public shouldFail = false;
   protected checkFailure() { if (this.shouldFail) throw new Error('Fake failure'); }
-  protected record(name: string, args: any) { this.calls.push({ name, args }); }
+  protected record(name: string, args: unknown) { this.calls.push({ name, args }); }
 }
 
 export class FakeNotifier extends FakeProvider implements Notifier {
@@ -84,11 +84,11 @@ export class FakeKeyService extends FakeProvider implements KeyService {
 }
 
 export class FakeEventBus extends FakeProvider implements EventBus {
-  async publish(event: any) { this.checkFailure(); this.record('publish', { event }); }
+  async publish(event: unknown) { this.checkFailure(); this.record('publish', { event }); }
 }
 
 export class FakePlanLimits extends FakeProvider implements PlanLimits {
-  public config: Record<string, any> = {};
+  public config: Record<string, Record<string, unknown>> = {};
   async getForTenant(tenantId: string) { 
     this.checkFailure(); 
     this.record('getForTenant', { tenantId }); 

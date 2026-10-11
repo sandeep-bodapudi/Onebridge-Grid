@@ -5,7 +5,7 @@ export class Logger {
       .replace(/\+?[0-9\s-]{10,15}\b/g, '[REDACTED PHONE]');
   }
 
-  static log(message: string, context?: any) {
+  static log(message: string, context?: Record<string, unknown>) {
     const logObject = {
       timestamp: new Date().toISOString(),
       level: 'info',

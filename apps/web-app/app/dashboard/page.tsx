@@ -4,9 +4,22 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '../../src/api-client';
 
+export interface UserProfile {
+  person?: {
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
+  activeTenant?: {
+    tenantId?: string;
+    id?: string;
+    role?: string;
+  };
+}
+
 export default function DashboardPage() {
   const router = useRouter();
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

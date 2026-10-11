@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { IdempotencyInterceptor, CacheStore } from '../src/idempotency';
+import { IdempotencyInterceptor, CacheStore, CachedIdempotencyRecord } from '../src/idempotency';
 
 class MockCache implements CacheStore {
-  private store = new Map<string, any>();
-  async get(key: string) { return this.store.get(key); }
-  async set(key: string, value: any, ttl: number) { this.store.set(key, value); }
+  private store = new Map<string, CachedIdempotencyRecord>();
+  async get(key: string) { return this.store.get(key) || null; }
+  async set(key: string, value: CachedIdempotencyRecord, _ttl: number) { this.store.set(key, value); }
 }
 
 describe('AC-8: Idempotency', () => {

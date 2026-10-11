@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { 
   ROLES, 
   Role, 
-  CAPABILITIES, 
   hasPermission, 
   getEffectiveRolePermissions 
 } from '@onebridge/shared';

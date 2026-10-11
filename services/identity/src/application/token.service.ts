@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
-import { InMemorySessionRepository } from '../infrastructure/repositories/in-memory-session.repository.js';
+import { Logger } from '@onebridge/shared';
 import { Session, SessionFamily } from '../domain/session.js';
+import { ISessionRepository } from './auth.service.js';
 
 export interface DecodedToken {
   sub: string;
@@ -8,7 +9,7 @@ export interface DecodedToken {
   sessionId: string;
   iat: number;
   exp: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface CookieOptions {
@@ -21,7 +22,7 @@ export interface CookieOptions {
 
 export class TokenService {
   constructor(
-    private sessionRepo: InMemorySessionRepository,
+    private sessionRepo: ISessionRepository,
     private jwtSecret: string
   ) {}
 
@@ -41,7 +42,7 @@ export class TokenService {
     return Buffer.from(base64, 'base64').toString('utf8');
   }
 
-  private signJwt(payload: any, expiresInSeconds: number): string {
+  private signJwt(payload: Record<string, unknown>, expiresInSeconds: number): string {
     const header = { alg: 'HS256', typ: 'JWT' };
     const now = Math.floor(Date.now() / 1000);
     const fullPayload = {
@@ -222,8 +223,10 @@ export class TokenService {
       if (decoded && decoded.familyId) {
         await this.sessionRepo.revokeFamily(decoded.familyId);
       }
-    } catch {
-      // Ignore invalid token on revoke
+    } catch (error) {
+      Logger.warn('Failed to revoke refresh token: token verification or revocation failure', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
   }
 

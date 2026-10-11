@@ -118,7 +118,7 @@ export class GlobalRepository<T extends Document> {
     return { deletedCount: result.deletedCount };
   }
 
-  async aggregate<R = any>(pipeline: any[] = [], options?: AggregateOptions): Promise<R[]> {
+  async aggregate<R = Document>(pipeline: Document[] = [], options?: AggregateOptions): Promise<R[]> {
     return (await this.collection.aggregate(pipeline, options).toArray()) as R[];
   }
 

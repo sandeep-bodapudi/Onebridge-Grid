@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { correlationIdMiddleware } from '../src/correlation';
+import { correlationIdMiddleware, CorrelationRequest } from '../src/correlation';
 
 describe('AC-9: Correlation ID', () => {
   it('should create X-Correlation-ID if missing', () => {
-    const req: any = {};
+    const req: CorrelationRequest = {};
     correlationIdMiddleware(req, {}, () => {});
-    expect(req.headers['x-correlation-id']).toBeDefined();
+    expect(req.headers?.['x-correlation-id']).toBeDefined();
   });
 });

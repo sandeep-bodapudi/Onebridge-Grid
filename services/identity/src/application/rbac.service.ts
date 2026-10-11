@@ -49,7 +49,7 @@ export class RbacService {
     let activeMembership: MembershipProps | undefined;
 
     if (requestedTenantId) {
-      activeMembership = memberships.find(m => m.orgId === requestedTenantId || (m as any).tenantId === requestedTenantId);
+      activeMembership = memberships.find(m => m.orgId === requestedTenantId || m.tenantId === requestedTenantId);
       if (!activeMembership) {
         // Emit security audit event (No personal data: only IDs and action)
         await this.eventBus.publish({

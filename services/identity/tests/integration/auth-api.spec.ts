@@ -132,7 +132,7 @@ describe('Auth API Integration (AC-1 through AC-9 & Complete Controller Endpoint
       expect(aliceList.status).toBe(200);
       expect(aliceList.body.total).toBe(3);
       expect(aliceList.body.items).toHaveLength(2);
-      expect(aliceList.body.items.every((s: any) => s.id !== bobSession.sessionId)).toBe(true);
+      expect(aliceList.body.items.every((s: { id: string }) => s.id !== bobSession.sessionId)).toBe(true);
 
       // Alice revokes s1
       const revokeResp = await controller.revokeSession(
@@ -148,10 +148,11 @@ describe('Auth API Integration (AC-1 through AC-9 & Complete Controller Endpoint
           { authorization: `Bearer ${s1.accessToken}`, correlationId: 'corr-fail-revoke' }
         );
         expect.unreachable('Should have failed');
-      } catch (err: any) {
-        expect(err.problem).toBeDefined();
-        expect(err.problem.status).toBe(403);
-        expect(err.problem.correlationId).toBe('corr-fail-revoke');
+      } catch (err: unknown) {
+        const problemErr = err as ProblemException;
+        expect(problemErr.problem).toBeDefined();
+        expect(problemErr.problem.status).toBe(403);
+        expect(problemErr.problem.correlationId).toBe('corr-fail-revoke');
       }
     });
 
@@ -276,10 +277,11 @@ describe('Auth API Integration (AC-1 through AC-9 & Complete Controller Endpoint
           { phone: '+919876543210', code: 'wrong', deviceLabel: 'Mac' },
           { ip: '127.0.0.1', correlationId: 'corr-err-1' }
         );
-      } catch (err: any) {
-        expect(err.problem).toBeDefined();
-        expect(err.problem.correlationId).toBe('corr-err-1');
-        expect(err.problem.status).toBe(400);
+      } catch (err: unknown) {
+        const problemErr = err as ProblemException;
+        expect(problemErr.problem).toBeDefined();
+        expect(problemErr.problem.correlationId).toBe('corr-err-1');
+        expect(problemErr.problem.status).toBe(400);
       }
     });
   });

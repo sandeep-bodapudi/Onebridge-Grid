@@ -67,7 +67,6 @@ export const AuthFlow: React.FC<AuthFlowProps> = ({
   const [phone, setPhone] = useState('');
   const [consent, setConsent] = useState(false);
   const [code, setCode] = useState('');
-  const [countdown, setCountdown] = useState(30);
 
   const handleSendOtp = (e: React.FormEvent) => {
     e.preventDefault();

@@ -19,20 +19,24 @@ export class TenantContext {
   }
 }
 
-export class Repository<T> {
-  constructor(protected collection: any[] = []) {}
+export interface TenantScopedQuery {
+  where?: Record<string, unknown> & { tenantId?: string; id?: string };
+}
 
-  protected resolveTenantId(query?: any): string {
+export class Repository<T extends Record<string, unknown>> {
+  constructor(protected collection: T[] = []) {}
+
+  protected resolveTenantId(query?: TenantScopedQuery): string {
     const fromQuery = query?.where?.tenantId;
     const fromContext = TenantContext.getTenantId();
-    const tenantId = fromQuery || fromContext;
+    const tenantId = (typeof fromQuery === 'string' ? fromQuery : undefined) || fromContext;
     if (!tenantId) {
       throw new TenantIsolationError('TenantIsolationError: Missing tenantId in query');
     }
     return tenantId;
   }
 
-  async findMany(query?: any): Promise<T[]> {
+  async findMany(query?: TenantScopedQuery): Promise<T[]> {
     const tenantId = this.resolveTenantId(query);
     return this.collection.filter(item => {
       if (item.tenantId !== tenantId && item.orgId !== tenantId) {
@@ -48,27 +52,27 @@ export class Repository<T> {
     });
   }
 
-  async findOne(query: any): Promise<T | null> {
+  async findOne(query: TenantScopedQuery): Promise<T | null> {
     const items = await this.findMany(query);
     return items[0] || null;
   }
 
   async save(item: T): Promise<T> {
-    const doc = item as any;
-    const tenantId = doc.tenantId || doc.orgId || TenantContext.getTenantId();
+    const doc = item as Record<string, unknown>;
+    const tenantId = (doc.tenantId || doc.orgId || TenantContext.getTenantId()) as string | undefined;
     if (!tenantId) {
       throw new TenantIsolationError('TenantIsolationError: Missing tenantId in document');
     }
     const idx = this.collection.findIndex(x => x.id === doc.id);
     if (idx >= 0) {
-      this.collection[idx] = { ...doc, tenantId };
+      this.collection[idx] = { ...doc, tenantId } as T;
     } else {
-      this.collection.push({ ...doc, tenantId });
+      this.collection.push({ ...doc, tenantId } as T);
     }
     return item;
   }
 
-  async delete(query: any): Promise<boolean> {
+  async delete(query: TenantScopedQuery): Promise<boolean> {
     const tenantId = this.resolveTenantId(query);
     const beforeLen = this.collection.length;
     this.collection = this.collection.filter(x => {

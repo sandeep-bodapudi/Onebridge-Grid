@@ -1,6 +1,6 @@
 import { AuthService } from '../application/auth.service.js';
 import { Session } from '../domain/session.js';
-import { CacheStore } from '@onebridge/shared';
+import { CacheStore, CachedIdempotencyRecord } from '@onebridge/shared';
 
 export interface ProblemDetails {
   type: string;
@@ -25,8 +25,8 @@ export class ProblemException extends Error {
 }
 
 export class InMemoryCacheStore implements CacheStore {
-  private cache = new Map<string, { value: any; expiresAt: number }>();
-  async get(key: string) {
+  private cache = new Map<string, { value: CachedIdempotencyRecord; expiresAt: number }>();
+  async get(key: string): Promise<CachedIdempotencyRecord | null> {
     const item = this.cache.get(key);
     if (!item) return null;
     if (Date.now() > item.expiresAt) {
@@ -35,7 +35,7 @@ export class InMemoryCacheStore implements CacheStore {
     }
     return item.value;
   }
-  async set(key: string, value: any, ttlSeconds: number) {
+  async set(key: string, value: CachedIdempotencyRecord, ttlSeconds: number): Promise<void> {
     this.cache.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
   }
 }
@@ -52,7 +52,7 @@ export class AuthController {
 
   private async handleIdempotency<T>(
     idempotencyKey: string | undefined,
-    requestBody: any,
+    requestBody: unknown,
     correlationId: string,
     action: () => Promise<T>
   ): Promise<T> {
@@ -74,7 +74,11 @@ export class AuthController {
     }
 
     const response = await action();
-    await this.cacheStore.set(idempotencyKey, { requestBody, response }, 86400);
+    await this.cacheStore.set(
+      idempotencyKey,
+      { requestBody, response },
+      86400
+    );
     return response;
   }
 
@@ -91,11 +95,12 @@ export class AuthController {
     try {
       const decoded = this.authService.tokenService.verifyAccessToken(token);
       return decoded.sub;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Token verification failed';
       throw new ProblemException(
         401,
         'Unauthorized',
-        err.message || 'Token verification failed',
+        msg,
         correlationId
       );
     }
@@ -122,11 +127,12 @@ export class AuthController {
           };
         }
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof ProblemException) throw err;
+      const msg = err instanceof Error ? err.message : String(err);
       const status =
-        err.message.includes('Rate limit') || err.message.includes('locked') ? 429 : 400;
-      throw new ProblemException(status, 'OTP Request Failed', err.message, ctx.correlationId);
+        msg.includes('Rate limit') || msg.includes('locked') ? 429 : 400;
+      throw new ProblemException(status, 'OTP Request Failed', msg, ctx.correlationId);
     }
   }
 
@@ -164,10 +170,11 @@ export class AuthController {
           };
         }
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof ProblemException) throw err;
-      const status = err.message.includes('locked') ? 423 : 400;
-      throw new ProblemException(status, 'OTP Verification Failed', err.message, ctx.correlationId);
+      const msg = err instanceof Error ? err.message : String(err);
+      const status = msg.includes('locked') ? 423 : 400;
+      throw new ProblemException(status, 'OTP Verification Failed', msg, ctx.correlationId);
     }
   }
 
@@ -213,8 +220,9 @@ export class AuthController {
           accessToken: result.accessToken,
         },
       };
-    } catch (err: any) {
-      throw new ProblemException(400, 'OAuth Login Failed', err.message, ctx.correlationId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ProblemException(400, 'OAuth Login Failed', msg, ctx.correlationId);
     }
   }
 
@@ -243,9 +251,10 @@ export class AuthController {
           };
         }
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof ProblemException) throw err;
-      throw new ProblemException(401, 'Token Refresh Failed', err.message, ctx.correlationId);
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ProblemException(401, 'Token Refresh Failed', msg, ctx.correlationId);
     }
   }
 
@@ -303,8 +312,9 @@ export class AuthController {
     try {
       await this.authService.revokeUserSession(userId, sessionId);
       return { status: 204, body: null };
-    } catch (err: any) {
-      throw new ProblemException(403, 'Session Revocation Failed', err.message, ctx.correlationId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ProblemException(403, 'Session Revocation Failed', msg, ctx.correlationId);
     }
   }
 
@@ -312,8 +322,9 @@ export class AuthController {
     try {
       const setup = await this.authService.setupMfaForUser(userId);
       return { status: 200, body: setup };
-    } catch (err: any) {
-      throw new ProblemException(400, 'MFA Setup Failed', err.message, ctx.correlationId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ProblemException(400, 'MFA Setup Failed', msg, ctx.correlationId);
     }
   }
 
@@ -341,8 +352,9 @@ export class AuthController {
         return { status: 200, body: { success: true } };
       }
       throw new Error('Either mfaTicket or userId must be provided');
-    } catch (err: any) {
-      throw new ProblemException(400, 'MFA Verification Failed', err.message, ctx.correlationId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ProblemException(400, 'MFA Verification Failed', msg, ctx.correlationId);
     }
   }
 }

@@ -1,6 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // Function to convert RGB string 'r g b' to relative luminance
 function getLuminance(r: number, g: number, b: number) {

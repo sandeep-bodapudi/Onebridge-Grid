@@ -23,8 +23,15 @@ export class ProblemException extends Error {
   }
 }
 
+export interface ExecutionContextLike {
+  switchToHttp(): {
+    getResponse(): { status(code: number): { json(body: unknown): void } };
+    getRequest(): { headers: Record<string, string | undefined> };
+  };
+}
+
 export class GlobalExceptionFilter {
-  catch(exception: Error | ProblemException, host: any) {
+  catch(exception: Error | ProblemException, host: ExecutionContextLike) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
     const request = ctx.getRequest();

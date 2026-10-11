@@ -15,15 +15,15 @@ import {
 } from '@nestjs/common';
 export interface HttpRequest {
   ip?: string;
-  headers: Record<string, any>;
-  cookies?: Record<string, any>;
-  [key: string]: any;
+  headers: Record<string, string | string[] | undefined>;
+  cookies?: Record<string, string | undefined>;
+  [key: string]: unknown;
 }
 
 export interface HttpResponse {
-  cookie(name: string, value: string, options?: any): this;
-  clearCookie(name: string, options?: any): this;
-  [key: string]: any;
+  cookie(name: string, value: string, options?: Record<string, unknown>): this;
+  clearCookie(name: string, options?: Record<string, unknown>): this;
+  [key: string]: unknown;
 }
 import { AuthService } from '../application/auth.service.js';
 import { MfaService } from '../application/mfa.service.js';

@@ -62,15 +62,15 @@ describe('TenantScopedRepository MongoDB Isolation Tests (Condition 8)', () => {
   it('should throw TenantIsolationError if filter overrides tenantId', async () => {
     await TenantContext.run(TENANT_A, async () => {
       await expect(
-        cardsRepo.find({ tenantId: TENANT_B } as any)
+        cardsRepo.find({ tenantId: TENANT_B } as unknown as Filter<CardDocument>)
       ).rejects.toThrow(TenantIsolationError);
 
       await expect(
-        cardsRepo.countDocuments({ tenantId: TENANT_B } as any)
+        cardsRepo.countDocuments({ tenantId: TENANT_B } as unknown as Filter<CardDocument>)
       ).rejects.toThrow(TenantIsolationError);
 
       await expect(
-        cardsRepo.distinct('title', { tenantId: TENANT_B } as any)
+        cardsRepo.distinct('title', { tenantId: TENANT_B } as unknown as Filter<CardDocument>)
       ).rejects.toThrow(TenantIsolationError);
     });
   });
@@ -136,24 +136,24 @@ describe('TenantScopedRepository MongoDB Isolation Tests (Condition 8)', () => {
 
       // $set tenantId
       await expect(
-        cardsRepo.updateOne({ id: 'c1' }, { $set: { tenantId: TENANT_B } as any })
+        cardsRepo.updateOne({ id: 'c1' }, { $set: { tenantId: TENANT_B } } as unknown as UpdateFilter<CardDocument>)
       ).rejects.toThrow(TenantIsolationError);
 
       await expect(
-        cardsRepo.updateMany({ id: 'c1' }, { $set: { tenantId: TENANT_B } as any })
+        cardsRepo.updateMany({ id: 'c1' }, { $set: { tenantId: TENANT_B } } as unknown as UpdateFilter<CardDocument>)
       ).rejects.toThrow(TenantIsolationError);
 
       await expect(
-        cardsRepo.findOneAndUpdate({ id: 'c1' }, { $set: { tenantId: TENANT_B } as any })
+        cardsRepo.findOneAndUpdate({ id: 'c1' }, { $set: { tenantId: TENANT_B } } as unknown as UpdateFilter<CardDocument>)
       ).rejects.toThrow(TenantIsolationError);
 
       // $unset tenantId
       await expect(
-        cardsRepo.updateOne({ id: 'c1' }, { $unset: { tenantId: '' } as any })
+        cardsRepo.updateOne({ id: 'c1' }, { $unset: { tenantId: '' } } as unknown as UpdateFilter<CardDocument>)
       ).rejects.toThrow(TenantIsolationError);
 
       await expect(
-        cardsRepo.findOneAndUpdate({ id: 'c1' }, { $unset: { tenantId: '' } as any })
+        cardsRepo.findOneAndUpdate({ id: 'c1' }, { $unset: { tenantId: '' } } as unknown as UpdateFilter<CardDocument>)
       ).rejects.toThrow(TenantIsolationError);
     });
   });

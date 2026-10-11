@@ -19,6 +19,7 @@ describe('Collection Classification Registry & Base Class Guard', () => {
     ];
 
     expect(ALLOWLISTED_GLOBAL_COLLECTIONS.sort()).toEqual(expectedGlobals.sort());
+    expect(Object.keys(KNOWN_COLLECTIONS).length).toBeGreaterThan(0);
   });
 
   it('should identify tenant-scoped collections correctly', () => {

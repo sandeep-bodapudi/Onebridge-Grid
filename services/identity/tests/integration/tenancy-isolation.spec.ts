@@ -5,7 +5,7 @@ import { InMemoryPersonRepository } from '../../src/infrastructure/repositories/
 import { InMemoryMembershipRepository } from '../../src/infrastructure/repositories/in-memory-membership.repository';
 import { RbacService } from '../../src/application/rbac.service';
 import { MeController } from '../../src/presentation/me.controller';
-import { FakeEventBus } from '@onebridge/shared';
+import { FakeEventBus, ProblemException, TenantScopedQuery } from '@onebridge/shared';
 
 describe('Tenancy & Cross-Company Isolation (AC-1, AC-4, AC-6)', () => {
   let personRepo: InMemoryPersonRepository;
@@ -52,13 +52,14 @@ describe('Tenancy & Cross-Company Isolation (AC-1, AC-4, AC-6)', () => {
     try {
       await controller.getMe(`Bearer ${accessToken}`, 'tenant-unauthorized', { correlationId: 'corr-cross-deny' });
       expect.fail('Should have thrown 403 ProblemException');
-    } catch (err: any) {
-      expect(err.status).toBe(403);
-      expect(err.problem).toBeDefined();
-      expect(err.problem.status).toBe(403);
-      expect(err.problem.title).toBe('Forbidden');
-      expect(err.problem.correlationId).toBe('corr-cross-deny');
-      expect(err.problem.detail).toContain('No membership found for tenant: tenant-unauthorized');
+    } catch (err: unknown) {
+      const problemErr = err as ProblemException;
+      expect(problemErr.status).toBe(403);
+      expect(problemErr.problem).toBeDefined();
+      expect(problemErr.problem.status).toBe(403);
+      expect(problemErr.problem.title).toBe('Forbidden');
+      expect(problemErr.problem.correlationId).toBe('corr-cross-deny');
+      expect(problemErr.problem.detail).toContain('No membership found for tenant: tenant-unauthorized');
     }
   });
 
@@ -103,6 +104,6 @@ describe('Tenancy & Cross-Company Isolation (AC-1, AC-4, AC-6)', () => {
     expect(authorizedMemberships[0].orgId).toBe('tenant-authorized');
 
     // Querying without tenantId MUST throw TenantIsolationError
-    await expect(membershipRepo.findMany({ where: {} as any })).rejects.toThrow('TenantIsolationError: Missing tenantId in query');
+    await expect(membershipRepo.findMany({ where: {} } as TenantScopedQuery)).rejects.toThrow('TenantIsolationError: Missing tenantId in query');
   });
 });

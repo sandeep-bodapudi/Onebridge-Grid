@@ -12,6 +12,8 @@ import {
   CountDocumentsOptions,
   DistinctOptions,
   AggregateOptions,
+  IndexSpecification,
+  CreateIndexesOptions,
 } from 'mongodb';
 import { TenantContext, TenantIsolationError } from '../tenant.js';
 import { getCollectionClassification, KNOWN_COLLECTIONS } from './collection-registry.js';
@@ -52,25 +54,25 @@ export class TenantScopedRepository<T extends Document> {
     } as Filter<T>;
   }
 
-  private checkFilterTenantId(obj: any, activeTenantId: string): void {
+  private checkFilterTenantId(obj: Record<string, unknown> | null | undefined, activeTenantId: string): void {
     if (!obj || typeof obj !== 'object') return;
 
     if ('tenantId' in obj) {
       if (obj.tenantId !== activeTenantId) {
         throw new TenantIsolationError(
-          `TenantIsolationError: Filter tenantId "${obj.tenantId}" does not match active tenantId "${activeTenantId}"`
+          `TenantIsolationError: Filter tenantId "${String(obj.tenantId)}" does not match active tenantId "${activeTenantId}"`
         );
       }
     }
 
     if (Array.isArray(obj.$or)) {
       for (const branch of obj.$or) {
-        this.checkFilterTenantId(branch, activeTenantId);
+        this.checkFilterTenantId(branch as Record<string, unknown>, activeTenantId);
       }
     }
     if (Array.isArray(obj.$and)) {
       for (const branch of obj.$and) {
-        this.checkFilterTenantId(branch, activeTenantId);
+        this.checkFilterTenantId(branch as Record<string, unknown>, activeTenantId);
       }
     }
   }
@@ -78,7 +80,8 @@ export class TenantScopedRepository<T extends Document> {
   private validateUpdate(update: UpdateFilter<T>): void {
     if (!update || typeof update !== 'object') return;
 
-    const setObj = (update as any).$set;
+    const updateObj = update as Record<string, unknown>;
+    const setObj = updateObj.$set as Record<string, unknown> | undefined;
     if (setObj && typeof setObj === 'object') {
       if ('tenantId' in setObj) {
         throw new TenantIsolationError(
@@ -87,7 +90,7 @@ export class TenantScopedRepository<T extends Document> {
       }
     }
 
-    const unsetObj = (update as any).$unset;
+    const unsetObj = updateObj.$unset as Record<string, unknown> | undefined;
     if (unsetObj && typeof unsetObj === 'object') {
       if ('tenantId' in unsetObj) {
         throw new TenantIsolationError(
@@ -129,36 +132,36 @@ export class TenantScopedRepository<T extends Document> {
 
   async insertOne(doc: OptionalUnlessRequiredId<T>): Promise<T> {
     const activeTenantId = this.getActiveTenantId();
-    const docWithTenant = { ...doc } as any;
+    const docWithTenant = { ...doc } as Record<string, unknown>;
 
     if (docWithTenant.tenantId && docWithTenant.tenantId !== activeTenantId) {
       throw new TenantIsolationError(
-        `TenantIsolationError: Document tenantId "${docWithTenant.tenantId}" does not match active tenantId "${activeTenantId}"`
+        `TenantIsolationError: Document tenantId "${String(docWithTenant.tenantId)}" does not match active tenantId "${activeTenantId}"`
       );
     }
 
     docWithTenant.tenantId = activeTenantId;
-    await this.collection.insertOne(docWithTenant);
-    return docWithTenant as T;
+    await this.collection.insertOne(docWithTenant as unknown as OptionalUnlessRequiredId<T>);
+    return docWithTenant as unknown as T;
   }
 
   async insertMany(docs: Array<OptionalUnlessRequiredId<T>>): Promise<T[]> {
     const activeTenantId = this.getActiveTenantId();
-    const scopedDocs: any[] = [];
+    const scopedDocs: Array<OptionalUnlessRequiredId<T>> = [];
 
     for (const doc of docs) {
-      const docObj = { ...doc } as any;
+      const docObj = { ...doc } as Record<string, unknown>;
       if (docObj.tenantId && docObj.tenantId !== activeTenantId) {
         throw new TenantIsolationError(
-          `TenantIsolationError: Mixed or conflicting tenantId "${docObj.tenantId}" in insertMany for active tenant "${activeTenantId}"`
+          `TenantIsolationError: Mixed or conflicting tenantId "${String(docObj.tenantId)}" in insertMany for active tenant "${activeTenantId}"`
         );
       }
       docObj.tenantId = activeTenantId;
-      scopedDocs.push(docObj);
+      scopedDocs.push(docObj as unknown as OptionalUnlessRequiredId<T>);
     }
 
     await this.collection.insertMany(scopedDocs);
-    return scopedDocs as T[];
+    return scopedDocs as unknown as T[];
   }
 
   async updateOne(
@@ -204,15 +207,15 @@ export class TenantScopedRepository<T extends Document> {
     const activeTenantId = this.getActiveTenantId();
     const scopedFilter = this.validateAndScopeFilter(filter);
 
-    const replObj = { ...replacement } as any;
+    const replObj = { ...replacement } as Record<string, unknown>;
     if (replObj.tenantId && replObj.tenantId !== activeTenantId) {
       throw new TenantIsolationError(
-        `TenantIsolationError: Replacement tenantId "${replObj.tenantId}" does not match active tenantId "${activeTenantId}"`
+        `TenantIsolationError: Replacement tenantId "${String(replObj.tenantId)}" does not match active tenantId "${activeTenantId}"`
       );
     }
     replObj.tenantId = activeTenantId;
 
-    const result = await this.collection.replaceOne(scopedFilter, replObj, options);
+    const result = await this.collection.replaceOne(scopedFilter, replObj as unknown as T, options);
     return { matchedCount: result.matchedCount, modifiedCount: result.modifiedCount };
   }
 
@@ -228,34 +231,34 @@ export class TenantScopedRepository<T extends Document> {
     return { deletedCount: result.deletedCount };
   }
 
-  async aggregate<R = any>(pipeline: any[] = [], options?: AggregateOptions): Promise<R[]> {
+  async aggregate<R = Document>(pipeline: Document[] = [], options?: AggregateOptions): Promise<R[]> {
     const activeTenantId = this.getActiveTenantId();
     const validatedPipeline = this.validateAndScopePipeline(pipeline, activeTenantId);
     return (await this.collection.aggregate(validatedPipeline, options).toArray()) as R[];
   }
 
-  private validateAndScopePipeline(pipeline: any[], activeTenantId: string): any[] {
-    const resultPipeline: any[] = [];
+  private validateAndScopePipeline(pipeline: Document[], activeTenantId: string): Document[] {
+    const resultPipeline: Document[] = [];
 
     // Prepend initial $match for tenantId
     resultPipeline.push({ $match: { tenantId: activeTenantId } });
 
     for (const stage of pipeline) {
       if (stage.$match) {
-        this.checkFilterTenantId(stage.$match, activeTenantId);
+        this.checkFilterTenantId(stage.$match as Record<string, unknown>, activeTenantId);
       }
 
       if (stage.$lookup) {
-        const lookup = stage.$lookup;
-        const targetCollection = lookup.from;
+        const lookup = stage.$lookup as Record<string, unknown>;
+        const targetCollection = String(lookup.from || '');
         const targetMeta = KNOWN_COLLECTIONS[targetCollection];
 
         if (targetMeta && targetMeta.classification === 'tenant-scoped') {
           // If looking up another tenant-scoped collection, must ensure tenant isolation
           if (Array.isArray(lookup.pipeline)) {
             // Validate the inner lookup pipeline has tenantId match
-            const hasTenantMatch = lookup.pipeline.some(
-              (innerStage: any) =>
+            const hasTenantMatch = (lookup.pipeline as Document[]).some(
+              (innerStage: Document) =>
                 innerStage.$match && innerStage.$match.tenantId === activeTenantId
             );
             if (!hasTenantMatch) {
@@ -281,12 +284,12 @@ export class TenantScopedRepository<T extends Document> {
     return resultPipeline;
   }
 
-  async createIndex(indexSpec: any, options?: any): Promise<string> {
+  async createIndex(indexSpec: IndexSpecification, options?: CreateIndexesOptions): Promise<string> {
     return this.collection.createIndex(indexSpec, options);
   }
 
   async findUnscopedByPerson(personId: string): Promise<T[]> {
-    return (await this.collection.find({ personId } as any).toArray()) as T[];
+    return (await this.collection.find({ personId } as unknown as Filter<T>).toArray()) as T[];
   }
 }
 

@@ -1,12 +1,22 @@
+export interface CachedIdempotencyRecord {
+  requestBody: unknown;
+  response: unknown;
+}
+
 export interface CacheStore {
-  get(key: string): Promise<any>;
-  set(key: string, value: any, ttlSeconds: number): Promise<void>;
+  get(key: string): Promise<CachedIdempotencyRecord | null>;
+  set(key: string, value: CachedIdempotencyRecord, ttlSeconds: number): Promise<void>;
+}
+
+export interface IdempotentRequest {
+  headers: Record<string, string | undefined>;
+  body: unknown;
 }
 
 export class IdempotencyInterceptor {
   constructor(private cache: CacheStore) {}
 
-  async handle(request: any) {
+  async handle(request: IdempotentRequest) {
     const key = request.headers['idempotency-key'];
     if (!key) return request.body;
 

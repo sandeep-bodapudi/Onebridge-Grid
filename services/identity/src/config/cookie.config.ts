@@ -9,13 +9,14 @@ export interface CookieOptions {
 
 export function getRefreshTokenCookieOptions(
   cookieSecure: boolean,
-  cookieDomain?: string
+  cookieDomain?: string,
+  cookiePath = '/auth'
 ): CookieOptions {
   const options: CookieOptions = {
     httpOnly: true,
     sameSite: 'lax',
     secure: cookieSecure,
-    path: '/auth',
+    path: cookiePath,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   };
 

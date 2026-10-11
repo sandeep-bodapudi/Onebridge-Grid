@@ -95,7 +95,9 @@ function cleanup() {
   for (const child of childProcesses) {
     try {
       child.kill('SIGINT');
-    } catch {}
+    } catch {
+      // Child process may already have exited
+    }
   }
   if (mongodInstance) {
     mongodInstance.stop().then(() => process.exit(0)).catch(() => process.exit(0));

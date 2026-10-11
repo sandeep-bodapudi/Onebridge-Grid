@@ -1,6 +1,6 @@
 export interface AuthState {
   accessToken: string | null;
-  user: any | null;
+  user: Record<string, unknown> | null;
 }
 
 // In-memory token storage (Rule: NEVER put tokens or lead data in localStorage or sessionStorage)
@@ -123,7 +123,7 @@ export const apiClient = {
     return data;
   },
 
-  async getMe(): Promise<any> {
+  async getMe(): Promise<Record<string, unknown>> {
     if (!inMemoryAccessToken) {
       throw new Error('Not authenticated');
     }

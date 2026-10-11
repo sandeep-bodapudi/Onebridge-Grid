@@ -58,8 +58,9 @@ export default function LoginPage() {
       await apiClient.requestOtp(phone);
       setCurrentPhone(phone);
       setStep('otp_verify');
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to request OTP');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to request OTP';
+      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
@@ -79,8 +80,9 @@ export default function LoginPage() {
         setMfaTicket(res.mfaTicket);
         setStep('mfa_setup');
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Invalid verification code');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Invalid verification code';
+      setErrorMessage(msg);
       setStep('wrong_code');
     } finally {
       setIsLoading(false);
@@ -93,8 +95,9 @@ export default function LoginPage() {
     try {
       await apiClient.verifyMfa(code, mfaTicket);
       router.push('/dashboard');
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Invalid TOTP code');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Invalid TOTP code';
+      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
