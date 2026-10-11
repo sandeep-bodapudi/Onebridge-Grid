@@ -1,0 +1,39 @@
+{
+  "name": "onebridge-grid",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "cross-env TEMP=D:\\temp TMP=D:\\temp pnpm -r run test && cross-env TEMP=D:\\temp TMP=D:\\temp vitest run tests/check-no-echo-scripts.spec.ts tests/workspace.spec.ts",
+    "test:e2e": "playwright test",
+    "check:scripts": "node scripts/check-no-echo-scripts.mjs",
+    "contracts:gen": "pnpm -r run contracts:gen"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.48.0",
+    "@types/jest-axe": "^3.5.9",
+    "@types/node": "^20.0.0",
+    "cross-env": "7.0.3",
+    "dotenv": "16.4.5",
+    "eslint": "^10.12.0",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-i18next": "^6.1.5",
+    "husky": "^9.1.7",
+    "jest-axe": "^11.0.0",
+    "mongodb": "6.9.0",
+    "mongodb-memory-server": "10.0.1",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.2.2",
+    "typescript-eslint": "^8.71.1",
+    "ulid": "2.3.0",
+    "vitest": "^5.0.3"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}

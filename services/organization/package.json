@@ -1,0 +1,12 @@
+{
+  "name": "@onebridge/organization",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'dev organization'",
+    "lint": "echo 'lint organization'",
+    "typecheck": "echo 'typecheck organization'",
+    "test": "echo 'test organization'",
+    "contracts:gen": "echo 'contracts:gen organization'"
+  }
+}

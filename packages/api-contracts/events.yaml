@@ -1,0 +1,79 @@
+asyncapi: 3.0.0
+info:
+  title: OneBridge Grid Events
+  version: 1.0.0
+components:
+  schemas:
+    DomainEvent:
+      type: object
+      required:
+        - eventId
+        - type
+        - version
+        - tenantId
+        - occurredAt
+        - correlationId
+        - payload
+        - aggregateVersion
+      properties:
+        eventId:
+          type: string
+        type:
+          type: string
+        version:
+          type: string
+        tenantId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+        payload:
+          type: object
+        aggregateVersion:
+          type: integer
+    UserRegisteredEvent:
+      type: object
+      required:
+        - eventId
+        - type
+        - version
+        - tenantId
+        - occurredAt
+        - correlationId
+        - payload
+        - aggregateVersion
+      properties:
+        eventId:
+          type: string
+        type:
+          type: string
+          const: "user.registered"
+        version:
+          type: string
+          const: "1.0.0"
+        tenantId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+        payload:
+          type: object
+          required:
+            - userId
+            - phone
+            - authProvider
+          properties:
+            userId:
+              type: string
+            phone:
+              type: string
+            authProvider:
+              type: string
+              enum: [otp, google, microsoft]
+        aggregateVersion:
+          type: integer
+

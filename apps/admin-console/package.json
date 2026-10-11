@@ -1,0 +1,12 @@
+{
+  "name": "@onebridge/admin-console",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'dev admin-console'",
+    "lint": "echo 'lint admin-console'",
+    "typecheck": "echo 'typecheck admin-console'",
+    "test": "echo 'test admin-console'",
+    "contracts:gen": "echo 'contracts:gen admin-console'"
+  }
+}

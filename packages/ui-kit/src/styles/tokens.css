@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  @font-face {
+    font-family: 'Manrope';
+    font-style: normal;
+    font-weight: 400;
+    src: url('/fonts/manrope-regular.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'Manrope';
+    font-style: normal;
+    font-weight: 700;
+    src: url('/fonts/manrope-bold.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'Manrope';
+    font-style: normal;
+    font-weight: 800;
+    src: url('/fonts/manrope-extrabold.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'Noto Sans Devanagari';
+    font-style: normal;
+    font-weight: 400;
+    src: url('/fonts/noto-sans-devanagari-regular.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'Noto Sans Devanagari';
+    font-style: normal;
+    font-weight: 700;
+    src: url('/fonts/noto-sans-devanagari-bold.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'Noto Sans Devanagari';
+    font-style: normal;
+    font-weight: 800;
+    src: url('/fonts/noto-sans-devanagari-extrabold.woff2') format('woff2');
+  }
+
+  :root {
+    --color-bridge-orange: 246 135 19;     /* #F68713 */
+    --color-charcoal: 57 53 54;            /* #393536 */
+    --color-charcoal-deep: 30 30 30;       /* #1E1E1E */
+    --color-warm-paper: 250 247 242;       /* #FAF7F2 */
+    --color-sand: 239 232 220;             /* #EFE8DC */
+    --color-deep-orange: 160 78 8;         /* #A04E08 */
+    --color-success: 39 112 74;            /* #27704A */
+    --color-warning: 201 151 0;            /* #C99700 */
+    --color-error: 194 54 43;              /* #C2362B */
+    --color-info: 59 110 168;              /* #3B6EA8 */
+    --color-sand-border: 227 217 200;      /* #E3D9C8 */
+  }
+
+  .dark {
+    --color-bridge-orange: 246 135 19;     /* #F68713 */
+    --color-charcoal: 234 234 234;         /* #EAEAEA (inverted) */
+    --color-charcoal-deep: 245 245 245;    /* #F5F5F5 (inverted) */
+    --color-warm-paper: 18 18 18;          /* #121212 (inverted bg) */
+    --color-sand: 30 30 30;                /* #1E1E1E (surface) */
+    --color-deep-orange: 255 159 51;       /* #FF9F33 (lighter orange) */
+    --color-success: 52 168 83;            /* #34A853 */
+    --color-warning: 251 188 4;            /* #FBBC04 */
+    --color-error: 234 67 53;              /* #EA4335 */
+    --color-info: 66 133 244;              /* #4285F4 */
+    --color-sand-border: 51 51 51;         /* #333333 */
+  }
+
+  body {
+    @apply bg-warm-paper text-charcoal font-body antialiased;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 150ms !important;
+    transition-property: opacity, background-color, border-color, color, fill, stroke !important;
+    scroll-behavior: auto !important;
+  }
+}

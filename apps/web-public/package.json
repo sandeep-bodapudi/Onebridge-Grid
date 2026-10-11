@@ -1,0 +1,12 @@
+{
+  "name": "@onebridge/web-public",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'dev web-public'",
+    "lint": "echo 'lint web-public'",
+    "typecheck": "echo 'typecheck web-public'",
+    "test": "echo 'test web-public'",
+    "contracts:gen": "echo 'contracts:gen web-public'"
+  }
+}

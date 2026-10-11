@@ -1,0 +1,12 @@
+{
+  "name": "@onebridge/cards",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'dev cards'",
+    "lint": "echo 'lint cards'",
+    "typecheck": "echo 'typecheck cards'",
+    "test": "echo 'test cards'",
+    "contracts:gen": "echo 'contracts:gen cards'"
+  }
+}

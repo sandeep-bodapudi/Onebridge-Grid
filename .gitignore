@@ -1,0 +1,9 @@
+node_modules
+dist
+.next
+.tmp
+test-results
+playwright-report
+storybook-static
+.env
+

@@ -1,0 +1,497 @@
+openapi: 3.1.0
+info:
+  title: OneBridge Grid API
+  version: 1.0.0
+paths:
+  /auth/otp:
+    post:
+      summary: Request mobile OTP
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Forwarded-For
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string, example: "+919876543210" }
+      responses:
+        '200':
+          description: OTP dispatched
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: "If registered, an OTP has been sent." }
+                  cooldownSeconds: { type: integer, example: 30 }
+        '429':
+          description: Rate limit exceeded or locked
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/verify:
+    post:
+      summary: Verify OTP and initiate session
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, code]
+              properties:
+                phone: { type: string, example: "+919876543210" }
+                code: { type: string, example: "123456" }
+                deviceLabel: { type: string, example: "Chrome on macOS" }
+      responses:
+        '200':
+          description: Login successful or MFA required
+          headers:
+            Set-Cookie:
+              schema: { type: string, example: "refreshToken=...; HttpOnly; Secure; SameSite=Lax" }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [authenticated, mfa_required, mfa_setup_required] }
+                  accessToken: { type: string }
+                  mfaTicket: { type: string }
+        '400':
+          description: Invalid code or challenge expired
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '423':
+          description: Account or IP locked due to too many failed attempts
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/oauth/{provider}:
+    post:
+      summary: Personal Google/Microsoft OpenID Connect login
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string, enum: [google, microsoft] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken: { type: string }
+                deviceLabel: { type: string }
+      responses:
+        '200':
+          description: Authenticated or MFA required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [authenticated, mfa_required, mfa_setup_required] }
+                  accessToken: { type: string }
+                  mfaTicket: { type: string }
+        '400':
+          description: Invalid token or unverified identity
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/refresh:
+    post:
+      summary: Rotate refresh token and get new access token
+      responses:
+        '200':
+          description: Token rotated
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: { type: string }
+        '401':
+          description: Invalid or revoked refresh token (family revoked)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/logout:
+    post:
+      summary: Revoke current session and clear cookie
+      responses:
+        '204':
+          description: Logged out
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+
+  /auth/sessions:
+    get:
+      summary: List user's active sessions and devices
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, maximum: 100 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Paginated list of sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SessionInfo'
+                  total: { type: integer }
+                  limit: { type: integer }
+                  offset: { type: integer }
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/sessions/{id}:
+    delete:
+      summary: Revoke specific session family
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Session revoked
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/mfa/setup:
+    post:
+      summary: Generate TOTP secret and QR payload for setup
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mfaTicket: { type: string }
+      responses:
+        '200':
+          description: TOTP configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret: { type: string }
+                  qrUri: { type: string }
+
+  /auth/mfa/verify:
+    post:
+      summary: Verify TOTP code to complete setup or authenticate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, example: "123456" }
+                mfaTicket: { type: string }
+      responses:
+        '200':
+          description: MFA passed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: { type: string }
+
+  /me:
+    get:
+      summary: Get authenticated person profile, memberships, active tenant, and effective permissions
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: X-Tenant-Id
+          required: false
+          schema: { type: string }
+          description: Explicit active company ID
+      responses:
+        '200':
+          description: Current identity context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden - active tenant access denied
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /internal/memberships:
+    post:
+      summary: Internal membership creation/update (called by Org service or seeders)
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [personId, orgId, role]
+              properties:
+                personId: { type: string }
+                orgId: { type: string }
+                role:
+                  type: string
+                  enum: [super_admin, owner, admin, branch_manager, department_manager, team_lead, employee, viewer]
+                branchId: { type: string }
+                departmentId: { type: string }
+                teamId: { type: string }
+      responses:
+        '201':
+          description: Membership created or updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+        '422':
+          description: Unprocessable request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/branches:
+    get:
+      summary: List Branches
+      responses:
+        '200':
+          description: OK
+  /orgs/{tenantId}/seats:
+    get:
+      summary: List Seats
+      responses:
+        '200':
+          description: OK
+  /cards/{id}:
+    get:
+      summary: Get Card Details
+      responses:
+        '200':
+          description: OK
+  /links/{code}:
+    get:
+      summary: Resolve Shortlink
+      responses:
+        '200':
+          description: OK
+  /billing/plans:
+    get:
+      summary: List Plans
+      responses:
+        '200':
+          description: OK
+  /analytics/events:
+    post:
+      summary: Ingest analytics events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/AnalyticsEvent'
+      responses:
+        '202':
+          description: Events queued for processing
+        '400':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /media/upload-url:
+    post:
+      summary: Get signed upload URL
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filename: { type: string }
+                contentType: { type: string }
+                size: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string }
+                  key: { type: string }
+        '400':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+components:
+  schemas:
+    ProblemDetails:
+      type: object
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        correlationId: { type: string }
+    AnalyticsEvent:
+      type: object
+      properties:
+        eventType: { type: string }
+        timestamp: { type: string, format: date-time }
+        properties: { type: object }
+    SessionInfo:
+      type: object
+      properties:
+        id: { type: string }
+        deviceLabel: { type: string }
+        ipAddress: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastActiveAt: { type: string, format: date-time }
+        isCurrent: { type: boolean }
+    Role:
+      type: string
+      enum:
+        - super_admin
+        - owner
+        - admin
+        - branch_manager
+        - department_manager
+        - team_lead
+        - employee
+        - viewer
+    Scope:
+      type: object
+      properties:
+        branchId: { type: string }
+        departmentId: { type: string }
+        teamId: { type: string }
+    Membership:
+      type: object
+      required: [id, personId, orgId, role, createdAt]
+      properties:
+        id: { type: string }
+        personId: { type: string }
+        orgId: { type: string }
+        role:
+          $ref: '#/components/schemas/Role'
+        scope:
+          $ref: '#/components/schemas/Scope'
+        createdAt: { type: string, format: date-time }
+    ActiveTenantContext:
+      type: object
+      required: [tenantId, role, permissions]
+      properties:
+        tenantId: { type: string }
+        orgName: { type: string }
+        role:
+          $ref: '#/components/schemas/Role'
+        permissions:
+          type: array
+          items: { type: string }
+        scope:
+          $ref: '#/components/schemas/Scope'
+    MeResponse:
+      type: object
+      required: [person, memberships]
+      properties:
+        person:
+          type: object
+          required: [id, phone]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            phone: { type: string }
+            email: { type: string }
+        memberships:
+          type: array
+          items:
+            $ref: '#/components/schemas/Membership'
+        activeTenant:
+          $ref: '#/components/schemas/ActiveTenantContext'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+

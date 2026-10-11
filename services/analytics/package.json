@@ -1,0 +1,12 @@
+{
+  "name": "@onebridge/analytics",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'dev analytics'",
+    "lint": "echo 'lint analytics'",
+    "typecheck": "echo 'typecheck analytics'",
+    "test": "echo 'test analytics'",
+    "contracts:gen": "echo 'contracts:gen analytics'"
+  }
+}

@@ -1,0 +1,10 @@
+packages:
+  - 'apps/*'
+  - 'services/*'
+  - 'edge/*'
+  - 'packages/*'
+allowBuilds:
+  esbuild: true
+  '@nestjs/core': true
+  '@swc/core': true
+  mongodb-memory-server: true
