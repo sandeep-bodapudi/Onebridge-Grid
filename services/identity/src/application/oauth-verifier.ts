@@ -1,8 +1,10 @@
 export interface OAuthUserInfo {
-  email: string;
-  name: string;
+  email?: string;
+  name?: string;
   sub: string;
-  emailVerified: boolean;
+  emailVerified?: boolean;
+  phone?: string;
+  phoneVerified?: boolean;
 }
 
 export interface IOAuthVerifier {

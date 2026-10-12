@@ -65,9 +65,9 @@ export class Repository<T extends Record<string, unknown>> {
     }
     const idx = this.collection.findIndex(x => x.id === doc.id);
     if (idx >= 0) {
-      this.collection[idx] = { ...doc, tenantId } as T;
+      this.collection[idx] = { ...doc, tenantId } as unknown as T;
     } else {
-      this.collection.push({ ...doc, tenantId } as T);
+      this.collection.push({ ...doc, tenantId } as unknown as T);
     }
     return item;
   }

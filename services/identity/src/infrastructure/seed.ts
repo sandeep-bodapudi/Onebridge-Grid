@@ -1,9 +1,9 @@
 import { loadAndValidateEnv } from '../config/env.js';
 import { SEED_DATA } from './seed.data.js';
 import { KeyService } from '../application/key.service.js';
-import { MongoClient, Db, redactMongoUri, isLocalMongoUri } from '@onebridge/shared';
+import { connectMongo, MongoConnectionHandle, redactMongoUri, isLocalMongoUri } from '@onebridge/shared';
 
-export async function seedDevDatabase(customDb?: Db): Promise<{ seeded: boolean; message: string }> {
+export async function seedDevDatabase(customHandle?: MongoConnectionHandle): Promise<{ seeded: boolean; message: string }> {
   const env = loadAndValidateEnv();
 
   // Refuse to run in production
@@ -18,16 +18,10 @@ export async function seedDevDatabase(customDb?: Db): Promise<{ seeded: boolean;
     );
   }
 
-  let client: MongoClient | null = null;
-  let db: Db;
+  const handle = customHandle ?? (await connectMongo(env.mongoUri));
+  const shouldClose = !customHandle;
 
-  if (customDb) {
-    db = customDb;
-  } else {
-    client = new MongoClient(env.mongoUri);
-    await client.connect();
-    db = client.db();
-  }
+  const db = handle._getInternalDb();
 
   try {
     const keyService = new KeyService(env.encryptionKey);
@@ -94,8 +88,8 @@ export async function seedDevDatabase(customDb?: Db): Promise<{ seeded: boolean;
       message: `Successfully seeded ${orgs.length} tenants, ${personDocs.length} persons, ${membershipDocs.length} memberships`,
     };
   } finally {
-    if (client) {
-      await client.close();
+    if (shouldClose && handle) {
+      await handle.close();
     }
   }
 }

@@ -4,8 +4,6 @@ import {
   Role, 
   getEffectiveRolePermissions 
 } from '@onebridge/shared';
-import { InMemoryMembershipRepository } from '../infrastructure/repositories/in-memory-membership.repository.js';
-import { InMemoryPersonRepository } from '../infrastructure/repositories/in-memory-person.repository.js';
 import { MembershipProps } from '../domain/membership.js';
 
 export interface ActiveTenantContext {
@@ -31,10 +29,20 @@ export interface MeResult {
   activeTenant?: ActiveTenantContext;
 }
 
+export interface IMembershipRepositoryLike {
+  findByPersonId(personId: string): Promise<MembershipProps[]>;
+  findByPersonAndOrg(personId: string, orgId: string): Promise<MembershipProps | null>;
+  save(item: MembershipProps): Promise<MembershipProps>;
+}
+
+export interface IPersonRepositoryLike {
+  findById(personId: string): Promise<{ userId?: string; id?: string; name?: string; phone?: string; email?: string } | undefined>;
+}
+
 export class RbacService {
   constructor(
-    private membershipRepo: InMemoryMembershipRepository,
-    private personRepo: InMemoryPersonRepository,
+    private membershipRepo: IMembershipRepositoryLike,
+    private personRepo: IPersonRepositoryLike,
     private eventBus: EventBus
   ) {}
 
@@ -92,7 +100,7 @@ export class RbacService {
 
     return {
       person: {
-        id: person.userId,
+        id: person.userId || person.id || '',
         name: person.name,
         phone: person.phone || '',
         email: person.email

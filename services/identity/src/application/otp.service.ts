@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { FakeOtpSender } from '@onebridge/shared';
 import { OtpChallenge } from '../domain/otp-challenge.js';
-import { InMemoryOtpRepository } from '../infrastructure/repositories/in-memory-otp.repository.js';
+import type { IOtpRepository } from './auth.service.js';
 
 export interface OtpRequestResult {
   message: string;
@@ -11,7 +11,7 @@ export interface OtpRequestResult {
 
 export class OtpService {
   constructor(
-    private otpRepo: InMemoryOtpRepository,
+    private otpRepo: IOtpRepository,
     private otpSender: FakeOtpSender
   ) {}
 

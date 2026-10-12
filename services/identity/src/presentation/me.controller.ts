@@ -34,7 +34,7 @@ export class MeController {
         correlationId
       );
     }
-    return decoded.sub || decoded.userId;
+    return (decoded.sub || decoded.userId) as string;
   }
 
   async getMe(

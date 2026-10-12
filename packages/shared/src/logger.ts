@@ -14,4 +14,24 @@ export class Logger {
     };
     console.log(JSON.stringify(logObject));
   }
+
+  static warn(message: string, context?: Record<string, unknown>) {
+    const logObject = {
+      timestamp: new Date().toISOString(),
+      level: 'warn',
+      message: this.scrub(message),
+      ...context
+    };
+    console.warn(JSON.stringify(logObject));
+  }
+
+  static error(message: string, context?: Record<string, unknown>) {
+    const logObject = {
+      timestamp: new Date().toISOString(),
+      level: 'error',
+      message: this.scrub(message),
+      ...context
+    };
+    console.error(JSON.stringify(logObject));
+  }
 }

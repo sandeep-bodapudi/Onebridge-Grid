@@ -5,12 +5,13 @@ export interface CookieOptions {
   domain?: string;
   path?: string;
   maxAge?: number;
+  [key: string]: unknown;
 }
 
 export function getRefreshTokenCookieOptions(
   cookieSecure: boolean,
   cookieDomain?: string,
-  cookiePath = '/auth'
+  cookiePath = process.env.COOKIE_PATH || '/auth'
 ): CookieOptions {
   const options: CookieOptions = {
     httpOnly: true,

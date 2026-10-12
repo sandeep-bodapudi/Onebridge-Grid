@@ -91,31 +91,50 @@ export class TokenService {
     return payload;
   }
 
-  verifyAccessToken(token: string): DecodedToken {
-    return this.verifyJwt(token);
-  }
 
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  getCookieOptions(): CookieOptions {
+  getCookieOptions(path = '/auth'): CookieOptions {
     return {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',
-      path: '/',
+      path: process.env.COOKIE_PATH || path,
       maxAge: 30 * 24 * 60 * 60, // 30 days
     };
+  }
+
+  generateMfaTicket(userId: string): string {
+    return this.signJwt({ sub: userId, type: 'mfa_ticket' }, 5 * 60); // 5 min TTL
+  }
+
+  verifyMfaTicket(ticket: string): string {
+    const decoded = this.verifyJwt(ticket);
+    if (decoded.type !== 'mfa_ticket') {
+      throw new Error('Invalid MFA ticket type');
+    }
+    return decoded.sub;
+  }
+
+  verifyAccessToken(token: string): DecodedToken {
+    const decoded = this.verifyJwt(token);
+    if (decoded.type !== 'access') {
+      throw new Error('Invalid access token');
+    }
+    return decoded;
   }
 
   async createSessionFamily(
     userId: string,
     deviceLabel: string,
-    ipAddress: string
+    ipAddress: string,
+    customFamilyId?: string,
+    customSessionId?: string
   ): Promise<{ accessToken: string; refreshToken: string; session: Session }> {
-    const familyId = crypto.randomUUID();
-    const sessionId = crypto.randomUUID();
+    const familyId = customFamilyId || crypto.randomUUID();
+    const sessionId = customSessionId || crypto.randomUUID();
     const now = new Date().toISOString();
 
     // 15 minutes access token

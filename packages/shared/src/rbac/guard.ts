@@ -58,22 +58,30 @@ export class RbacGuard {
     const targetClass = (context.getClass ? context.getClass() : context.targetClass) as Record<string, unknown> | undefined;
     const request = (context.switchToHttp ? context.switchToHttp().getRequest() : context.request || context) as Record<string, unknown>;
 
+    const handlerObj = handler as Record<string, unknown> | undefined;
+    const handlerVal = (handlerObj?.value as Record<string, unknown> | undefined);
+    const targetClassObj = targetClass as Record<string, unknown> | undefined;
+
     const requiredPermissions: Capability[] =
-      (handler && (handler[PERMISSIONS_METADATA_KEY] || (handler.value && handler.value[PERMISSIONS_METADATA_KEY]))) ||
-      (targetClass && targetClass[PERMISSIONS_METADATA_KEY]) ||
+      ((handlerObj && (handlerObj[PERMISSIONS_METADATA_KEY] as Capability[] | undefined)) ||
+        (handlerVal && (handlerVal[PERMISSIONS_METADATA_KEY] as Capability[] | undefined)) ||
+        (targetClassObj && (targetClassObj[PERMISSIONS_METADATA_KEY] as Capability[] | undefined))) ||
       [];
 
     const requiredRoles: Role[] =
-      (handler && (handler[ROLES_METADATA_KEY] || (handler.value && handler.value[ROLES_METADATA_KEY]))) ||
-      (targetClass && targetClass[ROLES_METADATA_KEY]) ||
+      ((handlerObj && (handlerObj[ROLES_METADATA_KEY] as Role[] | undefined)) ||
+        (handlerVal && (handlerVal[ROLES_METADATA_KEY] as Role[] | undefined)) ||
+        (targetClassObj && (targetClassObj[ROLES_METADATA_KEY] as Role[] | undefined))) ||
       [];
 
     if (requiredPermissions.length === 0 && requiredRoles.length === 0) {
       return true;
     }
 
-    const membership: MembershipLike | undefined = request.membership || request.activeMembership;
-    const correlationId = request.headers?.['x-correlation-id'] || request.correlationId || 'unknown';
+    const req = request as Record<string, unknown>;
+    const membership = (req.membership || req.activeMembership) as MembershipLike | undefined;
+    const headers = (req.headers || {}) as Record<string, string | undefined>;
+    const correlationId = headers['x-correlation-id'] || (req.correlationId as string | undefined) || 'unknown';
 
     if (!membership) {
       throw new ProblemException(
@@ -93,11 +101,14 @@ export class RbacGuard {
       );
     }
 
+    const params = (req.params || {}) as Record<string, string | undefined>;
+    const query = (req.query || {}) as Record<string, string | undefined>;
+
     const resourceContext: ResourceContext = {
-      branchId: request.params?.branchId || request.query?.branchId,
-      departmentId: request.params?.departmentId || request.query?.departmentId,
-      teamId: request.params?.teamId || request.query?.teamId,
-      ownerPersonId: request.params?.personId || request.query?.personId || request.params?.userId
+      branchId: params.branchId || query.branchId,
+      departmentId: params.departmentId || query.departmentId,
+      teamId: params.teamId || query.teamId,
+      ownerPersonId: params.personId || query.personId || params.userId
     };
 
     for (const cap of requiredPermissions) {

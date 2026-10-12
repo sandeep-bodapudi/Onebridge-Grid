@@ -7,10 +7,13 @@ interface MongoSessionBaseDoc {
   sessionId?: string;
   familyId: string;
   userId?: string;
+  deviceLabel?: string;
+  currentRefreshTokenHash?: string;
   refreshTokenHash?: string;
   usedRefreshTokenHashes?: string[];
   expiresAt?: Date | string;
   createdAt?: string;
+  updatedAt?: string;
   lastActiveAt?: string;
   isRevoked?: boolean;
   revokedAt?: string;
@@ -38,10 +41,12 @@ export class MongoSessionRepository implements ISessionRepository {
         type: 'family',
         familyId: family.familyId,
         userId: family.userId,
-        usedRefreshTokenHashes: family.usedRefreshTokenHashes,
+        currentRefreshTokenHash: family.currentRefreshTokenHash,
+        usedRefreshTokenHashes: Array.from(family.usedRefreshTokenHashes),
         isRevoked: family.isRevoked,
         revokedAt: family.revokedAt,
         createdAt: family.createdAt,
+        updatedAt: family.updatedAt,
       },
       { upsert: true }
     );
@@ -53,10 +58,12 @@ export class MongoSessionRepository implements ISessionRepository {
     return {
       familyId: doc.familyId,
       userId: doc.userId || '',
-      usedRefreshTokenHashes: doc.usedRefreshTokenHashes || [],
+      currentRefreshTokenHash: doc.currentRefreshTokenHash || '',
+      usedRefreshTokenHashes: new Set<string>(doc.usedRefreshTokenHashes || []),
       isRevoked: doc.isRevoked || false,
       revokedAt: doc.revokedAt,
       createdAt: doc.createdAt || new Date().toISOString(),
+      updatedAt: doc.updatedAt || new Date().toISOString(),
     };
   }
 
@@ -68,12 +75,10 @@ export class MongoSessionRepository implements ISessionRepository {
         sessionId: session.sessionId,
         familyId: session.familyId,
         userId: session.userId,
-        refreshTokenHash: session.refreshTokenHash,
-        expiresAt: session.expiresAt,
+        deviceLabel: session.deviceLabel,
         createdAt: session.createdAt,
         lastActiveAt: session.lastActiveAt,
         isRevoked: session.isRevoked,
-        userAgent: session.userAgent,
         ipAddress: session.ipAddress,
       },
       { upsert: true }
@@ -87,13 +92,11 @@ export class MongoSessionRepository implements ISessionRepository {
       sessionId: doc.sessionId,
       familyId: doc.familyId,
       userId: doc.userId || '',
-      refreshTokenHash: doc.refreshTokenHash || '',
-      expiresAt: doc.expiresAt instanceof Date ? doc.expiresAt.toISOString() : (doc.expiresAt || ''),
+      deviceLabel: doc.deviceLabel || doc.userAgent || 'Default Device',
       createdAt: doc.createdAt || '',
       lastActiveAt: doc.lastActiveAt || '',
       isRevoked: doc.isRevoked || false,
-      userAgent: doc.userAgent,
-      ipAddress: doc.ipAddress,
+      ipAddress: doc.ipAddress || '127.0.0.1',
     };
   }
 
@@ -114,13 +117,11 @@ export class MongoSessionRepository implements ISessionRepository {
         sessionId: d.sessionId!,
         familyId: d.familyId,
         userId: d.userId || '',
-        refreshTokenHash: d.refreshTokenHash || '',
-        expiresAt: d.expiresAt instanceof Date ? d.expiresAt.toISOString() : (d.expiresAt || ''),
+        deviceLabel: d.deviceLabel || d.userAgent || 'Default Device',
         createdAt: d.createdAt || '',
         lastActiveAt: d.lastActiveAt || '',
         isRevoked: d.isRevoked || false,
-        userAgent: d.userAgent,
-        ipAddress: d.ipAddress,
+        ipAddress: d.ipAddress || '127.0.0.1',
       })),
       total,
     };

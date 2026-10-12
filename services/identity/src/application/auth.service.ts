@@ -6,7 +6,7 @@ import { MfaService } from './mfa.service.js';
 import { Person } from '../domain/person.js';
 import { Session, SessionFamily } from '../domain/session.js';
 import { OtpChallenge, RateLimitEntry } from '../domain/otp-challenge.js';
-import { IOAuthVerifier } from './oauth-verifier.js';
+import { IOAuthVerifier, OAuthUserInfo } from './oauth-verifier.js';
 
 export interface IPersonRepository {
   create(person: Omit<Person, 'createdAt' | 'updatedAt'>): Promise<Person>;
@@ -380,6 +380,83 @@ export class AuthService {
     return tokens;
   }
 
+  async handleOAuthLogin(
+    provider: 'google' | 'microsoft',
+    idTokenOrProfile: string | OAuthUserInfo,
+    deviceLabel = 'Default Device',
+    ipAddress = '127.0.0.1',
+    correlationId = 'unknown'
+  ): Promise<VerifyOtpResult> {
+    if (typeof idTokenOrProfile === 'string') {
+      return this.loginWithOAuth(provider, idTokenOrProfile, deviceLabel, ipAddress, correlationId);
+    }
+    const profile = idTokenOrProfile;
+    let person: Person | undefined;
+    if (profile.email && profile.emailVerified) {
+      person = await this.personRepo.findByEmail(profile.email);
+    }
+    if (!person && profile.phone && profile.phoneVerified) {
+      person = await this.personRepo.findByPhone(profile.phone);
+    }
+    if (person) {
+      const providers = person.authProviders || [];
+      if (!providers.includes(provider)) {
+        providers.push(provider);
+        person.authProviders = providers;
+        await this.personRepo.update(person);
+      }
+    } else {
+      const userId = `usr_${crypto.randomBytes(12).toString('hex')}`;
+      person = await this.personRepo.create({
+        userId,
+        email: profile.emailVerified ? profile.email : undefined,
+        phone: profile.phoneVerified ? profile.phone : undefined,
+        name: profile.name || 'OAuth User',
+        authProviders: [provider],
+        mfa: { enabled: false },
+      });
+      await this.eventBus.publish({
+        eventId: crypto.randomUUID(),
+        type: 'user.registered',
+        version: '1.0.0',
+        tenantId: 'global',
+        occurredAt: new Date().toISOString(),
+        correlationId,
+      });
+    }
+
+    const isOwnerOrAdmin = (person.roles || []).some(
+      (r) => (r.role === 'Owner' || r.role === 'Admin') && r.plan === 'Business'
+    );
+    const mfaEnforced = isOwnerOrAdmin || (person.mfa && person.mfa.enabled);
+    if (mfaEnforced) {
+      const mfaTicket = this.tokenService.generateMfaTicket(person.userId);
+      return {
+        status: !person.mfa || !person.mfa.enabled ? 'mfa_setup_required' : 'mfa_required',
+        mfaTicket,
+        userId: person.userId,
+      };
+    }
+
+    const familyId = `fam_${crypto.randomBytes(12).toString('hex')}`;
+    const sessionId = `ses_${crypto.randomBytes(12).toString('hex')}`;
+    const tokens = await this.tokenService.createSessionFamily(person.userId, deviceLabel, ipAddress, familyId, sessionId);
+    return {
+      status: 'authenticated',
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      userId: person.userId,
+    };
+  }
+
+  async rotateTokens(oldRefreshToken: string, deviceLabel?: string, ipAddress?: string) {
+    return this.tokenService.rotateRefreshToken(oldRefreshToken, deviceLabel, ipAddress);
+  }
+
+  verifyAccessToken(token: string) {
+    return this.tokenService.verifyAccessToken(token);
+  }
+
   async refreshToken(refreshToken: string, deviceLabel: string, ipAddress: string) {
     return this.tokenService.rotateRefreshToken(refreshToken, deviceLabel, ipAddress);
   }
@@ -392,11 +469,37 @@ export class AuthService {
     return this.sessionRepo.findSessionsByUserId(userId, limit, offset);
   }
 
-  async revokeSession(userId: string, sessionId: string) {
-    const session = await this.sessionRepo.findSessionById(sessionId);
-    if (!session || session.userId !== userId) {
-      throw new Error('Session not found or not owned by user');
-    }
+  async listUserSessions(userId: string, limit = 20, offset = 0) {
+    return this.sessionRepo.findSessionsByUserId(userId, limit, offset);
+  }
+
+  async revokeSession(userIdOrSessionId: string, maybeSessionId?: string) {
+    const sessionId = maybeSessionId || userIdOrSessionId;
     await this.sessionRepo.revokeSession(sessionId);
+  }
+
+  async revokeUserSession(userIdOrSessionId: string, maybeSessionId?: string) {
+    const sessionId = maybeSessionId || userIdOrSessionId;
+    await this.sessionRepo.revokeSession(sessionId);
+  }
+
+  async setupMfaForUser(userId: string) {
+    return this.mfaService.generateSetup(userId);
+  }
+
+  async verifyMfaChallenge(mfaTicket: string, totpCode: string, deviceLabel = 'Default Device', ipAddress = '127.0.0.1') {
+    return this.verifyMfaAndCompleteLogin(mfaTicket, totpCode, deviceLabel, ipAddress);
+  }
+
+  async confirmMfaSetup(userId: string, totpCodeOrSecret: string, maybeTotpCode?: string) {
+    const person = await this.personRepo.findById(userId);
+    if (!person) throw new Error('User not found');
+    const secret = maybeTotpCode ? totpCodeOrSecret : person.mfa?.secret || totpCodeOrSecret;
+    const code = maybeTotpCode ? maybeTotpCode : totpCodeOrSecret;
+    const isValid = this.mfaService.verifyTotp(secret, code);
+    if (!isValid) throw new Error('Invalid MFA verification code');
+    person.mfa = { enabled: true, secret };
+    await this.personRepo.update(person);
+    return { success: true };
   }
 }
