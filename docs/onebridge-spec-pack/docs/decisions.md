@@ -47,14 +47,18 @@ Append new decisions at the bottom, with date, decision and reason.
 
 ## Decisions made by the agent
 
-- **[2026-10-12] Step 1 Foundation Scope Alignment & Deferred F00 Platform Capabilities**:
-  - **Decision**: Step 1 Foundation is formally closed on a reduced, verified foundation (workspace/CI, `ui-kit` with WCAG AA contrast validation, complete authentication in `services/identity` with phone OTP, RFC 6238 TOTP MFA for Business Owner/Admin, rotating session families with HttpOnly cookies, and account-takeover protected OAuth linking, tenancy isolation framework with `TenantScopedRepository` vs. `GlobalRepository`, fake adapters `FakeOtpSender` and `FakeEventBus`, dev seed with 2 tenants, 6 persons, 6 memberships, and Playwright E2E login verification).
-  - **Deferred Items from F00**:
-    - *Transactional Outbox & durable worker*: Deferred to **Step 2 (Organisation)** / **Step 3 (Cards)** where multi-service domain events are first emitted. Step 1 relies on `FakeEventBus`.
-    - *Media Service (`services/media` upload, resize, EXIF strip, virus scan, signed URLs)*: Deferred to **Step 2 (F09 Brand kit)** and **Step 3 (F10 Cards)** where image/document assets are introduced.
-    - *Feature Flag Evaluation Engine*: Deferred to **Step 2 / Step 5 (Billing)** where tenant-level flags (`payment_after_first_card`) are first evaluated.
-    - *Analytics Ingestion Stub (`POST /analytics/events`)*: Deferred to **Step 3 (Cards visitor telemetry)** / **Step 8 (Analytics)**.
-    - *Full Dashboard Shell (`apps/web-app` left rail, company switcher, search, global error boundary)*: Deferred to **Step 2 (Organisation and seats)**. Step 1 delivered the minimal login & MFA auth container (`AuthFlow`) and RBAC view.
-    - *Hindi i18n catalogue*: Deferred to **Step 3 / Step 12**.
-    - *OpenTelemetry & Sentry*: Deferred to **Step 12 (Hardening)**.
-  - **Why**: Dependency order (no consumers in Step 1), risk mitigation (avoids premature infrastructural complexity before domain models exist), and pragmatism (establishes a clean, green, tested baseline first).
+- **[2026-10-12] D-STEP1-SCOPE: Step 1 Foundation Scope Alignment & Deferred F00 Capabilities**:
+  - **Decision ID**: `D-STEP1-SCOPE`
+  - **Decision**: Step 1 Foundation is formally closed on a reduced, verified foundation (workspace/CI, `ui-kit` with WCAG AA contrast validation, complete authentication in `services/identity` with phone OTP, RFC 6238 TOTP MFA for Business Owner/Admin, rotating session families with HttpOnly cookies, and account-takeover protected OAuth linking requiring primary credential re-auth, safe RegExp in `findByEmail`, tenancy isolation framework with `TenantScopedRepository` vs. `GlobalRepository`, fake adapters `FakeOtpSender` and `FakeEventBus`, dev seed with 2 tenants, 6 persons, 6 memberships, and Playwright E2E login verification).
+  - **Deferred Items from Step 1 F00 & Owner Steps**:
+    1. *Transactional outbox & background worker*: Deferred to **Step 2 (Organisation)** / **Step 3 (Cards)** where multi-service domain events are first emitted. Step 1 relies on `FakeEventBus`.
+    2. *Media service (`services/media` upload, resize, EXIF strip, virus scan, signed URLs)*: Deferred to **Step 2 (F09 Brand kit)** and **Step 3 (F10 Cards)** where image/document assets are introduced.
+    3. *Feature flags engine & per-tenant overrides*: Deferred to **Step 2 / Step 5 (Billing)** where tenant-level runtime flags (`payment_after_first_card`) are first evaluated.
+    4. *Analytics ingestion stub (`POST /analytics/events`)*: Deferred to **Step 3 (Cards visitor telemetry)** / **Step 8 (Analytics)**.
+    5. *Full dashboard shell (Charcoal rail, module registry, offline banner beyond current thin page)*: Deferred to **Step 2 (Organisation and seats)**. Step 1 delivered the minimal login & MFA auth container (`AuthFlow`) and RBAC view.
+    6. *Production Google/Microsoft OAuth verifiers*: Deferred to **Step 12 (Hardening)**. Non-production uses `FakeOAuthVerifier`; production refuses `ENABLE_FAKE_OAUTH`.
+    7. *Durable idempotency store*: Deferred to **Step 2 / Step 5 (Billing)**. Current implementation provides in-memory deduplication and single-send interceptors.
+  - **Rationale (Why)**:
+    - *Dependency*: Step 1 focuses strictly on identity, credentials, and tenant isolation primitives. Media, analytics ingestion, company switcher, and outbox event dispatch have no consumers in Step 1.
+    - *Risk*: Implementing complex outbox workers, media pipelines, or telemetry sinks prematurely introduces external infrastructural dependencies and distracting surface area before domain models are established.
+    - *Pragmatism & Speed*: Guarantees a fully verified, green foundation (100% CI pass across lint, typecheck, unit, integration with real MongoDB, and E2E) without speculative code.

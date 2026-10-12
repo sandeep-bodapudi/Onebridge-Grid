@@ -16,7 +16,7 @@ As a developer, I need the shared plumbing in place so every feature follows the
 **Service plumbing**
 - Feature flags: server and client evaluation, per-tenant overrides. Flags in this phase include `payment_after_first_card`, `card_admin_approval`, `student_plan`. *(Deferred from Step 1 Foundation — owned by Step 2 / Step 5; see decisions.md [2026-10-12])*
 - Transactional outbox: write the state change and the event in one database transaction; a worker publishes at least once. Worker also makes the signed HTTPS calls in ADR-0003 (retry with backoff, idempotent). *(Deferred from Step 1 Foundation — owned by Step 2 / Step 3; Step 1 uses FakeEventBus; see decisions.md [2026-10-12])*
-- Idempotency: write endpoints accept `Idempotency-Key`, store the response for 24 hours, return the same response on replay, and reject the same key with a different body (422).
+- Idempotency: write endpoints accept `Idempotency-Key`, store the response for 24 hours, return the same response on replay, and reject the same key with a different body (422). *(Durable Redis/DB idempotency store deferred to Step 2 / Step 5; Step 1 implements in-memory caching and single-send interceptors; see decisions.md [2026-10-12])*
 - Correlation ID: `X-Correlation-ID` created at the gateway or edge if missing, passed to logs, traces, events and outbound calls.
 - Errors: `application/problem+json` with `type`, `title`, `status`, `detail`, `correlationId`. Lists use cursor pagination.
 - Telemetry: OpenTelemetry traces, structured JSON logs without personal data, Sentry for errors. A log-scrubbing test fails if a phone number or email appears in test logs. *(OpenTelemetry & Sentry deferred to Step 12 Hardening; structured JSON logs and correlation IDs active in Step 1)*
@@ -28,7 +28,7 @@ As a developer, I need the shared plumbing in place so every feature follows the
 - Upload with allowed types (images: PNG, JPEG, WebP, SVG sanitised; documents: PDF), size limits (images 5 MB, PDF 25 MB), virus scan, EXIF removal, resizing and WebP/AVIF variants, stored in S3 ap-south-1 behind CDN. Signed upload URLs. Per-tenant prefix.
 
 **Provider interfaces with fake adapters**
-- `Notifier` (email, SMS, WhatsApp, push, in-app), `OtpSender`, `PaymentGateway` (Razorpay), `GstVerifier`, `Courier`, `UrlSafetyChecker`, `BotChallenge` (Turnstile), `KeyService` (KMS), `EventBus`, `PlanLimits`.
+- `Notifier` (email, SMS, WhatsApp, push, in-app), `OtpSender`, `PaymentGateway` (Razorpay), `GstVerifier`, `Courier`, `UrlSafetyChecker`, `BotChallenge` (Turnstile), `KeyService` (KMS), `EventBus`, `PlanLimits`. *(Production Google/Microsoft OAuth JWKS verifiers deferred to Step 12 Hardening; Step 1 uses FakeOAuthVerifier strictly for non-production tests/local dev and enforces production refusal; see decisions.md [2026-10-12])*
 - Fakes are deterministic, record calls for assertions, and can simulate failure and delay. No real provider is called in tests.
 - `PlanLimits.getForTenant(tenantId)` is configurable per tenant in test and dev (default Business). Starter and Business limits can both be tested.
 
@@ -38,7 +38,7 @@ As a developer, I need the shared plumbing in place so every feature follows the
 **Contracts**
 - OpenAPI 3.1 for Steps 1 to 3 endpoints and event schemas with version field, in `packages/api-contracts`. Generated TypeScript clients. Pact or schema contract tests in CI. Contracts for later steps are written at the start of each step.
 
-**Dashboard shell** (`apps/web-app`) *(Full navigation shell deferred to Step 2 Organisation; Step 1 delivered the minimal AuthFlow login/MFA shell; see decisions.md [2026-10-12])*
+**Dashboard shell** (`apps/web-app`) *(Full navigation shell with Charcoal rail, module registry, offline banner deferred to Step 2 Organisation; Step 1 delivered the minimal AuthFlow login/MFA shell; see decisions.md [2026-10-12])*
 - Root layout, Charcoal left rail, top bar with company switcher and search, module registry, route guard, feature-flag and i18n providers, API client with token refresh, global error boundary that renders problem+json clearly, offline banner.
 
 ## States to design
