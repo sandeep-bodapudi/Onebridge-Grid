@@ -1,3 +1,4 @@
+import { APP_GUARD } from '@nestjs/core';
 import { Module, DynamicModule, Global } from '@nestjs/common';
 import { MongoConnectionHandle, connectMongo, FakeOtpSender, FakeEventBus } from '@onebridge/shared';
 import { IdentityEnvConfig, loadAndValidateEnv } from './config/env.js';
@@ -20,6 +21,7 @@ import { CsrfOriginGuard } from './presentation/guards/csrf-origin.guard.js';
 export interface IdentityModuleOptions {
   envConfig?: IdentityEnvConfig;
   connectionHandle?: MongoConnectionHandle;
+  useInMemoryRepositories?: boolean;
 }
 
 @Global()
@@ -27,6 +29,10 @@ export interface IdentityModuleOptions {
 export class IdentityModule {
   static register(options: IdentityModuleOptions = {}): DynamicModule {
     const config = options.envConfig || loadAndValidateEnv();
+
+    if (config.nodeEnv === 'production' && options.useInMemoryRepositories) {
+      throw new Error('In-memory repositories are strictly prohibited in production!');
+    }
 
     const envProvider = {
       provide: 'IDENTITY_ENV_CONFIG',
@@ -63,6 +69,10 @@ export class IdentityModule {
         tokenServiceProvider,
         serviceKeyGuardProvider,
         csrfOriginGuardProvider,
+        {
+          provide: APP_GUARD,
+          useExisting: CsrfOriginGuard,
+        },
         {
           provide: MongoConnectionHandle,
           useFactory: async () => {

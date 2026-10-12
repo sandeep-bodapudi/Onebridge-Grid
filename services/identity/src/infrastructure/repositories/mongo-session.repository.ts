@@ -42,7 +42,7 @@ export class MongoSessionRepository implements ISessionRepository {
         familyId: family.familyId,
         userId: family.userId,
         currentRefreshTokenHash: family.currentRefreshTokenHash,
-        usedRefreshTokenHashes: Array.from(family.usedRefreshTokenHashes),
+        usedRefreshTokenHashes: Array.from(family.usedRefreshTokenHashes || []),
         isRevoked: family.isRevoked,
         revokedAt: family.revokedAt,
         createdAt: family.createdAt,
