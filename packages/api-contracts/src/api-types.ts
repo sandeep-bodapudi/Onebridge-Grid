@@ -110,8 +110,47 @@ export interface paths {
         };
       };
       responses: {
-        /** @description Authenticated or MFA required */
+        /** @description Authenticated, MFA required, or account link confirmation required */
         200: {
+          content: {
+            "application/json": {
+              /** @enum {string} */
+              status?: "authenticated" | "mfa_required" | "mfa_setup_required" | "link_confirmation_required";
+              accessToken?: string;
+              mfaTicket?: string;
+              linkTicket?: string;
+              maskedPhone?: string;
+              message?: string;
+            };
+          };
+        };
+        /** @description Invalid token or unverified identity */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/auth/oauth/confirm-link": {
+    /** Confirm OAuth account linking with primary credential OTP */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": {
+            linkTicket: string;
+            code: string;
+            deviceLabel?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OAuth account linked and user authenticated */
+        200: {
+          headers: {
+            "Set-Cookie"?: string;
+          };
           content: {
             "application/json": {
               /** @enum {string} */
@@ -121,7 +160,7 @@ export interface paths {
             };
           };
         };
-        /** @description Invalid token or unverified identity */
+        /** @description Invalid ticket or code */
         400: {
           content: {
             "application/problem+json": components["schemas"]["ProblemDetails"];

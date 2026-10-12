@@ -163,6 +163,46 @@ export class NestAuthController {
       ip
     );
 
+    if (result.status === 'link_confirmation_required') {
+      return {
+        status: result.status,
+        linkTicket: result.linkTicket,
+        maskedPhone: result.maskedPhone,
+        message: result.message,
+      };
+    }
+
+    if (result.refreshToken) {
+      const cookieOpts = getRefreshTokenCookieOptions(
+        this.envConfig.cookieSecure,
+        this.envConfig.cookieDomain
+      );
+      res.cookie('refreshToken', result.refreshToken, cookieOpts);
+    }
+
+    return {
+      status: result.status,
+      accessToken: result.accessToken,
+      mfaTicket: result.mfaTicket,
+    };
+  }
+
+  @Post('oauth/confirm-link')
+  @HttpCode(HttpStatus.OK)
+  async confirmOAuthLink(
+    @Body() body: { linkTicket: string; code: string; deviceLabel?: string },
+    @Res({ passthrough: true }) res: HttpResponse,
+    @Req() req?: HttpRequest
+  ) {
+    const ip = getClientIp(req);
+    const userAgent = getClientUserAgent(req);
+    const result = await this.authService.confirmOAuthLink(
+      body.linkTicket,
+      body.code,
+      body.deviceLabel || userAgent,
+      ip
+    );
+
     if (result.refreshToken) {
       const cookieOpts = getRefreshTokenCookieOptions(
         this.envConfig.cookieSecure,

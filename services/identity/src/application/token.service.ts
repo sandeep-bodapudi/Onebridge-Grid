@@ -118,6 +118,22 @@ export class TokenService {
     return decoded.sub;
   }
 
+  generateLinkTicket(userId: string, provider: 'google' | 'microsoft'): string {
+    return this.signJwt({ sub: userId, provider, type: 'link_ticket' }, 5 * 60); // 5 min TTL
+  }
+
+  verifyLinkTicket(ticket: string): { userId: string; provider: 'google' | 'microsoft' } {
+    const decoded = this.verifyJwt(ticket);
+    if (decoded.type !== 'link_ticket') {
+      throw new Error('Invalid link ticket type');
+    }
+    const provider = decoded.provider;
+    if (provider !== 'google' && provider !== 'microsoft') {
+      throw new Error('Invalid OAuth provider in link ticket');
+    }
+    return { userId: decoded.sub, provider };
+  }
+
   verifyAccessToken(token: string): DecodedToken {
     const decoded = this.verifyJwt(token);
     if (decoded.type !== 'access') {

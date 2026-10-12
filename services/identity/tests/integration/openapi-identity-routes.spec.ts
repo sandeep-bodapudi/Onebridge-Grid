@@ -13,6 +13,7 @@ describe('OpenAPI Route Parity & Status Verification (Condition 10)', () => {
     { path: '/auth/otp:', method: 'post:', expectedStatuses: ["'200':", "'429':"] },
     { path: '/auth/verify:', method: 'post:', expectedStatuses: ["'200':", "'400':", "'423':"] },
     { path: '/auth/oauth/{provider}:', method: 'post:', expectedStatuses: ["'200':", "'400':"] },
+    { path: '/auth/oauth/confirm-link:', method: 'post:', expectedStatuses: ["'200':", "'400':"] },
     { path: '/auth/refresh:', method: 'post:', expectedStatuses: ["'200':", "'401':"] },
     { path: '/auth/logout:', method: 'post:', expectedStatuses: ["'204':"] },
     { path: '/auth/sessions:', method: 'get:', expectedStatuses: ["'200':", "'401':"] },
@@ -53,6 +54,7 @@ describe('OpenAPI Route Parity & Status Verification (Condition 10)', () => {
     expect(typeof NestAuthController.prototype.requestOtp).toBe('function');
     expect(typeof NestAuthController.prototype.verifyOtp).toBe('function');
     expect(typeof NestAuthController.prototype.oauthLogin).toBe('function');
+    expect(typeof NestAuthController.prototype.confirmOAuthLink).toBe('function');
     expect(typeof NestAuthController.prototype.refresh).toBe('function');
     expect(typeof NestAuthController.prototype.logout).toBe('function');
     expect(typeof NestAuthController.prototype.listSessions).toBe('function');

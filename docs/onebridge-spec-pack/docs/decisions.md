@@ -47,4 +47,14 @@ Append new decisions at the bottom, with date, decision and reason.
 
 ## Decisions made by the agent
 
-(Agent appends here: date, decision, reason.)
+- **[2026-10-12] Step 1 Foundation Scope Alignment & Deferred F00 Platform Capabilities**:
+  - **Decision**: Step 1 Foundation is formally closed on a reduced, verified foundation (workspace/CI, `ui-kit` with WCAG AA contrast validation, complete authentication in `services/identity` with phone OTP, RFC 6238 TOTP MFA for Business Owner/Admin, rotating session families with HttpOnly cookies, and account-takeover protected OAuth linking, tenancy isolation framework with `TenantScopedRepository` vs. `GlobalRepository`, fake adapters `FakeOtpSender` and `FakeEventBus`, dev seed with 2 tenants, 6 persons, 6 memberships, and Playwright E2E login verification).
+  - **Deferred Items from F00**:
+    - *Transactional Outbox & durable worker*: Deferred to **Step 2 (Organisation)** / **Step 3 (Cards)** where multi-service domain events are first emitted. Step 1 relies on `FakeEventBus`.
+    - *Media Service (`services/media` upload, resize, EXIF strip, virus scan, signed URLs)*: Deferred to **Step 2 (F09 Brand kit)** and **Step 3 (F10 Cards)** where image/document assets are introduced.
+    - *Feature Flag Evaluation Engine*: Deferred to **Step 2 / Step 5 (Billing)** where tenant-level flags (`payment_after_first_card`) are first evaluated.
+    - *Analytics Ingestion Stub (`POST /analytics/events`)*: Deferred to **Step 3 (Cards visitor telemetry)** / **Step 8 (Analytics)**.
+    - *Full Dashboard Shell (`apps/web-app` left rail, company switcher, search, global error boundary)*: Deferred to **Step 2 (Organisation and seats)**. Step 1 delivered the minimal login & MFA auth container (`AuthFlow`) and RBAC view.
+    - *Hindi i18n catalogue*: Deferred to **Step 3 / Step 12**.
+    - *OpenTelemetry & Sentry*: Deferred to **Step 12 (Hardening)**.
+  - **Why**: Dependency order (no consumers in Step 1), risk mitigation (avoids premature infrastructural complexity before domain models exist), and pragmatism (establishes a clean, green, tested baseline first).

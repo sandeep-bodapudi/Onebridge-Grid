@@ -50,10 +50,14 @@ export interface AuthServiceConfig {
 }
 
 export interface VerifyOtpResult {
-  status: 'authenticated' | 'mfa_required' | 'mfa_setup_required';
+  status: 'authenticated' | 'mfa_required' | 'mfa_setup_required' | 'link_confirmation_required';
   accessToken?: string;
   refreshToken?: string;
   mfaTicket?: string;
+  linkTicket?: string;
+  provider?: string;
+  maskedPhone?: string;
+  message?: string;
   userId: string;
 }
 
@@ -106,98 +110,8 @@ export class AuthService {
     // 1. Verify idToken with provider
     const profile = await this.oauthVerifier.verifyIdToken(provider, idToken);
 
-    // 2. Link or create Person (Rule AC-4)
-    let person: Person | undefined;
-
-    if (profile.email && profile.emailVerified) {
-      person = await this.personRepo.findByEmail(profile.email);
-    }
-
-    if (!person && profile.phone && profile.phoneVerified) {
-      person = await this.personRepo.findByPhone(profile.phone);
-    }
-
-    if (person) {
-      // Link provider if not already linked
-      const providers = person.authProviders || [];
-      if (!providers.includes(provider)) {
-        providers.push(provider);
-        person.authProviders = providers;
-        await this.personRepo.update(person);
-      }
-    } else {
-      // Create new Person
-      const userId = `usr_${crypto.randomBytes(12).toString('hex')}`;
-      person = await this.personRepo.create({
-        userId,
-        email: profile.emailVerified ? profile.email : undefined,
-        phone: profile.phoneVerified ? profile.phone : undefined,
-        name: profile.name,
-        authProviders: [provider],
-        mfa: { enabled: false },
-      });
-
-      await this.eventBus.publish({
-        eventId: crypto.randomUUID(),
-        type: 'user.registered',
-        version: '1.0.0',
-        tenantId: 'global',
-        occurredAt: new Date().toISOString(),
-        correlationId,
-      });
-    }
-
-    // Check MFA requirements
-    const isOwnerOrAdmin = (person.roles || []).some(
-      (r) => (r.role === 'Owner' || r.role === 'Admin') && r.plan === 'Business'
-    );
-    const mfaEnforced = isOwnerOrAdmin || (person.mfa && person.mfa.enabled);
-
-    if (mfaEnforced) {
-      if (!person.mfa || !person.mfa.enabled) {
-        const mfaTicket = this.tokenService.generateMfaTicket(person.userId);
-        return {
-          status: 'mfa_setup_required',
-          mfaTicket,
-          userId: person.userId,
-        };
-      } else {
-        const mfaTicket = this.tokenService.generateMfaTicket(person.userId);
-        return {
-          status: 'mfa_required',
-          mfaTicket,
-          userId: person.userId,
-        };
-      }
-    }
-
-    // Issue tokens and session
-    const familyId = `fam_${crypto.randomBytes(12).toString('hex')}`;
-    const sessionId = `ses_${crypto.randomBytes(12).toString('hex')}`;
-
-    const tokens = await this.tokenService.createSessionFamily(
-      person.userId,
-      deviceLabel,
-      ipAddress,
-      familyId,
-      sessionId
-    );
-
-    await this.eventBus.publish({
-      eventId: crypto.randomUUID(),
-      type: 'user.authenticated',
-      version: '1.0.0',
-      tenantId: 'global',
-      occurredAt: new Date().toISOString(),
-      correlationId,
-    });
-
-    return {
-      status: 'authenticated',
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      userId: person.userId,
-    };
+    // 2. Process profile through unified OAuth workflow
+    return this.processOAuthProfile(provider, profile, deviceLabel, ipAddress, correlationId);
   }
 
   async verifyOtpAndLogin(
@@ -384,18 +298,23 @@ export class AuthService {
     return tokens;
   }
 
-  async handleOAuthLogin(
+  private maskPhone(phone: string): string {
+    if (!phone || phone.length < 5) return '***';
+    const last4 = phone.slice(-4);
+    const prefix = phone.startsWith('+') ? phone.slice(0, 3) : phone.slice(0, 2);
+    const middleLength = Math.max(1, phone.length - prefix.length - 4);
+    return `${prefix}${'*'.repeat(middleLength)}${last4}`;
+  }
+
+  async processOAuthProfile(
     provider: 'google' | 'microsoft',
-    idTokenOrProfile: string | OAuthUserInfo,
+    profile: OAuthUserInfo,
     deviceLabel = 'Default Device',
     ipAddress = '127.0.0.1',
     correlationId = 'unknown'
   ): Promise<VerifyOtpResult> {
-    if (typeof idTokenOrProfile === 'string') {
-      return this.loginWithOAuth(provider, idTokenOrProfile, deviceLabel, ipAddress, correlationId);
-    }
-    const profile = idTokenOrProfile;
     let person: Person | undefined;
+
     if (profile.email) {
       const existing = await this.personRepo.findByEmail(profile.email);
       if (existing) {
@@ -405,6 +324,7 @@ export class AuthService {
         person = existing;
       }
     }
+
     if (!person && profile.phone) {
       const existing = await this.personRepo.findByPhone(profile.phone);
       if (existing) {
@@ -414,14 +334,40 @@ export class AuthService {
         person = existing;
       }
     }
+
     if (person) {
       const providers = person.authProviders || [];
-      if (!providers.includes(provider)) {
-        providers.push(provider);
-        person.authProviders = providers;
-        await this.personRepo.update(person);
+      const alreadyLinked = providers.includes(provider);
+
+      if (!alreadyLinked) {
+        // Close account takeover surface:
+        // Do NOT issue access/refresh tokens yet.
+        // Do NOT silently append the OAuth provider.
+        const linkTicket = this.tokenService.generateLinkTicket(person.userId, provider);
+        const maskedPhone = person.phone ? this.maskPhone(person.phone) : undefined;
+
+        if (person.phone) {
+          try {
+            await this.otpService.requestOtp(person.phone, ipAddress);
+          } catch {
+            // Ignore rate-limit errors on proactive dispatch
+          }
+        }
+
+        return {
+          status: 'link_confirmation_required',
+          linkTicket,
+          userId: person.userId,
+          provider,
+          maskedPhone,
+          message: 'Linking this OAuth provider requires re-authentication of your primary credential. An OTP has been sent to your registered phone number.',
+        };
       }
     } else {
+      if (!profile.emailVerified && !profile.phoneVerified) {
+        throw new Error('Cannot link unverified OAuth identity');
+      }
+
       const userId = `usr_${crypto.randomBytes(12).toString('hex')}`;
       person = await this.personRepo.create({
         userId,
@@ -431,6 +377,7 @@ export class AuthService {
         authProviders: [provider],
         mfa: { enabled: false },
       });
+
       await this.eventBus.publish({
         eventId: crypto.randomUUID(),
         type: 'user.registered',
@@ -456,13 +403,108 @@ export class AuthService {
 
     const familyId = `fam_${crypto.randomBytes(12).toString('hex')}`;
     const sessionId = `ses_${crypto.randomBytes(12).toString('hex')}`;
-    const tokens = await this.tokenService.createSessionFamily(person.userId, deviceLabel, ipAddress, familyId, sessionId);
+    const tokens = await this.tokenService.createSessionFamily(
+      person.userId,
+      deviceLabel,
+      ipAddress,
+      familyId,
+      sessionId
+    );
+
+    await this.eventBus.publish({
+      eventId: crypto.randomUUID(),
+      type: 'user.authenticated',
+      version: '1.0.0',
+      tenantId: 'global',
+      occurredAt: new Date().toISOString(),
+      correlationId,
+    });
+
     return {
       status: 'authenticated',
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       userId: person.userId,
     };
+  }
+
+  async confirmOAuthLink(
+    linkTicket: string,
+    code: string,
+    deviceLabel = 'Default Device',
+    ipAddress = '127.0.0.1',
+    correlationId = 'unknown'
+  ): Promise<VerifyOtpResult> {
+    const { userId, provider } = this.tokenService.verifyLinkTicket(linkTicket);
+    const person = await this.personRepo.findById(userId);
+    if (!person) {
+      throw new ProblemException(404, 'Not Found', 'User identity not found', correlationId);
+    }
+
+    if (!person.phone) {
+      throw new ProblemException(400, 'Bad Request', 'Primary phone credential missing for re-authentication', correlationId);
+    }
+
+    await this.otpService.verifyOtp(person.phone, code, ipAddress);
+
+    const providers = person.authProviders || [];
+    if (!providers.includes(provider)) {
+      providers.push(provider);
+      person.authProviders = providers;
+      await this.personRepo.update(person);
+    }
+
+    const isOwnerOrAdmin = (person.roles || []).some(
+      (r) => (r.role === 'Owner' || r.role === 'Admin') && r.plan === 'Business'
+    );
+    const mfaEnforced = isOwnerOrAdmin || (person.mfa && person.mfa.enabled);
+    if (mfaEnforced) {
+      const mfaTicket = this.tokenService.generateMfaTicket(person.userId);
+      return {
+        status: !person.mfa || !person.mfa.enabled ? 'mfa_setup_required' : 'mfa_required',
+        mfaTicket,
+        userId: person.userId,
+      };
+    }
+
+    const familyId = `fam_${crypto.randomBytes(12).toString('hex')}`;
+    const sessionId = `ses_${crypto.randomBytes(12).toString('hex')}`;
+    const tokens = await this.tokenService.createSessionFamily(
+      person.userId,
+      deviceLabel,
+      ipAddress,
+      familyId,
+      sessionId
+    );
+
+    await this.eventBus.publish({
+      eventId: crypto.randomUUID(),
+      type: 'user.authenticated',
+      version: '1.0.0',
+      tenantId: 'global',
+      occurredAt: new Date().toISOString(),
+      correlationId,
+    });
+
+    return {
+      status: 'authenticated',
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      userId: person.userId,
+    };
+  }
+
+  async handleOAuthLogin(
+    provider: 'google' | 'microsoft',
+    idTokenOrProfile: string | OAuthUserInfo,
+    deviceLabel = 'Default Device',
+    ipAddress = '127.0.0.1',
+    correlationId = 'unknown'
+  ): Promise<VerifyOtpResult> {
+    if (typeof idTokenOrProfile === 'string') {
+      return this.loginWithOAuth(provider, idTokenOrProfile, deviceLabel, ipAddress, correlationId);
+    }
+    return this.processOAuthProfile(provider, idTokenOrProfile, deviceLabel, ipAddress, correlationId);
   }
 
   async rotateTokens(oldRefreshToken: string, deviceLabel?: string, ipAddress?: string) {

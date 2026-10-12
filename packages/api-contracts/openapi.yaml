@@ -104,7 +104,45 @@ paths:
                 deviceLabel: { type: string }
       responses:
         '200':
-          description: Authenticated or MFA required
+          description: Authenticated, MFA required, or account link confirmation required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [authenticated, mfa_required, mfa_setup_required, link_confirmation_required] }
+                  accessToken: { type: string }
+                  mfaTicket: { type: string }
+                  linkTicket: { type: string }
+                  maskedPhone: { type: string }
+                  message: { type: string }
+        '400':
+          description: Invalid token or unverified identity
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/oauth/confirm-link:
+    post:
+      summary: Confirm OAuth account linking with primary credential OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [linkTicket, code]
+              properties:
+                linkTicket: { type: string }
+                code: { type: string }
+                deviceLabel: { type: string }
+      responses:
+        '200':
+          description: OAuth account linked and user authenticated
+          headers:
+            Set-Cookie:
+              schema: { type: string }
           content:
             application/json:
               schema:
@@ -114,7 +152,7 @@ paths:
                   accessToken: { type: string }
                   mfaTicket: { type: string }
         '400':
-          description: Invalid token or unverified identity
+          description: Invalid ticket or code
           content:
             application/problem+json:
               schema:

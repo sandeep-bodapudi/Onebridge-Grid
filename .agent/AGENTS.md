@@ -32,6 +32,7 @@ The earlier "MVP Implementation Plan" is **superseded**. Do not follow its month
 | Share-back fields | name, phone (required); email, company, note (optional); consent checkbox (required). |
 | Printed cards in MVP | Small business, medium employee and owner families. Large-employee and student printed cards are not in MVP. |
 | Metal cards | QR-only design. NFC is not guaranteed on metal. |
+| Step 1 scope | Closed on verified reduced foundation (CI, ui-kit + contrast, auth with OTP/MFA/sessions/OAuth linking, tenancy isolation framework, fake providers + seed, E2E login). Non-blocking platform items (outbox, media, flags, analytics ingestion, dashboard shell) deferred to Steps 2, 3, 5, 8. See decisions.md [2026-10-12]. |
 
 ## 3. Non-negotiable rules
 
@@ -137,7 +138,7 @@ pnpm contracts:gen  # regenerate clients from OpenAPI
 
 Finish and review each step before starting the next.
 
-1. **Foundation:** workspace, tokens and `ui-kit`, auth (OTP, OAuth), tenant model, RBAC, audit log, Business ID, fake provider adapters, CI.
+1. **Foundation:** workspace, tokens and `ui-kit`, auth (OTP, OAuth), tenant model, RBAC, audit log, Business ID, fake provider adapters, CI. *(Closed on verified reduced foundation; outbox, media, feature flags, analytics ingestion, and full dashboard shell deferred to Steps 2, 3, 5, 8 per decisions.md [2026-10-12]).*
 2. **Organisation and seats:** company, branches, departments, teams, seats, brand kit with contrast validation.
 3. **Cards and short links:** card CRUD, 8 templates, sections, QR (branded, source-tagged), edge redirect, visitor page with all states, vCard, share-back and Lead, spam protection on share-back.
 4. **Employees:** invite and seat claim (with recorded privacy notice), CSV import, bulk actions, offboarding, handover summary, personal export of public card details.

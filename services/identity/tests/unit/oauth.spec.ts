@@ -29,7 +29,7 @@ describe('OAuth Account Linking (AC-4)', () => {
     });
   });
 
-  it('should link OAuth identity to existing person if verified email matches', async () => {
+  it('should require re-auth and not return tokens or link provider when verified email matches existing person', async () => {
     // Seed an existing person with email
     const existing = await personRepo.create({
       userId: 'usr-1',
@@ -47,7 +47,34 @@ describe('OAuth Account Linking (AC-4)', () => {
       name: 'Sandeep G',
     }, 'Chrome');
 
+    // Account takeover closed: must not issue session or mutate authProviders silently
+    expect(result.status).toBe('link_confirmation_required');
     expect(result.userId).toBe(existing.userId);
+    expect(result.accessToken).toBeUndefined();
+    expect(result.refreshToken).toBeUndefined();
+    expect(result.linkTicket).toBeDefined();
+    expect(result.maskedPhone).toBe('+91******3210');
+    expect(result.message).toContain('Linking this OAuth provider requires re-authentication');
+
+    const notLinkedYet = await personRepo.findById('usr-1');
+    expect(notLinkedYet?.authProviders).not.toContain('google');
+
+    // Confirm link with wrong code fails
+    await expect(
+      authService.confirmOAuthLink(result.linkTicket!, '999999', 'Chrome', '127.0.0.1')
+    ).rejects.toThrow('Invalid OTP code');
+
+    // Confirm link with correct OTP code succeeds and establishes session
+    const confirmed = await authService.confirmOAuthLink(
+      result.linkTicket!,
+      '123456',
+      'Chrome',
+      '127.0.0.1'
+    );
+    expect(confirmed.status).toBe('authenticated');
+    expect(confirmed.accessToken).toBeDefined();
+    expect(confirmed.refreshToken).toBeDefined();
+
     const updated = await personRepo.findById('usr-1');
     expect(updated?.authProviders).toContain('google');
   });
@@ -78,6 +105,9 @@ describe('OAuth Account Linking (AC-4)', () => {
       name: 'New User',
     }, 'Edge');
 
+    expect(result.status).toBe('authenticated');
+    expect(result.accessToken).toBeDefined();
+    expect(result.refreshToken).toBeDefined();
     expect(result.userId).toBeDefined();
     const created = await personRepo.findById(result.userId);
     expect(created).toBeDefined();
@@ -85,7 +115,7 @@ describe('OAuth Account Linking (AC-4)', () => {
     expect(created?.email).toBe('newuser@microsoft.com');
   });
 
-  it('should link OAuth identity to existing person if verified phone matches', async () => {
+  it('should require re-auth and not return tokens or link provider when verified phone matches existing person', async () => {
     const existing = await personRepo.create({
       userId: 'usr-phone-user',
       phone: '+919876543210',
@@ -100,9 +130,49 @@ describe('OAuth Account Linking (AC-4)', () => {
       name: 'Phone User',
     }, 'Chrome');
 
+    expect(result.status).toBe('link_confirmation_required');
     expect(result.userId).toBe(existing.userId);
+    expect(result.accessToken).toBeUndefined();
+    expect(result.refreshToken).toBeUndefined();
+    expect(result.linkTicket).toBeDefined();
+
+    const notLinkedYet = await personRepo.findById('usr-phone-user');
+    expect(notLinkedYet?.authProviders).not.toContain('google');
+
+    // Confirm link succeeds with primary phone OTP
+    const confirmed = await authService.confirmOAuthLink(
+      result.linkTicket!,
+      '123456',
+      'Chrome',
+      '127.0.0.1'
+    );
+    expect(confirmed.status).toBe('authenticated');
+    expect(confirmed.accessToken).toBeDefined();
+
     const updated = await personRepo.findById('usr-phone-user');
     expect(updated?.authProviders).toContain('google');
+  });
+
+  it('should authenticate directly if OAuth provider is already linked', async () => {
+    await personRepo.create({
+      userId: 'usr-already-linked',
+      phone: '+919876543210',
+      email: 'already@example.com',
+      authProviders: ['google'],
+      mfa: { enabled: false },
+    });
+
+    const result = await authService.handleOAuthLogin('google', {
+      sub: 'google-sub-already',
+      email: 'already@example.com',
+      emailVerified: true,
+      name: 'Already Linked',
+    }, 'Chrome');
+
+    expect(result.status).toBe('authenticated');
+    expect(result.accessToken).toBeDefined();
+    expect(result.refreshToken).toBeDefined();
+    expect(result.userId).toBe('usr-already-linked');
   });
 
   it('should reject linking if phone is unverified', async () => {

@@ -210,19 +210,63 @@ export class AuthController {
         ctx.correlationId
       );
 
+      if (result.status === 'link_confirmation_required') {
+        return {
+          status: 200,
+          headers: {},
+          body: {
+            status: result.status,
+            linkTicket: result.linkTicket,
+            maskedPhone: result.maskedPhone,
+            message: result.message,
+          },
+        };
+      }
+
       return {
         status: 200,
-        headers: {
+        headers: result.refreshToken ? {
           'Set-Cookie': `refreshToken=${result.refreshToken}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`,
-        },
+        } : {},
         body: {
-          status: 'authenticated',
+          status: result.status,
           accessToken: result.accessToken,
+          mfaTicket: result.mfaTicket,
         },
       };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       throw new ProblemException(400, 'OAuth Login Failed', msg, ctx.correlationId);
+    }
+  }
+
+  async confirmOAuthLink(
+    body: { linkTicket: string; code: string; deviceLabel?: string },
+    ctx: { ip: string; correlationId: string }
+  ) {
+    try {
+      const result = await this.authService.confirmOAuthLink(
+        body.linkTicket,
+        body.code,
+        body.deviceLabel || 'Browser',
+        ctx.ip,
+        ctx.correlationId
+      );
+
+      return {
+        status: 200,
+        headers: result.refreshToken ? {
+          'Set-Cookie': `refreshToken=${result.refreshToken}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`,
+        } : {},
+        body: {
+          status: result.status,
+          accessToken: result.accessToken,
+          mfaTicket: result.mfaTicket,
+        },
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ProblemException(400, 'OAuth Link Confirmation Failed', msg, ctx.correlationId);
     }
   }
 
