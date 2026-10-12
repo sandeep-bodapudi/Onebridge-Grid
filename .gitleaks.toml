@@ -1,0 +1,22 @@
+# Gitleaks configuration for OneBridge Grid
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlist for environment templates and test fixtures containing known dummy credentials"
+paths = [
+  '''(?i)(^|/)\.env\.example$''',
+  '''(?i)(^|/)services/identity/tests/''',
+  '''(?i)(^|/)packages/shared/tests/''',
+  '''(?i)(^|/)tests/fixtures/''',
+  '''(?i)(^|/)scripts/test-identity-server\.mjs$''',
+  '''(?i)(^|/)services/identity/test-server\.mjs$''',
+]
+regexes = [
+  '''(?i)test-jwt-secret-key-at-least-32-chars-long-12345''',
+  '''(?i)0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef''',
+  '''(?i)test-secret-key-32-chars-long-12345''',
+  '''(?i)test-secret-at-least-32-chars-long-12345''',
+  '''(?i)dev-jwt-secret-at-least-32-chars-long-12345''',
+  '''(?i)dev-internal-service-key-32-chars-long-12345''',
+]
