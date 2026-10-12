@@ -18,6 +18,10 @@ interface MongoPersonDoc {
   updatedAt: string;
 }
 
+export function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export class MongoPersonRepository implements IPersonRepository {
   private repo: GlobalRepository<MongoPersonDoc>;
 
@@ -96,7 +100,8 @@ export class MongoPersonRepository implements IPersonRepository {
   }
 
   async findByEmail(email: string): Promise<Person | undefined> {
-    const doc = await this.repo.findOne({ email: new RegExp(`^${email}$`, 'i') });
+    const escaped = escapeRegExp(email);
+    const doc = await this.repo.findOne({ email: new RegExp(`^${escaped}$`, 'i') });
     return doc ? this.toDomain(doc) : undefined;
   }
 

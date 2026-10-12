@@ -126,6 +126,58 @@ describe('Repository Contract Suite (Fix 1: Real Mongo & In-Memory Parity)', () 
             expect(updated?.mfa.secret).toBe('JBSWY3DPEHPK3PXP');
           }
         });
+
+        it('safely finds by email with normal address, case-insensitively, and escapes regex special characters', async () => {
+          const personWithPlus: Person = {
+            userId: 'usr_plus_safe',
+            phone: '+919876543299',
+            email: 'user+tag@example.com',
+            name: 'Plus User',
+            authProviders: ['otp'],
+            mfa: { enabled: false },
+            roles: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          const personWithDot: Person = {
+            userId: 'usr_dot_safe',
+            phone: '+919876543298',
+            email: 'user.name@example.com',
+            name: 'Dot User',
+            authProviders: ['otp'],
+            mfa: { enabled: false },
+            roles: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          await repos.personRepo.create(personWithPlus);
+          await repos.personRepo.create(personWithDot);
+
+          // 1. Normal address
+          const normal = await repos.personRepo.findByEmail('user+tag@example.com');
+          expect(normal).toBeDefined();
+          expect(normal?.userId).toBe(personWithPlus.userId);
+
+          // 2. Case-insensitively
+          const caseInsensitive = await repos.personRepo.findByEmail('USER+TAG@EXAMPLE.COM');
+          expect(caseInsensitive).toBeDefined();
+          expect(caseInsensitive?.userId).toBe(personWithPlus.userId);
+
+          // 3. Special characters are not treated as RegExp syntax:
+          // '.' in email is literal: 'user_name@example.com' should NOT match 'user.name@example.com'
+          const wildDot = await repos.personRepo.findByEmail('user_name@example.com');
+          expect(wildDot).toBeUndefined();
+
+          // '.*' is literal and should not match 'user.name@example.com'
+          const starQuery = await repos.personRepo.findByEmail('user.*@example.com');
+          expect(starQuery).toBeUndefined();
+
+          // Unbalanced brackets or regex quantifiers do not cause regex errors or misinterpretations
+          const invalidRegex = await repos.personRepo.findByEmail('user(tag@example.com');
+          expect(invalidRegex).toBeUndefined();
+        });
       });
 
       describe('Session Repository Contract', () => {
