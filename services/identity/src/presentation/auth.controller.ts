@@ -313,6 +313,10 @@ export class AuthController {
       await this.authService.revokeUserSession(userId, sessionId);
       return { status: 204, body: null };
     } catch (err: unknown) {
+      if (err instanceof ProblemException) {
+        err.problem.correlationId = ctx.correlationId;
+        throw err;
+      }
       const msg = err instanceof Error ? err.message : String(err);
       throw new ProblemException(403, 'Session Revocation Failed', msg, ctx.correlationId);
     }

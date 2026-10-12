@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { FakeOtpSender, FakeEventBus } from '@onebridge/shared';
+import { FakeOtpSender, FakeEventBus, ProblemException } from '@onebridge/shared';
 import { OtpService } from './otp.service.js';
 import { TokenService } from './token.service.js';
 import { MfaService } from './mfa.service.js';
@@ -230,6 +230,10 @@ export class AuthService {
         tenantId: 'global',
         occurredAt: new Date().toISOString(),
         correlationId,
+        payload: {
+          userId,
+          phone,
+        },
       });
     }
 
@@ -392,11 +396,23 @@ export class AuthService {
     }
     const profile = idTokenOrProfile;
     let person: Person | undefined;
-    if (profile.email && profile.emailVerified) {
-      person = await this.personRepo.findByEmail(profile.email);
+    if (profile.email) {
+      const existing = await this.personRepo.findByEmail(profile.email);
+      if (existing) {
+        if (!profile.emailVerified) {
+          throw new Error('Cannot link unverified OAuth identity');
+        }
+        person = existing;
+      }
     }
-    if (!person && profile.phone && profile.phoneVerified) {
-      person = await this.personRepo.findByPhone(profile.phone);
+    if (!person && profile.phone) {
+      const existing = await this.personRepo.findByPhone(profile.phone);
+      if (existing) {
+        if (!profile.phoneVerified) {
+          throw new Error('Cannot link unverified OAuth identity');
+        }
+        person = existing;
+      }
     }
     if (person) {
       const providers = person.authProviders || [];
@@ -478,13 +494,41 @@ export class AuthService {
     await this.sessionRepo.revokeSession(sessionId);
   }
 
-  async revokeUserSession(userIdOrSessionId: string, maybeSessionId?: string) {
-    const sessionId = maybeSessionId || userIdOrSessionId;
+  async revokeUserSession(userId: string, sessionId: string) {
+    const session = await this.sessionRepo.findSessionById(sessionId);
+    if (!session || session.userId !== userId) {
+      throw new ProblemException(
+        403,
+        'Forbidden',
+        'Cannot revoke session belonging to another user',
+        'unknown'
+      );
+    }
     await this.sessionRepo.revokeSession(sessionId);
   }
 
+  async createSessionForUser(
+    userId: string,
+    userAgent = 'Default Device',
+    ipAddress = '127.0.0.1'
+  ): Promise<{ sessionId: string; familyId: string; refreshToken: string; accessToken: string }> {
+    const res = await this.tokenService.createSessionFamily(userId, userAgent, ipAddress);
+    return {
+      sessionId: res.session.sessionId,
+      familyId: res.session.familyId,
+      refreshToken: res.refreshToken,
+      accessToken: res.accessToken,
+    };
+  }
+
   async setupMfaForUser(userId: string) {
-    return this.mfaService.generateSetup(userId);
+    const setup = this.mfaService.generateSetup(userId);
+    const person = await this.personRepo.findById(userId);
+    if (person) {
+      person.mfa = { enabled: false, secret: setup.secret };
+      await this.personRepo.update(person);
+    }
+    return setup;
   }
 
   async verifyMfaChallenge(mfaTicket: string, totpCode: string, deviceLabel = 'Default Device', ipAddress = '127.0.0.1') {

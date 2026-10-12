@@ -74,4 +74,99 @@ describe('Environment Validation & Production Guards (Condition 2 & 6)', () => {
       })
     ).toThrowError(/Invalid MONGODB_URI scheme/);
   });
+
+  it('should fail fast in production if JWT_SECRET is missing, short, or uses dev placeholder', () => {
+    const validMongo = 'mongodb+srv://user:pass@cluster.mongodb.net/prod';
+    const validInternal = 'b'.repeat(32);
+    const validEnc = 'c'.repeat(64);
+
+    // Missing or short
+    expect(() =>
+      loadAndValidateEnv({
+        NODE_ENV: 'production',
+        MONGODB_URI: validMongo,
+        JWT_SECRET: 'short',
+        INTERNAL_SERVICE_KEY: validInternal,
+        ENCRYPTION_KEY: validEnc,
+      })
+    ).toThrowError(/JWT_SECRET is required and must be at least 32 characters in production/);
+
+    // Dev placeholder
+    expect(() =>
+      loadAndValidateEnv({
+        NODE_ENV: 'production',
+        MONGODB_URI: validMongo,
+        JWT_SECRET: 'development_jwt_secret_change_in_production_min_32_bytes',
+        INTERNAL_SERVICE_KEY: validInternal,
+        ENCRYPTION_KEY: validEnc,
+      })
+    ).toThrowError(/JWT_SECRET cannot use known development or sample keys in production/);
+  });
+
+  it('should fail fast in production if INTERNAL_SERVICE_KEY is missing, short, or uses dev placeholder', () => {
+    const validMongo = 'mongodb+srv://user:pass@cluster.mongodb.net/prod';
+    const validJwt = 'a'.repeat(32);
+    const validEnc = 'c'.repeat(64);
+
+    // Missing or short
+    expect(() =>
+      loadAndValidateEnv({
+        NODE_ENV: 'production',
+        MONGODB_URI: validMongo,
+        JWT_SECRET: validJwt,
+        INTERNAL_SERVICE_KEY: 'too-short',
+        ENCRYPTION_KEY: validEnc,
+      })
+    ).toThrowError(/INTERNAL_SERVICE_KEY is required and must be at least 32 characters in production/);
+
+    // Dev placeholder
+    expect(() =>
+      loadAndValidateEnv({
+        NODE_ENV: 'production',
+        MONGODB_URI: validMongo,
+        JWT_SECRET: validJwt,
+        INTERNAL_SERVICE_KEY: 'dev_internal_service_key_32_bytes_min',
+        ENCRYPTION_KEY: validEnc,
+      })
+    ).toThrowError(/INTERNAL_SERVICE_KEY cannot use known development or sample keys in production/);
+  });
+
+  it('should fail fast in production if ENCRYPTION_KEY is missing, invalid hex format, or uses dev placeholder', () => {
+    const validMongo = 'mongodb+srv://user:pass@cluster.mongodb.net/prod';
+    const validJwt = 'a'.repeat(32);
+    const validInternal = 'b'.repeat(32);
+
+    // Missing
+    expect(() =>
+      loadAndValidateEnv({
+        NODE_ENV: 'production',
+        MONGODB_URI: validMongo,
+        JWT_SECRET: validJwt,
+        INTERNAL_SERVICE_KEY: validInternal,
+        ENCRYPTION_KEY: '',
+      })
+    ).toThrowError(/ENCRYPTION_KEY is required in production/);
+
+    // Not 64 hex characters
+    expect(() =>
+      loadAndValidateEnv({
+        NODE_ENV: 'production',
+        MONGODB_URI: validMongo,
+        JWT_SECRET: validJwt,
+        INTERNAL_SERVICE_KEY: validInternal,
+        ENCRYPTION_KEY: 'not-a-hex-string',
+      })
+    ).toThrowError(/ENCRYPTION_KEY must be exactly 64 hexadecimal characters/);
+
+    // Dev placeholder
+    expect(() =>
+      loadAndValidateEnv({
+        NODE_ENV: 'production',
+        MONGODB_URI: validMongo,
+        JWT_SECRET: validJwt,
+        INTERNAL_SERVICE_KEY: validInternal,
+        ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      })
+    ).toThrowError(/ENCRYPTION_KEY cannot use known development or sample keys in production/);
+  });
 });

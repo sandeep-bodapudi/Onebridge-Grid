@@ -57,50 +57,93 @@ export class NestAuthController {
     @Inject('IDENTITY_ENV_CONFIG') private readonly envConfig: IdentityEnvConfig
   ) {}
 
+  private idempotencyCache = new Map<
+    string,
+    { value: { requestBody: unknown; response: unknown }; expiresAt: number }
+  >();
+
+  private async handleIdempotency<T>(
+    idempotencyKey: string | undefined,
+    requestBody: unknown,
+    correlationId: string,
+    execute: () => Promise<T>
+  ): Promise<T> {
+    if (!idempotencyKey) {
+      return execute();
+    }
+    const now = Date.now();
+    const cached = this.idempotencyCache.get(idempotencyKey);
+    if (cached && cached.expiresAt > now) {
+      if (JSON.stringify(cached.value.requestBody) !== JSON.stringify(requestBody)) {
+        throw new ProblemException(
+          422,
+          'Unprocessable Entity',
+          'Mismatching body for idempotency key',
+          correlationId
+        );
+      }
+      return cached.value.response as T;
+    }
+
+    const response = await execute();
+    this.idempotencyCache.set(idempotencyKey, {
+      value: { requestBody, response },
+      expiresAt: now + 86400 * 1000,
+    });
+    return response;
+  }
+
   @Post('otp')
   @HttpCode(HttpStatus.OK)
   async requestOtp(
     @Body() body: { phone: string },
-    @Headers('x-correlation-id') _correlationId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
+    @Headers('x-correlation-id') correlationId = 'unknown',
     @Req() req?: HttpRequest
   ) {
     const ip = getClientIp(req);
-    const result = await this.authService.requestOtp(body.phone, ip);
-    return {
-      message: result.message,
-      cooldownSeconds: result.cooldownSeconds,
-    };
+    return this.handleIdempotency(idempotencyKey, body, correlationId, async () => {
+      const result = await this.authService.requestOtp(body.phone, ip);
+      return {
+        message: result.message,
+        cooldownSeconds: result.cooldownSeconds,
+      };
+    });
   }
 
   @Post('verify')
   @HttpCode(HttpStatus.OK)
   async verifyOtp(
     @Body() body: { phone: string; code: string; deviceLabel?: string },
-    @Res({ passthrough: true }) res: HttpResponse,
+    @Headers('idempotency-key') idempotencyKey?: string,
+    @Headers('x-correlation-id') correlationId = 'unknown',
+    @Res({ passthrough: true }) res?: HttpResponse,
     @Req() req?: HttpRequest
   ) {
     const ip = getClientIp(req);
     const userAgent = getClientUserAgent(req);
-    const result = await this.authService.verifyOtp(
-      body.phone,
-      body.code,
-      body.deviceLabel || userAgent,
-      ip
-    );
-
-    if (result.refreshToken) {
-      const cookieOpts = getRefreshTokenCookieOptions(
-        this.envConfig.cookieSecure,
-        this.envConfig.cookieDomain
+    return this.handleIdempotency(idempotencyKey, body, correlationId, async () => {
+      const result = await this.authService.verifyOtp(
+        body.phone,
+        body.code,
+        body.deviceLabel || userAgent,
+        ip
       );
-      res.cookie('refreshToken', result.refreshToken, cookieOpts);
-    }
 
-    return {
-      status: result.status,
-      accessToken: result.accessToken,
-      mfaTicket: result.mfaTicket,
-    };
+      if (result.refreshToken && res) {
+        const cookieOpts = getRefreshTokenCookieOptions(
+          this.envConfig.cookieSecure,
+          this.envConfig.cookieDomain
+        );
+        res.cookie('refreshToken', result.refreshToken, cookieOpts);
+      }
+
+      return {
+        status: result.status,
+        accessToken: result.accessToken,
+        mfaTicket: result.mfaTicket,
+      };
+    });
   }
 
   @Post('oauth/:provider')

@@ -91,4 +91,22 @@ test.describe('E2E Login Flow - Seeded Employee', () => {
     await signOutButton.click();
     await page.waitForURL('**/login');
   });
+
+  test('rejects cross-origin request with forged Origin header with 403 Forbidden', async ({
+    request,
+  }) => {
+    const response = await request.post('http://127.0.0.1:4001/auth/otp', {
+      headers: {
+        Origin: 'http://evil-attacker.com',
+      },
+      data: {
+        phone: '+919876500003',
+      },
+    });
+
+    expect(response.status()).toBe(403);
+    const body = await response.json();
+    expect(body.title).toBe('Forbidden');
+    expect(body.detail).toContain('Cross-origin request rejected from Origin: "http://evil-attacker.com"');
+  });
 });

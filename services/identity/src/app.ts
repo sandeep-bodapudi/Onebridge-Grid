@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
-import { GlobalExceptionFilter } from '@onebridge/shared';
+import { GlobalExceptionFilter, correlationIdMiddleware } from '@onebridge/shared';
 import { IdentityModule, IdentityModuleOptions } from './identity.module.js';
 import { loadAndValidateEnv } from './config/env.js';
 
@@ -16,6 +16,7 @@ export async function createApp(options: IdentityModuleOptions = {}): Promise<IN
     })
   );
 
+  app.use(correlationIdMiddleware);
   app.use(cookieParser());
 
   // CORS configuration

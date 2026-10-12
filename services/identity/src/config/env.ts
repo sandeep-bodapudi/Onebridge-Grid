@@ -6,6 +6,8 @@ const KNOWN_DEV_KEYS = new Set([
   'default-dev-encryption-key-onebridge-32-bytes!',
   'test-jwt-secret-key-at-least-32-chars-long-12345',
   'test-internal-service-key-at-least-32-chars-12345',
+  'development_jwt_secret_change_in_production_min_32_bytes',
+  'dev_internal_service_key_32_bytes_min',
 ]);
 
 export interface IdentityEnvConfig {
@@ -44,11 +46,22 @@ export function loadAndValidateEnv(explicitEnv?: Record<string, string | undefin
   const isProduction = nodeEnv === 'production';
   const allowRemoteSeed = env.ALLOW_REMOTE_SEED === 'true';
 
-  // 1. Validate MONGODB_URI
+  // 1. Validate fake providers in production FIRST
+  const enableFakeOtp = env.ENABLE_FAKE_OTP === 'true' || env.ALLOW_FAKE_OTP === 'true';
+  if (isProduction && enableFakeOtp) {
+    throw new Error('ENABLE_FAKE_OTP is strictly prohibited in production');
+  }
+
+  const enableFakeOauth = env.ENABLE_FAKE_OAUTH === 'true';
+  if (isProduction && enableFakeOauth) {
+    throw new Error('ENABLE_FAKE_OAUTH is strictly prohibited in production');
+  }
+
+  // 2. Validate MONGODB_URI
   const rawMongoUri = env.MONGODB_URI;
   const mongoUri = validateMongoUri(rawMongoUri, isProduction, allowRemoteSeed);
 
-  // 2. Validate JWT_SECRET
+  // 3. Validate JWT_SECRET
   const jwtSecret = (env.JWT_SECRET || '').trim();
   if (isProduction) {
     if (!jwtSecret || jwtSecret.length < 32) {
@@ -59,7 +72,7 @@ export function loadAndValidateEnv(explicitEnv?: Record<string, string | undefin
     }
   }
 
-  // 3. Validate INTERNAL_SERVICE_KEY
+  // 4. Validate INTERNAL_SERVICE_KEY
   const internalServiceKey = (env.INTERNAL_SERVICE_KEY || '').trim();
   if (isProduction) {
     if (!internalServiceKey || internalServiceKey.length < 32) {
@@ -70,7 +83,7 @@ export function loadAndValidateEnv(explicitEnv?: Record<string, string | undefin
     }
   }
 
-  // 4. Validate ENCRYPTION_KEY (Single format: 64 hexadecimal characters representing a 256-bit AES key)
+  // 5. Validate ENCRYPTION_KEY (Single format: 64 hexadecimal characters representing a 256-bit AES key)
   const encryptionKey = (env.ENCRYPTION_KEY || '').trim();
   if (isProduction) {
     if (!encryptionKey) {
@@ -82,17 +95,6 @@ export function loadAndValidateEnv(explicitEnv?: Record<string, string | undefin
     if (!/^[0-9a-fA-F]{64}$/.test(encryptionKey)) {
       throw new Error('ENCRYPTION_KEY must be exactly 64 hexadecimal characters (256-bit key) in production');
     }
-  }
-
-  // 5. Validate fake providers in production
-  const enableFakeOtp = env.ENABLE_FAKE_OTP === 'true';
-  if (isProduction && enableFakeOtp) {
-    throw new Error('ENABLE_FAKE_OTP is strictly prohibited in production');
-  }
-
-  const enableFakeOauth = env.ENABLE_FAKE_OAUTH === 'true';
-  if (isProduction && enableFakeOauth) {
-    throw new Error('ENABLE_FAKE_OAUTH is strictly prohibited in production');
   }
 
   // 6. Port & URLs

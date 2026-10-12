@@ -18,6 +18,11 @@ import { ServiceKeyGuard } from './guards/service-key.guard.js';
 export class NestInternalController {
   constructor(private readonly rbacService: RbacService) {}
 
+  private idempotencyCache = new Map<
+    string,
+    { value: { requestBody: unknown; response: MembershipProps }; expiresAt: number }
+  >();
+
   @Post('memberships')
   @HttpCode(HttpStatus.CREATED)
   async createMembership(
@@ -43,6 +48,23 @@ export class NestInternalController {
       });
     }
 
+    if (idempotencyKey) {
+      const now = Date.now();
+      const cached = this.idempotencyCache.get(idempotencyKey);
+      if (cached && cached.expiresAt > now) {
+        if (JSON.stringify(cached.value.requestBody) !== JSON.stringify(body)) {
+          throw new UnprocessableEntityException({
+            type: 'https://tools.ietf.org/html/rfc7807',
+            title: 'Unprocessable Entity',
+            status: 422,
+            detail: 'Mismatching body for idempotency key',
+            correlationId,
+          });
+        }
+        return cached.value.response;
+      }
+    }
+
     const membership = await this.rbacService.createMembership({
       personId: body.personId,
       orgId: body.orgId,
@@ -51,6 +73,13 @@ export class NestInternalController {
       departmentId: body.departmentId,
       teamId: body.teamId,
     });
+
+    if (idempotencyKey) {
+      this.idempotencyCache.set(idempotencyKey, {
+        value: { requestBody: body, response: membership },
+        expiresAt: Date.now() + 86400 * 1000,
+      });
+    }
 
     return membership;
   }
