@@ -25,10 +25,29 @@ export interface HttpResponse {
   clearCookie(name: string, options?: Record<string, unknown>): this;
   [key: string]: unknown;
 }
+import { ProblemException } from '@onebridge/shared';
 import { AuthService } from '../application/auth.service.js';
 import { MfaService } from '../application/mfa.service.js';
 import { getRefreshTokenCookieOptions } from '../config/cookie.config.js';
 import { IdentityEnvConfig } from '../config/env.js';
+
+function getClientUserAgent(req?: HttpRequest): string {
+  const ua = req?.headers?.['user-agent'];
+  if (typeof ua === 'string') return ua;
+  if (Array.isArray(ua)) return ua[0] || 'Unknown';
+  return 'Unknown';
+}
+
+function getClientIp(req?: HttpRequest): string {
+  const fwd = req?.headers?.['x-forwarded-for'];
+  const raw = req?.ip || (typeof fwd === 'string' ? fwd : Array.isArray(fwd) ? fwd[0] : undefined) || '127.0.0.1';
+  return raw.split(',')[0].trim();
+}
+
+function extractBearer(header?: string): string {
+  if (!header) return '';
+  return header.startsWith('Bearer ') ? header.substring(7) : header;
+}
 
 @Controller('auth')
 export class NestAuthController {
@@ -42,10 +61,10 @@ export class NestAuthController {
   @HttpCode(HttpStatus.OK)
   async requestOtp(
     @Body() body: { phone: string },
-    @Headers('x-correlation-id') correlationId?: string,
+    @Headers('x-correlation-id') _correlationId?: string,
     @Req() req?: HttpRequest
   ) {
-    const ip = (req?.ip || (req?.headers['x-forwarded-for'] as string) || '127.0.0.1').split(',')[0].trim();
+    const ip = getClientIp(req);
     const result = await this.authService.requestOtp(body.phone, ip);
     return {
       message: result.message,
@@ -60,8 +79,8 @@ export class NestAuthController {
     @Res({ passthrough: true }) res: HttpResponse,
     @Req() req?: HttpRequest
   ) {
-    const ip = (req?.ip || (req?.headers['x-forwarded-for'] as string) || '127.0.0.1').split(',')[0].trim();
-    const userAgent = req?.headers['user-agent'] || 'Unknown';
+    const ip = getClientIp(req);
+    const userAgent = getClientUserAgent(req);
     const result = await this.authService.verifyOtp(
       body.phone,
       body.code,
@@ -92,8 +111,8 @@ export class NestAuthController {
     @Res({ passthrough: true }) res: HttpResponse,
     @Req() req?: HttpRequest
   ) {
-    const ip = (req?.ip || '127.0.0.1').split(',')[0].trim();
-    const userAgent = req?.headers['user-agent'] || 'Unknown';
+    const ip = getClientIp(req);
+    const userAgent = getClientUserAgent(req);
     const result = await this.authService.loginWithOAuth(
       provider,
       body.idToken,
@@ -123,8 +142,12 @@ export class NestAuthController {
     @Res({ passthrough: true }) res: HttpResponse
   ) {
     const oldRefreshToken = req.cookies?.refreshToken;
-    const ip = (req.ip || '127.0.0.1').split(',')[0].trim();
-    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const correlationId = (req.headers['x-correlation-id'] as string) || 'unknown';
+    if (!oldRefreshToken || typeof oldRefreshToken !== 'string') {
+      throw new ProblemException(401, 'Unauthorized', 'Missing or invalid refresh token in cookie', correlationId);
+    }
+    const ip = getClientIp(req);
+    const userAgent = getClientUserAgent(req);
 
     const result = await this.authService.rotateTokens(oldRefreshToken, userAgent, ip);
 
@@ -159,11 +182,22 @@ export class NestAuthController {
   @Get('sessions')
   @HttpCode(HttpStatus.OK)
   async listSessions(
-    @Headers('authorization') authHeader: string,
+    @Headers('authorization') authHeader?: string,
+    @Headers('x-correlation-id') correlationId = 'unknown',
     @Query('limit') limit = '20',
     @Query('offset') offset = '0'
   ) {
-    const user = this.authService.verifyAccessToken(authHeader);
+    if (!authHeader) {
+      throw new ProblemException(401, 'Unauthorized', 'Missing authorization header', correlationId);
+    }
+    const token = extractBearer(authHeader);
+    let user;
+    try {
+      user = this.authService.verifyAccessToken(token);
+    } catch {
+      throw new ProblemException(401, 'Unauthorized', 'Invalid or expired access token', correlationId);
+    }
+
     const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
     const parsedOffset = Math.max(0, parseInt(offset, 10) || 0);
 
@@ -184,10 +218,20 @@ export class NestAuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async revokeSession(
     @Param('id') sessionId: string,
-    @Headers('authorization') authHeader: string
+    @Headers('authorization') authHeader?: string,
+    @Headers('x-correlation-id') correlationId = 'unknown'
   ) {
-    const user = this.authService.verifyAccessToken(authHeader);
-    await this.authService.revokeSession(sessionId, user.sub);
+    if (!authHeader) {
+      throw new ProblemException(401, 'Unauthorized', 'Missing authorization header', correlationId);
+    }
+    const token = extractBearer(authHeader);
+    let user;
+    try {
+      user = this.authService.verifyAccessToken(token);
+    } catch {
+      throw new ProblemException(401, 'Unauthorized', 'Invalid or expired access token', correlationId);
+    }
+    await this.authService.revokeSession(user.sub, sessionId);
   }
 
   @Post('mfa/setup')
@@ -198,7 +242,7 @@ export class NestAuthController {
   ) {
     let userId: string;
     if (authHeader) {
-      const user = this.authService.verifyAccessToken(authHeader);
+      const user = this.authService.verifyAccessToken(extractBearer(authHeader));
       userId = user.sub;
     } else if (body?.mfaTicket) {
       const parts = body.mfaTicket.split(':');
@@ -235,7 +279,7 @@ export class NestAuthController {
         accessToken: result.accessToken,
       };
     } else if (authHeader) {
-      const user = this.authService.verifyAccessToken(authHeader);
+      const user = this.authService.verifyAccessToken(extractBearer(authHeader));
       await this.authService.confirmMfaSetup(user.sub, body.code);
       return {
         success: true,

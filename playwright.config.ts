@@ -21,18 +21,22 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'Mobile Chrome',
+      use: { ...devices['Pixel 7'] },
+    },
   ],
   webServer: [
     {
-      command: 'node test-server.mjs',
+      command: 'pnpm run build && node dist/e2e-launcher.js',
       cwd: './services/identity',
-      port: 4001,
+      url: 'http://localhost:4001/auth/sessions',
       timeout: 120 * 1000,
       reuseExistingServer: !process.env.CI,
     },
     {
       command: 'pnpm --filter @onebridge/web-app run dev',
-      port: 3000,
+      url: 'http://localhost:3000/login',
       timeout: 120 * 1000,
       reuseExistingServer: !process.env.CI,
     },

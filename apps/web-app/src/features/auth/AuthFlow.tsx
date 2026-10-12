@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ActionButton, ArchCard, OfflineBanner, EmptyState, StatusChip } from '@onebridge/ui-kit';
 
 export type AuthStep =
@@ -67,6 +67,19 @@ export const AuthFlow: React.FC<AuthFlowProps> = ({
   const [phone, setPhone] = useState('');
   const [consent, setConsent] = useState(false);
   const [code, setCode] = useState('');
+  const [countdown, setCountdown] = useState(30);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | undefined;
+    if (step === 'otp_verify' && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [step, countdown]);
 
   const handleSendOtp = (e: React.FormEvent) => {
     e.preventDefault();

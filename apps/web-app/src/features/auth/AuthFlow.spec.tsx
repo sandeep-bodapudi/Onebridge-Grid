@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { AuthFlow, AuthFlowLabels } from './AuthFlow';
 
 const testLabels: AuthFlowLabels = {
@@ -83,5 +83,38 @@ describe('AuthFlow UI Component States', () => {
   it('renders offline banner when isOffline is true', () => {
     render(<AuthFlow labels={testLabels} isOffline={true} />);
     expect(screen.getByTestId('offline-banner')).toBeDefined();
+  });
+
+  it('manages resend countdown: button is disabled during countdown and enables when countdown reaches zero', () => {
+    vi.useFakeTimers();
+    let resendCalled = false;
+    render(
+      <AuthFlow
+        labels={testLabels}
+        initialStep="otp_verify"
+        onResendOtp={() => {
+          resendCalled = true;
+        }}
+      />
+    );
+
+    // Initial state: countdown is 30s and resend button is disabled
+    expect(screen.getByText('Resend code in (30s)')).toBeDefined();
+    const resendBtn = screen.getByRole('button', { name: 'Resend OTP' }) as HTMLButtonElement;
+    expect(resendBtn.disabled).toBe(true);
+
+    // Advance 30 seconds
+    act(() => {
+      vi.advanceTimersByTime(30000);
+    });
+
+    expect(screen.getByText('Resend code in (0s)')).toBeDefined();
+    expect(resendBtn.disabled).toBe(false);
+
+    // Click resend
+    fireEvent.click(resendBtn);
+    expect(resendCalled).toBe(true);
+
+    vi.useRealTimers();
   });
 });

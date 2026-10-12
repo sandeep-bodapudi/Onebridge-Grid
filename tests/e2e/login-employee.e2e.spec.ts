@@ -63,12 +63,28 @@ test.describe('E2E Login Flow - Seeded Employee', () => {
     expect(sessionStorageData.accessToken).toBeNull();
     expect(sessionStorageData.refreshToken).toBeNull();
 
-    // c. Refresh token exists in HttpOnly, SameSite=Lax cookie
+    // c. Refresh token exists in HttpOnly, SameSite=Lax cookie with path=/auth
     const cookies = await context.cookies();
     const refreshCookie = cookies.find((c) => c.name === 'refreshToken');
     expect(refreshCookie).toBeDefined();
     expect(refreshCookie?.httpOnly).toBe(true);
     expect(refreshCookie?.sameSite).toBe('Lax');
+    expect(refreshCookie?.path).toMatch(/^\/auth/);
+
+    // d. document.cookie cannot read refreshToken (HttpOnly proof)
+    const documentCookie = await page.evaluate(() => document.cookie);
+    expect(documentCookie.includes('refreshToken')).toBe(false);
+
+    // e. No tokens in IndexedDB
+    const indexedDbDatabases = await page.evaluate(async () => {
+      if (window.indexedDB && 'databases' in window.indexedDB) {
+        // @ts-expect-error databases method exists in modern browsers
+        const dbs = await window.indexedDB.databases();
+        return (dbs as Array<{ name?: string }>).map((d) => d.name || '');
+      }
+      return [];
+    });
+    expect(indexedDbDatabases.some((name) => name.toLowerCase().includes('token'))).toBe(false);
 
     // 8. Test sign out
     const signOutButton = page.getByTestId('logout-button');

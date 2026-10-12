@@ -34,8 +34,10 @@ export class NestMeController {
     }
 
     const token = authHeader.substring(7);
-    const decoded = this.tokenService.verifyAccessToken(token);
-    if (!decoded) {
+    let decoded;
+    try {
+      decoded = this.tokenService.verifyAccessToken(token);
+    } catch {
       throw new UnauthorizedException({
         type: 'https://tools.ietf.org/html/rfc7807',
         title: 'Unauthorized',
@@ -45,7 +47,7 @@ export class NestMeController {
       });
     }
 
-    const userId = decoded.sub || decoded.userId;
+    const userId = (decoded.sub || decoded.userId) as string;
     return this.rbacService.getMe(userId, activeTenantHeader, correlationId);
   }
 }
