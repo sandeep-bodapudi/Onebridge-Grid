@@ -5,6 +5,7 @@ import {
   Filter,
   FindOptions,
   OptionalUnlessRequiredId,
+  WithoutId,
   UpdateFilter,
   UpdateOptions,
   FindOneAndUpdateOptions,
@@ -132,17 +133,17 @@ export class TenantScopedRepository<T extends Document> {
 
   async insertOne(doc: OptionalUnlessRequiredId<T>): Promise<T> {
     const activeTenantId = this.getActiveTenantId();
-    const docWithTenant = { ...doc } as Record<string, unknown>;
+    const candidate = doc as { tenantId?: string };
 
-    if (docWithTenant.tenantId && docWithTenant.tenantId !== activeTenantId) {
+    if (candidate.tenantId && candidate.tenantId !== activeTenantId) {
       throw new TenantIsolationError(
-        `TenantIsolationError: Document tenantId "${String(docWithTenant.tenantId)}" does not match active tenantId "${activeTenantId}"`
+        `TenantIsolationError: Document tenantId "${String(candidate.tenantId)}" does not match active tenantId "${activeTenantId}"`
       );
     }
 
-    docWithTenant.tenantId = activeTenantId;
-    await this.collection.insertOne(docWithTenant as unknown as OptionalUnlessRequiredId<T>);
-    return docWithTenant as unknown as T;
+    const docWithTenant: OptionalUnlessRequiredId<T> = Object.assign({}, doc, { tenantId: activeTenantId });
+    await this.collection.insertOne(docWithTenant);
+    return docWithTenant as T;
   }
 
   async insertMany(docs: Array<OptionalUnlessRequiredId<T>>): Promise<T[]> {
@@ -150,18 +151,18 @@ export class TenantScopedRepository<T extends Document> {
     const scopedDocs: Array<OptionalUnlessRequiredId<T>> = [];
 
     for (const doc of docs) {
-      const docObj = { ...doc } as Record<string, unknown>;
-      if (docObj.tenantId && docObj.tenantId !== activeTenantId) {
+      const candidate = doc as { tenantId?: string };
+      if (candidate.tenantId && candidate.tenantId !== activeTenantId) {
         throw new TenantIsolationError(
-          `TenantIsolationError: Mixed or conflicting tenantId "${String(docObj.tenantId)}" in insertMany for active tenant "${activeTenantId}"`
+          `TenantIsolationError: Mixed or conflicting tenantId "${String(candidate.tenantId)}" in insertMany for active tenant "${activeTenantId}"`
         );
       }
-      docObj.tenantId = activeTenantId;
-      scopedDocs.push(docObj as unknown as OptionalUnlessRequiredId<T>);
+      const scopedDoc: OptionalUnlessRequiredId<T> = Object.assign({}, doc, { tenantId: activeTenantId });
+      scopedDocs.push(scopedDoc);
     }
 
     await this.collection.insertMany(scopedDocs);
-    return scopedDocs as unknown as T[];
+    return scopedDocs as T[];
   }
 
   async updateOne(
@@ -207,15 +208,15 @@ export class TenantScopedRepository<T extends Document> {
     const activeTenantId = this.getActiveTenantId();
     const scopedFilter = this.validateAndScopeFilter(filter);
 
-    const replObj = { ...replacement } as Record<string, unknown>;
-    if (replObj.tenantId && replObj.tenantId !== activeTenantId) {
+    const candidate = replacement as { tenantId?: string };
+    if (candidate.tenantId && candidate.tenantId !== activeTenantId) {
       throw new TenantIsolationError(
-        `TenantIsolationError: Replacement tenantId "${String(replObj.tenantId)}" does not match active tenantId "${activeTenantId}"`
+        `TenantIsolationError: Replacement tenantId "${String(candidate.tenantId)}" does not match active tenantId "${activeTenantId}"`
       );
     }
-    replObj.tenantId = activeTenantId;
+    const replObj: WithoutId<T> = Object.assign({}, replacement, { tenantId: activeTenantId });
 
-    const result = await this.collection.replaceOne(scopedFilter, replObj as unknown as T, options);
+    const result = await this.collection.replaceOne(scopedFilter, replObj, options);
     return { matchedCount: result.matchedCount, modifiedCount: result.modifiedCount };
   }
 

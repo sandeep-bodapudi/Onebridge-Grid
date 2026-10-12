@@ -52,7 +52,9 @@ export default tseslint.config(
       },
       'boundaries/elements': [
         { type: 'service', pattern: 'services/*' },
+        { type: 'service', pattern: 'tests/fixtures/boundaries/services/*' },
         { type: 'feature', pattern: 'apps/web-app/src/features/*' },
+        { type: 'feature', pattern: 'tests/fixtures/boundaries/features/*' },
         { type: 'shared', pattern: 'packages/shared' },
         { type: 'api-contracts', pattern: 'packages/api-contracts' },
         { type: 'ui-kit', pattern: 'packages/ui-kit' },

@@ -63,13 +63,14 @@ export class Repository<T extends Record<string, unknown>> {
     if (!tenantId) {
       throw new TenantIsolationError('TenantIsolationError: Missing tenantId in document');
     }
+    const storedItem: T = Object.assign({}, item, { tenantId });
     const idx = this.collection.findIndex(x => x.id === doc.id);
     if (idx >= 0) {
-      this.collection[idx] = { ...doc, tenantId } as unknown as T;
+      this.collection[idx] = storedItem;
     } else {
-      this.collection.push({ ...doc, tenantId } as unknown as T);
+      this.collection.push(storedItem);
     }
-    return item;
+    return storedItem;
   }
 
   async delete(query: TenantScopedQuery): Promise<boolean> {

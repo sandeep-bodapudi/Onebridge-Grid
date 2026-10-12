@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "seed": "tsx services/identity/src/infrastructure/seed.ts",
-    "lint": "eslint .",
+    "lint": "eslint . --ignore-pattern \"tests/fixtures/**\"",
     "typecheck": "pnpm -r --if-present run typecheck",
     "test": "pnpm -r --if-present run test && vitest run tests/check-no-echo-scripts.spec.ts tests/workspace.spec.ts",
     "test:e2e": "playwright test",

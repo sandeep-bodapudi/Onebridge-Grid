@@ -96,7 +96,7 @@ export class MongoPersonRepository implements IPersonRepository {
   }
 
   async findByEmail(email: string): Promise<Person | undefined> {
-    const doc = await this.repo.findOne({ email: { $regex: `^${email}$`, $options: 'i' } as unknown as string });
+    const doc = await this.repo.findOne({ email: new RegExp(`^${email}$`, 'i') });
     return doc ? this.toDomain(doc) : undefined;
   }
 
