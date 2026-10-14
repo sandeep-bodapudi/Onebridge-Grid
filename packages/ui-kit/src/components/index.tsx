@@ -1,6 +1,11 @@
 import React from 'react';
 import { cn } from './ActionButton';
 export * from './ActionButton';
+export * from './BusinessIdDisplay';
+export * from './OrgStructure';
+export * from './SeatsManagement';
+export * from './BrandKitManager';
+export * from './AuditLogViewer';
 
 export const StatusChip = ({ status, children }: { status: 'success'|'warning'|'error'|'info'; children: React.ReactNode }) => {
   return (
@@ -15,11 +20,19 @@ export const StatusChip = ({ status, children }: { status: 'success'|'warning'|'
   );
 };
 
-export const ArchCard = ({ children, isLoading, error, isEmpty, className }: { children?: React.ReactNode; isLoading?: boolean; error?: string; isEmpty?: boolean; className?: string }) => {
-  if (isLoading) return <div className={cn("rounded-arch bg-sand/50 dark:bg-charcoal/50 animate-pulse shadow-md p-16 min-h-[128px]", className)}></div>;
-  if (error) return <div className={cn("rounded-arch bg-error/10 text-error shadow-md p-16 text-center font-bold", className)}>{error}</div>;
-  if (isEmpty) return <div className={cn("rounded-arch bg-white dark:bg-charcoal shadow-md p-16 text-center text-charcoal/50 font-bold", className)}>Empty</div>;
-  return <div className={cn("rounded-arch bg-white dark:bg-charcoal shadow-md p-16", className)}>{children}</div>;
+export interface ArchCardProps extends React.HTMLAttributes<HTMLDivElement> {
+  children?: React.ReactNode;
+  isLoading?: boolean;
+  error?: string;
+  isEmpty?: boolean;
+  className?: string;
+}
+
+export const ArchCard = ({ children, isLoading, error, isEmpty, className, ...props }: ArchCardProps) => {
+  if (isLoading) return <div className={cn("rounded-arch bg-sand/50 dark:bg-charcoal/50 animate-pulse shadow-md p-16 min-h-[128px]", className)} {...props}></div>;
+  if (error) return <div className={cn("rounded-arch bg-error/10 text-error shadow-md p-16 text-center font-bold", className)} {...props}>{error}</div>;
+  if (isEmpty) return <div className={cn("rounded-arch bg-white dark:bg-charcoal shadow-md p-16 text-center text-charcoal/50 font-bold", className)} {...props}>Empty</div>;
+  return <div className={cn("rounded-arch bg-white dark:bg-charcoal shadow-md p-16", className)} {...props}>{children}</div>;
 };
 
 export const KeystoneBadge = ({ children }: { children: React.ReactNode }) => (
@@ -64,12 +77,12 @@ export const Toast = ({ message, type = 'info' }: { message: string, type?: 'inf
   })}>{message}</div>
 );
 
-export const EmptyState = ({ message }: { message: string }) => (
-  <div className="p-32 text-center text-charcoal/50 dark:text-warm-paper/50 font-bold">{message}</div>
+export const EmptyState = ({ message, className, ...props }: { message: string; className?: string } & React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("p-32 text-center text-charcoal/50 dark:text-warm-paper/50 font-bold", className)} {...props}>{message}</div>
 );
 
-export const OfflineBanner = ({ message }: { message: string }) => (
-  <div className="bg-warning text-charcoal font-bold p-8 text-center rounded-12">{message}</div>
+export const OfflineBanner = ({ message, className, ...props }: { message: string; className?: string } & React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("bg-warning text-charcoal font-bold p-8 text-center rounded-12", className)} {...props}>{message}</div>
 );
 
 export const UpdateBanner = ({ message }: { message: string }) => (
