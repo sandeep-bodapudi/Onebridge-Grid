@@ -85,6 +85,21 @@ export const KNOWN_COLLECTIONS: Record<string, CollectionMetadata> = {
     classification: 'tenant-scoped',
     description: 'Tenant-scoped monotonic sequence counters for derived IDs (branches, departments, seats)',
   },
+  org_read_models: {
+    name: 'org_read_models',
+    classification: 'tenant-scoped',
+    description: 'Cards service denormalised copy of organization data (ADR-0003), never read from organizations directly',
+  },
+  seat_read_models: {
+    name: 'seat_read_models',
+    classification: 'tenant-scoped',
+    description: 'Cards service denormalised copy of seat data (ADR-0003)',
+  },
+  branch_read_models: {
+    name: 'branch_read_models',
+    classification: 'tenant-scoped',
+    description: 'Cards service denormalised copy of branch data (ADR-0003), used for the branch-map card section',
+  },
 };
 
 export const ALLOWLISTED_GLOBAL_COLLECTIONS = Object.values(KNOWN_COLLECTIONS)
