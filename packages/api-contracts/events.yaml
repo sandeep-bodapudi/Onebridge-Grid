@@ -76,4 +76,466 @@ components:
               enum: [otp, google, microsoft]
         aggregateVersion:
           type: integer
+    OrgCreatedEvent:
+      type: object
+      required:
+        - eventId
+        - type
+        - version
+        - tenantId
+        - occurredAt
+        - correlationId
+        - payload
+        - aggregateVersion
+      properties:
+        eventId:
+          type: string
+        type:
+          type: string
+          const: "org.created"
+        version:
+          type: string
+          const: "1.0.0"
+        tenantId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+        payload:
+          type: object
+          required:
+            - orgId
+            - businessId
+            - creatorPersonId
+            - name
+            - slug
+          properties:
+            orgId:
+              type: string
+            businessId:
+              type: string
+              pattern: '^OB-[0-9A-HJKMNP-TV-Z]{6}$'
+            creatorPersonId:
+              type: string
+            name:
+              type: string
+            slug:
+              type: string
+        aggregateVersion:
+          type: integer
+    OrgUpdatedEvent:
+      type: object
+      required:
+        - eventId
+        - type
+        - version
+        - tenantId
+        - occurredAt
+        - correlationId
+        - payload
+        - aggregateVersion
+      properties:
+        eventId:
+          type: string
+        type:
+          type: string
+          const: "org.updated"
+        version:
+          type: string
+          const: "1.0.0"
+        tenantId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+        payload:
+          type: object
+          required:
+            - orgId
+            - businessId
+          properties:
+            orgId:
+              type: string
+            businessId:
+              type: string
+            updatedFields:
+              type: object
+        aggregateVersion:
+          type: integer
+    OrgBrandingUpdatedEvent:
+      type: object
+      required:
+        - eventId
+        - type
+        - version
+        - tenantId
+        - occurredAt
+        - correlationId
+        - payload
+        - aggregateVersion
+      properties:
+        eventId:
+          type: string
+        type:
+          type: string
+          const: "org.branding_updated"
+        version:
+          type: string
+          const: "1.0.0"
+        tenantId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+        payload:
+          type: object
+          required:
+            - orgId
+            - businessId
+          properties:
+            orgId:
+              type: string
+            businessId:
+              type: string
+            brandColours:
+              type: object
+              properties:
+                primary:
+                  type: string
+                secondary:
+                  type: string
+                accent:
+                  type: string
+            logo:
+              type: string
+            cover:
+              type: string
+        aggregateVersion:
+          type: integer
+    BranchCreatedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "branch.created" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, branchId, name]
+          properties:
+            orgId: { type: string }
+            branchId: { type: string }
+            name: { type: string }
+            managerPersonId: { type: string }
+        aggregateVersion: { type: integer }
+    BranchUpdatedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "branch.updated" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, branchId]
+          properties:
+            orgId: { type: string }
+            branchId: { type: string }
+            updatedFields: { type: object }
+        aggregateVersion: { type: integer }
+    BranchArchivedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "branch.archived" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, branchId]
+          properties:
+            orgId: { type: string }
+            branchId: { type: string }
+        aggregateVersion: { type: integer }
+    DepartmentCreatedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "department.created" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, departmentId, name]
+          properties:
+            orgId: { type: string }
+            departmentId: { type: string }
+            name: { type: string }
+            branchId: { type: string }
+        aggregateVersion: { type: integer }
+    DepartmentUpdatedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "department.updated" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, departmentId]
+          properties:
+            orgId: { type: string }
+            departmentId: { type: string }
+            updatedFields: { type: object }
+        aggregateVersion: { type: integer }
+    DepartmentArchivedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "department.archived" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, departmentId]
+          properties:
+            orgId: { type: string }
+            departmentId: { type: string }
+        aggregateVersion: { type: integer }
+    TeamCreatedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "team.created" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, teamId, name, departmentId]
+          properties:
+            orgId: { type: string }
+            teamId: { type: string }
+            name: { type: string }
+            departmentId: { type: string }
+            leadPersonId: { type: string }
+        aggregateVersion: { type: integer }
+    TeamUpdatedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "team.updated" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, teamId]
+          properties:
+            orgId: { type: string }
+            teamId: { type: string }
+            updatedFields: { type: object }
+        aggregateVersion: { type: integer }
+    TeamDeletedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "team.deleted" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, teamId]
+          properties:
+            orgId: { type: string }
+            teamId: { type: string }
+        aggregateVersion: { type: integer }
+    TeamArchivedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "team.archived" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, teamId]
+          properties:
+            orgId: { type: string }
+            teamId: { type: string }
+        aggregateVersion: { type: integer }
+    OrgPersonMovedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "org.person_moved" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, personId]
+          properties:
+            orgId: { type: string }
+            personId: { type: string }
+            targetBranchId: { type: string }
+            targetDepartmentId: { type: string }
+            targetTeamId: { type: string }
+        aggregateVersion: { type: integer }
+    AuditRecordedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "audit.recorded" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [action, entityType, entityId, actorPersonId]
+          properties:
+            action: { type: string }
+            entityType: { type: string }
+            entityId: { type: string }
+            actorPersonId: { type: string }
+            actor: { type: string }
+            ip: { type: string }
+            before: { type: object }
+            after: { type: object }
+        aggregateVersion: { type: integer }
+    SeatCreatedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "seat.created" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, seatId, title, status]
+          properties:
+            orgId: { type: string }
+            seatId: { type: string }
+            title: { type: string }
+            personId: { type: string }
+            status: { type: string }
+        aggregateVersion: { type: integer }
+    SeatUpdatedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "seat.updated" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, seatId]
+          properties:
+            orgId: { type: string }
+            seatId: { type: string }
+            updatedFields: { type: object }
+        aggregateVersion: { type: integer }
+    SeatAssignedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "seat.assigned" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, seatId, personId, bindingsPreserved]
+          properties:
+            orgId: { type: string }
+            seatId: { type: string }
+            previousPersonId: { type: string }
+            personId: { type: string }
+            bindingsPreserved: { type: boolean }
+        aggregateVersion: { type: integer }
+    SeatStatusChangedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "seat.status_changed" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, seatId, previousStatus, newStatus]
+          properties:
+            orgId: { type: string }
+            seatId: { type: string }
+            previousStatus: { type: string }
+            newStatus: { type: string }
+        aggregateVersion: { type: integer }
+    OrgBrandingUpdatedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "org.branding_updated" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, businessId, brandKit, fieldLocks]
+          properties:
+            orgId: { type: string }
+            businessId: { type: string }
+            brandKit: { type: object }
+            fieldLocks: { type: object }
+        aggregateVersion: { type: integer }
+
 

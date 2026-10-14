@@ -365,15 +365,1105 @@ paths:
   /orgs/{tenantId}/branches:
     get:
       summary: List Branches
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: includeArchived
+          schema: { type: boolean, default: false }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50, maximum: 100 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBranches'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      summary: Create Branch
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBranchRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branch'
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Plan limit reached (Starter allows 1 branch) or forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/branches/{branchId}:
+    get:
+      summary: Get Branch
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: branchId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branch'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    patch:
+      summary: Update Branch
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: branchId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBranchRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branch'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/branches/{branchId}/archive:
+    post:
+      summary: Archive Branch
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: branchId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branch'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/departments:
+    get:
+      summary: List Departments
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: branchId
+          schema: { type: string }
+        - in: query
+          name: includeArchived
+          schema: { type: boolean, default: false }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50, maximum: 100 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDepartments'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      summary: Create Department
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDepartmentRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/departments/defaults:
+    post:
+      summary: Seed default departments (Sales, Marketing, HR, Support, Development)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDepartments'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/departments/{departmentId}:
+    get:
+      summary: Get Department
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: departmentId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    patch:
+      summary: Update Department
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: departmentId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDepartmentRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/departments/{departmentId}/archive:
+    post:
+      summary: Archive Department
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: departmentId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/teams:
+    get:
+      summary: List Teams
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: departmentId
+          schema: { type: string }
+        - in: query
+          name: includeArchived
+          schema: { type: boolean, default: false }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50, maximum: 100 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTeams'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      summary: Create Team
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTeamRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/teams/{teamId}:
+    get:
+      summary: Get Team
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: teamId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    patch:
+      summary: Update Team
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: teamId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTeamRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      summary: Delete/Archive Team
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: teamId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '204':
+          description: Team archived
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/teams/{teamId}/archive:
+    post:
+      summary: Archive Team
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: teamId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/tree:
+    get:
+      summary: Get Org Chart Tree View
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgChartNode'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/tree/move-person:
+    post:
+      summary: Drag-and-drop move person in org tree
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MovePersonRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgChartNode'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{id}/audit:
+    get:
+      summary: List and filter audit log entries
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: actor
+          description: Filter by actor person ID or username
+          schema: { type: string }
+        - in: query
+          name: action
+          description: Filter by action type
+          schema: { type: string }
+        - in: query
+          name: entity
+          description: Filter by entity type or entity ID
+          schema: { type: string }
+        - in: query
+          name: startDate
+          description: Filter events occurred on or after this timestamp (ISO-8601)
+          schema: { type: string, format: date-time }
+        - in: query
+          name: endDate
+          description: Filter events occurred on or before this timestamp (ISO-8601)
+          schema: { type: string, format: date-time }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50, maximum: 200 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+        - in: header
+          name: X-Correlation-ID
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated audit log entries matching filters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditLogs'
+        '403':
+          description: Forbidden (role or tenant scope violation)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{id}/audit:export:
+    get:
+      summary: Export audit logs to CSV
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: actor
+          schema: { type: string }
+        - in: query
+          name: action
+          schema: { type: string }
+        - in: query
+          name: entity
+          schema: { type: string }
+        - in: query
+          name: startDate
+          schema: { type: string, format: date-time }
+        - in: query
+          name: endDate
+          schema: { type: string, format: date-time }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+        - in: header
+          name: X-Correlation-ID
+          schema: { type: string }
+      responses:
+        '200':
+          description: CSV file download containing filtered audit entries
+          content:
+            text/csv:
+              schema:
+                type: string
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/audit-logs:
+    get:
+      summary: List audit log entries
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: entityType
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLogEntry'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /orgs/{tenantId}/seats:
     get:
       summary: List Seats
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [vacant, invited, active, inactive, offboarded]
+        - in: query
+          name: branchId
+          schema: { type: string }
+        - in: query
+          name: departmentId
+          schema: { type: string }
+        - in: query
+          name: teamId
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50, maximum: 100 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
       responses:
         '200':
-          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSeats'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      summary: Create Seat
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSeatRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Seat'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/seats/{seatId}:
+    get:
+      summary: Get Seat
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: seatId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Seat'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    patch:
+      summary: Update Seat
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: seatId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSeatRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Seat'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/seats/{seatId}/assign:
+    post:
+      summary: Assign or reassign person to seat
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: seatId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignSeatRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Seat'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/seats/{seatId}/archive:
+    post:
+      summary: Soft archive seat (offboarded status)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: seatId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Seat'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /cards/{id}:
     get:
       summary: Get Card Details
@@ -436,6 +1526,403 @@ paths:
                   key: { type: string }
         '400':
           description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs:
+    post:
+      summary: Register a new company and onboard owner
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-Correlation-ID
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Company registered, business ID minted, owner membership created
+          headers:
+            Location:
+              schema: { type: string, example: "/orgs/01JD2XORG00000000000000001" }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          description: Validation error (invalid GSTIN, invalid fields)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Slug collision
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Synchronous Owner membership creation in Identity failed or ID collision retry exhausted
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{id}:
+    get:
+      summary: Retrieve company profile by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '403':
+          description: Cross-tenant access denied
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Organization not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+    patch:
+      summary: Update company profile and branding
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+        - in: header
+          name: X-Correlation-ID
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationRequest'
+      responses:
+        '200':
+          description: Company profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden (insufficient role permissions)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Slug already in use by another company
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{id}/first-card:
+    post:
+      summary: Record time to first published digital card (AC-7)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Correlation-ID
+          schema: { type: string }
+      responses:
+        '200':
+          description: First card publication recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '403':
+          description: Cross-tenant access denied
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Organization not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/by-slug/{slug}:
+    get:
+      summary: Resolve company by slug with permanent 301 redirect for previous slugs
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Active organization found for slug
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '301':
+          description: Slug has changed, permanent redirect to new slug
+          headers:
+            Location:
+              schema: { type: string, example: "/orgs/by-slug/acme-corp-new" }
+  /orgs/{id}/brand:
+    get:
+      summary: Retrieve current brand kit
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+      responses:
+        '200':
+          description: Current brand kit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandKit'
+        '403':
+          description: Cross-tenant access denied
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Organization not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    patch:
+      summary: Update company brand kit with contrast validation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+        - in: header
+          name: X-Correlation-ID
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBrandKitRequest'
+      responses:
+        '200':
+          description: Brand kit updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandKit'
+        '400':
+          description: Validation error or contrast failure below 4.5:1 without accepted auto-pick
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden (insufficient role permissions or cross-tenant access)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Organization not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{id}/locks:
+    get:
+      summary: Retrieve current field-level locks
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+      responses:
+        '200':
+          description: Current field locks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldLocks'
+        '403':
+          description: Cross-tenant access denied
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Organization not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    put:
+      summary: Update field-level locks
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+        - in: header
+          name: X-Correlation-ID
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFieldLocksRequest'
+      responses:
+        '200':
+          description: Field locks updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldLocks'
+        '403':
+          description: Forbidden (insufficient role permissions or cross-tenant access)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Organization not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{id}/brand/logo:
+    post:
+      summary: Upload and validate brand logo (PNG, SVG, WebP, max 5MB)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+        - in: header
+          name: X-Correlation-ID
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadLogoRequest'
+      responses:
+        '200':
+          description: Logo scanned, resized, and uploaded to CDN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadLogoResponse'
+        '400':
+          description: Invalid file format or size limit exceeded
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden (insufficient role permissions or cross-tenant access)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Malware scan failure
           content:
             application/problem+json:
               schema:
@@ -526,6 +2013,400 @@ components:
             $ref: '#/components/schemas/Membership'
         activeTenant:
           $ref: '#/components/schemas/ActiveTenantContext'
+    BrandColours:
+      type: object
+      required: [primary]
+      properties:
+        primary: { type: string, example: "#1B2A4A" }
+        secondary: { type: string, example: "#F68713" }
+        accent: { type: string, example: "#A04E08" }
+    Address:
+      type: object
+      required: [line1, city, state, pincode]
+      properties:
+        line1: { type: string }
+        line2: { type: string }
+        city: { type: string }
+        state: { type: string }
+        pincode: { type: string }
+        isPrimary: { type: boolean, default: true }
+    SocialLinks:
+      type: object
+      properties:
+        linkedin: { type: string }
+        twitter: { type: string }
+        instagram: { type: string }
+        facebook: { type: string }
+        youtube: { type: string }
+        whatsapp: { type: string }
+    CreateOrganizationRequest:
+      type: object
+      required: [name, industry, size, city]
+      properties:
+        name: { type: string, example: "Acme Enterprises" }
+        legalName: { type: string, example: "Acme Enterprises Private Limited" }
+        industry: { type: string, example: "IT & Services" }
+        size: { type: string, example: "11-50" }
+        city: { type: string, example: "Bengaluru" }
+        gstin: { type: string, example: "29ABCDE1234F1Z5" }
+        slug: { type: string, example: "acme-enterprises" }
+        plan: { type: string, enum: [starter, business], default: starter }
+        website: { type: string }
+        creatorPersonId: { type: string, description: "Person ID of the owner/creator (optional if authenticated via Bearer/X-User-Id)" }
+    UpdateOrganizationRequest:
+      type: object
+      properties:
+        name: { type: string }
+        legalName: { type: string }
+        logo: { type: string }
+        cover: { type: string }
+        brandColours: { $ref: '#/components/schemas/BrandColours' }
+        industry: { type: string }
+        size: { type: string }
+        about: { type: string }
+        website: { type: string }
+        addresses: { type: array, items: { $ref: '#/components/schemas/Address' } }
+        gstin: { type: string }
+        socialLinks: { $ref: '#/components/schemas/SocialLinks' }
+        slug: { type: string }
+    Organization:
+      type: object
+      required: [id, businessId, name, slug, industry, size, city, plan, createdAt, updatedAt]
+      properties:
+        id: { type: string, description: "Opaque tenantId (ULID)" }
+        businessId:
+          type: string
+          pattern: '^OB-[0-9A-HJKMNP-TV-Z]{6}$'
+          example: "OB-7KQ2MX"
+          description: "Permanent, immutable Base32 Business ID unique across the platform."
+        name: { type: string }
+        legalName: { type: string }
+        slug: { type: string }
+        previousSlugs: { type: array, items: { type: string } }
+        industry: { type: string }
+        size: { type: string }
+        city: { type: string }
+        about: { type: string }
+        website: { type: string }
+        addresses: { type: array, items: { $ref: '#/components/schemas/Address' } }
+        gstin: { type: string }
+        brandColours: { $ref: '#/components/schemas/BrandColours' }
+        logo: { type: string }
+        cover: { type: string }
+        brandKit: { $ref: '#/components/schemas/BrandKit' }
+        fieldLocks: { $ref: '#/components/schemas/FieldLocks' }
+        socialLinks: { $ref: '#/components/schemas/SocialLinks' }
+        plan: { type: string, enum: [starter, business] }
+        verifiedBadge: { type: boolean, default: false }
+        onboardingStartedAt: { type: string, format: date-time }
+        firstCardCreatedAt: { type: string, format: date-time }
+        timeToFirstCardSeconds: { type: integer }
+        aggregateVersion: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    MapPin:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat: { type: number, example: 12.9716 }
+        lng: { type: number, example: 77.5946 }
+    BranchContact:
+      type: object
+      properties:
+        phone: { type: string }
+        email: { type: string }
+    CreateBranchRequest:
+      type: object
+      required: [name, address]
+      properties:
+        name: { type: string, example: "Headquarters" }
+        address: { $ref: '#/components/schemas/Address' }
+        mapPin: { $ref: '#/components/schemas/MapPin' }
+        contact: { $ref: '#/components/schemas/BranchContact' }
+        managerPersonId: { type: string }
+    UpdateBranchRequest:
+      type: object
+      properties:
+        name: { type: string }
+        address: { $ref: '#/components/schemas/Address' }
+        mapPin: { $ref: '#/components/schemas/MapPin' }
+        contact: { $ref: '#/components/schemas/BranchContact' }
+        managerPersonId: { type: string }
+    Branch:
+      type: object
+      required: [id, tenantId, name, address, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, example: "OB-7KQ2MX-B01" }
+        tenantId: { type: string }
+        name: { type: string }
+        address: { $ref: '#/components/schemas/Address' }
+        mapPin: { $ref: '#/components/schemas/MapPin' }
+        contact: { $ref: '#/components/schemas/BranchContact' }
+        managerPersonId: { type: string }
+        status: { type: string, enum: [active, archived], default: active }
+        archivedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateDepartmentRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, example: "Sales" }
+        branchId: { type: string, description: "Branch ID if branch-scoped; omit for global" }
+        managerPersonId: { type: string }
+    UpdateDepartmentRequest:
+      type: object
+      properties:
+        name: { type: string }
+        branchId: { type: string }
+        managerPersonId: { type: string }
+    Department:
+      type: object
+      required: [id, tenantId, name, isDefault, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, example: "OB-7KQ2MX-D01" }
+        tenantId: { type: string }
+        name: { type: string }
+        branchId: { type: string }
+        managerPersonId: { type: string }
+        isDefault: { type: boolean, default: false }
+        status: { type: string, enum: [active, archived], default: active }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateTeamRequest:
+      type: object
+      required: [name, departmentId]
+      properties:
+        name: { type: string, example: "Inbound Sales" }
+        departmentId: { type: string }
+        leadPersonId: { type: string }
+        parentTeamId: { type: string }
+    UpdateTeamRequest:
+      type: object
+      properties:
+        name: { type: string }
+        departmentId: { type: string }
+        leadPersonId: { type: string }
+        parentTeamId: { type: string }
+    Team:
+      type: object
+      required: [id, tenantId, name, departmentId, status, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        departmentId: { type: string }
+        leadPersonId: { type: string }
+        parentTeamId: { type: string }
+        status: { type: string, enum: [active, archived], default: active }
+        archivedAt: { type: string, format: date-time }
+        memberPersonIds:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    PaginatedBranches:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Branch'
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+    PaginatedDepartments:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Department'
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+    PaginatedTeams:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Team'
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+    OrgChartNode:
+      type: object
+      required: [id, name, type]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string, enum: [company, branch, department, team, person] }
+        managerPersonId: { type: string }
+        managerChain: { type: array, items: { type: string } }
+        children: { type: array, items: { $ref: '#/components/schemas/OrgChartNode' } }
+    MovePersonRequest:
+      type: object
+      required: [personId]
+      properties:
+        personId: { type: string }
+        targetBranchId: { type: string }
+        targetDepartmentId: { type: string }
+        targetTeamId: { type: string }
+    AuditLogEntry:
+      type: object
+      required: [id, tenantId, action, entityType, entityId, actorPersonId, occurredAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        actor: { type: string, description: "Actor username, identity or identifier" }
+        actorPersonId: { type: string }
+        action: { type: string }
+        entityType: { type: string }
+        entityId: { type: string }
+        before: { type: object, nullable: true }
+        after: { type: object, nullable: true }
+        occurredAt: { type: string, format: date-time }
+        ip: { type: string, nullable: true, description: "Client IP address" }
+    PaginatedAuditLogs:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogEntry'
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+    SeatCardBinding:
+      type: object
+      properties:
+        cardId: { type: string }
+        cardUrl: { type: string }
+        qrCodeUrl: { type: string }
+        nfcChipId: { type: string }
+    Seat:
+      type: object
+      required: [id, tenantId, title, status, isReadOnly, createdAt, updatedAt]
+      properties:
+        id: { type: string, example: "OB-7KQ2MX-E0001" }
+        tenantId: { type: string }
+        title: { type: string, example: "Senior Account Executive" }
+        branchId: { type: string, nullable: true }
+        departmentId: { type: string, nullable: true }
+        teamId: { type: string, nullable: true }
+        managerSeatId: { type: string, nullable: true }
+        personId: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [vacant, invited, active, inactive, offboarded]
+        isReadOnly: { type: boolean, default: false }
+        cardBinding:
+          $ref: '#/components/schemas/SeatCardBinding'
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateSeatRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        branchId: { type: string }
+        departmentId: { type: string }
+        teamId: { type: string }
+        managerSeatId: { type: string }
+        personId: { type: string }
+        status:
+          type: string
+          enum: [vacant, invited, active, inactive]
+        cardBinding:
+          $ref: '#/components/schemas/SeatCardBinding'
+    UpdateSeatRequest:
+      type: object
+      properties:
+        title: { type: string }
+        branchId: { type: string }
+        departmentId: { type: string }
+        teamId: { type: string }
+        managerSeatId: { type: string }
+        status:
+          type: string
+          enum: [vacant, invited, active, inactive, offboarded]
+    AssignSeatRequest:
+      type: object
+      required: [personId]
+      properties:
+        personId: { type: string }
+    PaginatedSeats:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Seat'
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+    BrandColoursKit:
+      type: object
+      required: [band, text]
+      properties:
+        band: { type: string, example: "#1B2A4A" }
+        accent: { type: string, example: "#F68713" }
+        text: { type: string, example: "#FFFFFF" }
+    BrandKit:
+      type: object
+      required: [brandColours]
+      properties:
+        logo: { type: string, format: uri }
+        brandColours: { $ref: '#/components/schemas/BrandColoursKit' }
+        coverImage: { type: string, format: uri }
+    UpdateBrandKitRequest:
+      type: object
+      required: [brandColours]
+      properties:
+        logo: { type: string, format: uri }
+        brandColours: { $ref: '#/components/schemas/BrandColoursKit' }
+        coverImage: { type: string, format: uri }
+        acceptAutoPick:
+          type: boolean
+          default: false
+          description: "When true, auto-picks charcoal (#393536) or paper (#FAF7F2) if text-on-band contrast is below 4.5:1"
+    FieldLocks:
+      type: object
+      required: [lockedFields]
+      properties:
+        lockedFields:
+          type: array
+          items: { type: string }
+          example: ["logo", "brandColours", "title", "departmentId", "branchId"]
+    UpdateFieldLocksRequest:
+      type: object
+      required: [lockedFields]
+      properties:
+        lockedFields:
+          type: array
+          items: { type: string }
+    UploadLogoRequest:
+      type: object
+      required: [filename, contentType, size, contentBase64]
+      properties:
+        filename: { type: string, example: "logo.png" }
+        contentType: { type: string, enum: ["image/png", "image/svg+xml", "image/webp"] }
+        size: { type: integer, example: 1048576 }
+        contentBase64: { type: string }
+    UploadLogoResponse:
+      type: object
+      required: [url, key, width, height]
+      properties:
+        url: { type: string, example: "https://cdn.onebridge.in/tenants/01JD2XORG/logos/logo.webp" }
+        key: { type: string }
+        width: { type: integer }
+        height: { type: integer }
   securitySchemes:
     BearerAuth:
       type: http

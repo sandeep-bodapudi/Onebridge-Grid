@@ -383,10 +383,676 @@ export interface paths {
   "/orgs/{tenantId}/branches": {
     /** List Branches */
     get: {
+      parameters: {
+        query?: {
+          includeArchived?: boolean;
+          limit?: number;
+          offset?: number;
+        };
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+        };
+      };
       responses: {
         /** @description OK */
         200: {
+          content: {
+            "application/json": components["schemas"]["PaginatedBranches"];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Create Branch */
+    post: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateBranchRequest"];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          content: {
+            "application/json": components["schemas"]["Branch"];
+          };
+        };
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Plan limit reached (Starter allows 1 branch) or forbidden */
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/branches/{branchId}": {
+    /** Get Branch */
+    get: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          branchId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Branch"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Update Branch */
+    patch: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          branchId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateBranchRequest"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Branch"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/branches/{branchId}/archive": {
+    /** Archive Branch */
+    post: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          branchId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Branch"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/departments": {
+    /** List Departments */
+    get: {
+      parameters: {
+        query?: {
+          branchId?: string;
+          includeArchived?: boolean;
+          limit?: number;
+          offset?: number;
+        };
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["PaginatedDepartments"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Create Department */
+    post: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateDepartmentRequest"];
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": components["schemas"]["Department"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/departments/defaults": {
+    /** Seed default departments (Sales, Marketing, HR, Support, Development) */
+    post: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": components["schemas"]["PaginatedDepartments"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/departments/{departmentId}": {
+    /** Get Department */
+    get: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          departmentId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Department"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Update Department */
+    patch: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          departmentId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateDepartmentRequest"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Department"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/departments/{departmentId}/archive": {
+    /** Archive Department */
+    post: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          departmentId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Department"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/teams": {
+    /** List Teams */
+    get: {
+      parameters: {
+        query?: {
+          departmentId?: string;
+          includeArchived?: boolean;
+          limit?: number;
+          offset?: number;
+        };
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["PaginatedTeams"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Create Team */
+    post: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateTeamRequest"];
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": components["schemas"]["Team"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/teams/{teamId}": {
+    /** Get Team */
+    get: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          teamId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Team"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Delete/Archive Team */
+    delete: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          teamId: string;
+        };
+      };
+      responses: {
+        /** @description Team archived */
+        204: {
           content: never;
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Update Team */
+    patch: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          teamId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateTeamRequest"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Team"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/teams/{teamId}/archive": {
+    /** Archive Team */
+    post: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          teamId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Team"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/tree": {
+    /** Get Org Chart Tree View */
+    get: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["OrgChartNode"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/tree/move-person": {
+    /** Drag-and-drop move person in org tree */
+    post: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["MovePersonRequest"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["OrgChartNode"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{id}/audit": {
+    /** List and filter audit log entries */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Filter by actor person ID or username */
+          actor?: string;
+          /** @description Filter by action type */
+          action?: string;
+          /** @description Filter by entity type or entity ID */
+          entity?: string;
+          /** @description Filter events occurred on or after this timestamp (ISO-8601) */
+          startDate?: string;
+          /** @description Filter events occurred on or before this timestamp (ISO-8601) */
+          endDate?: string;
+          limit?: number;
+          offset?: number;
+        };
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+          "X-Correlation-ID"?: string;
+        };
+        path: {
+          id: string;
+        };
+      };
+      responses: {
+        /** @description Paginated audit log entries matching filters */
+        200: {
+          content: {
+            "application/json": components["schemas"]["PaginatedAuditLogs"];
+          };
+        };
+        /** @description Forbidden (role or tenant scope violation) */
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{id}/audit:export": {
+    /** Export audit logs to CSV */
+    get: {
+      parameters: {
+        query?: {
+          actor?: string;
+          action?: string;
+          entity?: string;
+          startDate?: string;
+          endDate?: string;
+        };
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+          "X-Correlation-ID"?: string;
+        };
+        path: {
+          id: string;
+        };
+      };
+      responses: {
+        /** @description CSV file download containing filtered audit entries */
+        200: {
+          content: {
+            "text/csv": string;
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/audit-logs": {
+    /** List audit log entries */
+    get: {
+      parameters: {
+        query?: {
+          entityType?: string;
+          limit?: number;
+          offset?: number;
+        };
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["AuditLogEntry"][];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
         };
       };
     };
@@ -394,10 +1060,202 @@ export interface paths {
   "/orgs/{tenantId}/seats": {
     /** List Seats */
     get: {
+      parameters: {
+        query?: {
+          status?: "vacant" | "invited" | "active" | "inactive" | "offboarded";
+          branchId?: string;
+          departmentId?: string;
+          teamId?: string;
+          limit?: number;
+          offset?: number;
+        };
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+        };
+      };
       responses: {
-        /** @description OK */
         200: {
-          content: never;
+          content: {
+            "application/json": components["schemas"]["PaginatedSeats"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Create Seat */
+    post: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateSeatRequest"];
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": components["schemas"]["Seat"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/seats/{seatId}": {
+    /** Get Seat */
+    get: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          seatId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Seat"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Update Seat */
+    patch: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          seatId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateSeatRequest"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Seat"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/seats/{seatId}/assign": {
+    /** Assign or reassign person to seat */
+    post: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          seatId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["AssignSeatRequest"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Seat"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/seats/{seatId}/archive": {
+    /** Soft archive seat (offboarded status) */
+    post: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          tenantId: string;
+          seatId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Seat"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
         };
       };
     };
@@ -488,6 +1346,384 @@ export interface paths {
       };
     };
   };
+  "/orgs": {
+    /** Register a new company and onboard owner */
+    post: {
+      parameters: {
+        header?: {
+          "Idempotency-Key"?: string;
+          "X-Correlation-ID"?: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateOrganizationRequest"];
+        };
+      };
+      responses: {
+        /** @description Company registered, business ID minted, owner membership created */
+        201: {
+          headers: {
+            Location?: string;
+          };
+          content: {
+            "application/json": components["schemas"]["Organization"];
+          };
+        };
+        /** @description Validation error (invalid GSTIN, invalid fields) */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Slug collision */
+        409: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Synchronous Owner membership creation in Identity failed or ID collision retry exhausted */
+        503: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{id}": {
+    /** Retrieve company profile by ID */
+    get: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+        };
+        path: {
+          id: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Organization"];
+          };
+        };
+        /** @description Cross-tenant access denied */
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Organization not found */
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Update company profile and branding */
+    patch: {
+      parameters: {
+        header: {
+          "X-Tenant-Id": string;
+          "Idempotency-Key"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+          "X-Correlation-ID"?: string;
+        };
+        path: {
+          id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateOrganizationRequest"];
+        };
+      };
+      responses: {
+        /** @description Company profile updated */
+        200: {
+          content: {
+            "application/json": components["schemas"]["Organization"];
+          };
+        };
+        /** @description Validation error */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Forbidden (insufficient role permissions) */
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Slug already in use by another company */
+        409: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{id}/first-card": {
+    /** Record time to first published digital card (AC-7) */
+    post: {
+      parameters: {
+        header: {
+          "X-Tenant-Id": string;
+          "X-Correlation-ID"?: string;
+        };
+        path: {
+          id: string;
+        };
+      };
+      responses: {
+        /** @description First card publication recorded */
+        200: {
+          content: {
+            "application/json": components["schemas"]["Organization"];
+          };
+        };
+        /** @description Cross-tenant access denied */
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Organization not found */
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/by-slug/{slug}": {
+    /** Resolve company by slug with permanent 301 redirect for previous slugs */
+    get: {
+      parameters: {
+        path: {
+          slug: string;
+        };
+      };
+      responses: {
+        /** @description Active organization found for slug */
+        200: {
+          content: {
+            "application/json": components["schemas"]["Organization"];
+          };
+        };
+        /** @description Slug has changed, permanent redirect to new slug */
+        301: {
+          headers: {
+            Location?: string;
+          };
+          content: never;
+        };
+      };
+    };
+  };
+  "/orgs/{id}/brand": {
+    /** Retrieve current brand kit */
+    get: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+        };
+        path: {
+          id: string;
+        };
+      };
+      responses: {
+        /** @description Current brand kit */
+        200: {
+          content: {
+            "application/json": components["schemas"]["BrandKit"];
+          };
+        };
+        /** @description Cross-tenant access denied */
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Organization not found */
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Update company brand kit with contrast validation */
+    patch: {
+      parameters: {
+        header: {
+          "X-Tenant-Id": string;
+          "Idempotency-Key"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+          "X-Correlation-ID"?: string;
+        };
+        path: {
+          id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateBrandKitRequest"];
+        };
+      };
+      responses: {
+        /** @description Brand kit updated successfully */
+        200: {
+          content: {
+            "application/json": components["schemas"]["BrandKit"];
+          };
+        };
+        /** @description Validation error or contrast failure below 4.5:1 without accepted auto-pick */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Forbidden (insufficient role permissions or cross-tenant access) */
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Organization not found */
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{id}/locks": {
+    /** Retrieve current field-level locks */
+    get: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+        };
+        path: {
+          id: string;
+        };
+      };
+      responses: {
+        /** @description Current field locks */
+        200: {
+          content: {
+            "application/json": components["schemas"]["FieldLocks"];
+          };
+        };
+        /** @description Cross-tenant access denied */
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Organization not found */
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Update field-level locks */
+    put: {
+      parameters: {
+        header: {
+          "X-Tenant-Id": string;
+          "Idempotency-Key"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+          "X-Correlation-ID"?: string;
+        };
+        path: {
+          id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateFieldLocksRequest"];
+        };
+      };
+      responses: {
+        /** @description Field locks updated successfully */
+        200: {
+          content: {
+            "application/json": components["schemas"]["FieldLocks"];
+          };
+        };
+        /** @description Forbidden (insufficient role permissions or cross-tenant access) */
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Organization not found */
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{id}/brand/logo": {
+    /** Upload and validate brand logo (PNG, SVG, WebP, max 5MB) */
+    post: {
+      parameters: {
+        header: {
+          "X-Tenant-Id": string;
+          "Idempotency-Key"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+          "X-Correlation-ID"?: string;
+        };
+        path: {
+          id: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UploadLogoRequest"];
+        };
+      };
+      responses: {
+        /** @description Logo scanned, resized, and uploaded to CDN */
+        200: {
+          content: {
+            "application/json": components["schemas"]["UploadLogoResponse"];
+          };
+        };
+        /** @description Invalid file format or size limit exceeded */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Forbidden (insufficient role permissions or cross-tenant access) */
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Malware scan failure */
+        422: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
 }
 
 export type webhooks = Record<string, never>;
@@ -550,6 +1786,389 @@ export interface components {
       };
       memberships: components["schemas"]["Membership"][];
       activeTenant?: components["schemas"]["ActiveTenantContext"];
+    };
+    BrandColours: {
+      /** @example #1B2A4A */
+      primary: string;
+      /** @example #F68713 */
+      secondary?: string;
+      /** @example #A04E08 */
+      accent?: string;
+    };
+    Address: {
+      line1: string;
+      line2?: string;
+      city: string;
+      state: string;
+      pincode: string;
+      /** @default true */
+      isPrimary?: boolean;
+    };
+    SocialLinks: {
+      linkedin?: string;
+      twitter?: string;
+      instagram?: string;
+      facebook?: string;
+      youtube?: string;
+      whatsapp?: string;
+    };
+    CreateOrganizationRequest: {
+      /** @example Acme Enterprises */
+      name: string;
+      /** @example Acme Enterprises Private Limited */
+      legalName?: string;
+      /** @example IT & Services */
+      industry: string;
+      /** @example 11-50 */
+      size: string;
+      /** @example Bengaluru */
+      city: string;
+      /** @example 29ABCDE1234F1Z5 */
+      gstin?: string;
+      /** @example acme-enterprises */
+      slug?: string;
+      /**
+       * @default starter
+       * @enum {string}
+       */
+      plan?: "starter" | "business";
+      website?: string;
+      /** @description Person ID of the owner/creator (optional if authenticated via Bearer/X-User-Id) */
+      creatorPersonId?: string;
+    };
+    UpdateOrganizationRequest: {
+      name?: string;
+      legalName?: string;
+      logo?: string;
+      cover?: string;
+      brandColours?: components["schemas"]["BrandColours"];
+      industry?: string;
+      size?: string;
+      about?: string;
+      website?: string;
+      addresses?: components["schemas"]["Address"][];
+      gstin?: string;
+      socialLinks?: components["schemas"]["SocialLinks"];
+      slug?: string;
+    };
+    Organization: {
+      /** @description Opaque tenantId (ULID) */
+      id: string;
+      /**
+       * @description Permanent, immutable Base32 Business ID unique across the platform.
+       * @example OB-7KQ2MX
+       */
+      businessId: string;
+      name: string;
+      legalName?: string;
+      slug: string;
+      previousSlugs?: string[];
+      industry: string;
+      size: string;
+      city: string;
+      about?: string;
+      website?: string;
+      addresses?: components["schemas"]["Address"][];
+      gstin?: string;
+      brandColours?: components["schemas"]["BrandColours"];
+      logo?: string;
+      cover?: string;
+      brandKit?: components["schemas"]["BrandKit"];
+      fieldLocks?: components["schemas"]["FieldLocks"];
+      socialLinks?: components["schemas"]["SocialLinks"];
+      /** @enum {string} */
+      plan: "starter" | "business";
+      /** @default false */
+      verifiedBadge?: boolean;
+      /** Format: date-time */
+      onboardingStartedAt?: string;
+      /** Format: date-time */
+      firstCardCreatedAt?: string;
+      timeToFirstCardSeconds?: number;
+      aggregateVersion?: number;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    MapPin: {
+      /** @example 12.9716 */
+      lat: number;
+      /** @example 77.5946 */
+      lng: number;
+    };
+    BranchContact: {
+      phone?: string;
+      email?: string;
+    };
+    CreateBranchRequest: {
+      /** @example Headquarters */
+      name: string;
+      address: components["schemas"]["Address"];
+      mapPin?: components["schemas"]["MapPin"];
+      contact?: components["schemas"]["BranchContact"];
+      managerPersonId?: string;
+    };
+    UpdateBranchRequest: {
+      name?: string;
+      address?: components["schemas"]["Address"];
+      mapPin?: components["schemas"]["MapPin"];
+      contact?: components["schemas"]["BranchContact"];
+      managerPersonId?: string;
+    };
+    Branch: {
+      /** @example OB-7KQ2MX-B01 */
+      id: string;
+      tenantId: string;
+      name: string;
+      address: components["schemas"]["Address"];
+      mapPin?: components["schemas"]["MapPin"];
+      contact?: components["schemas"]["BranchContact"];
+      managerPersonId?: string;
+      /**
+       * @default active
+       * @enum {string}
+       */
+      status: "active" | "archived";
+      /** Format: date-time */
+      archivedAt?: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    CreateDepartmentRequest: {
+      /** @example Sales */
+      name: string;
+      /** @description Branch ID if branch-scoped; omit for global */
+      branchId?: string;
+      managerPersonId?: string;
+    };
+    UpdateDepartmentRequest: {
+      name?: string;
+      branchId?: string;
+      managerPersonId?: string;
+    };
+    Department: {
+      /** @example OB-7KQ2MX-D01 */
+      id: string;
+      tenantId: string;
+      name: string;
+      branchId?: string;
+      managerPersonId?: string;
+      /** @default false */
+      isDefault: boolean;
+      /**
+       * @default active
+       * @enum {string}
+       */
+      status: "active" | "archived";
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    CreateTeamRequest: {
+      /** @example Inbound Sales */
+      name: string;
+      departmentId: string;
+      leadPersonId?: string;
+      parentTeamId?: string;
+    };
+    UpdateTeamRequest: {
+      name?: string;
+      departmentId?: string;
+      leadPersonId?: string;
+      parentTeamId?: string;
+    };
+    Team: {
+      id: string;
+      tenantId: string;
+      name: string;
+      departmentId: string;
+      leadPersonId?: string;
+      parentTeamId?: string;
+      /**
+       * @default active
+       * @enum {string}
+       */
+      status: "active" | "archived";
+      /** Format: date-time */
+      archivedAt?: string;
+      memberPersonIds?: string[];
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    PaginatedBranches: {
+      items: components["schemas"]["Branch"][];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    PaginatedDepartments: {
+      items: components["schemas"]["Department"][];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    PaginatedTeams: {
+      items: components["schemas"]["Team"][];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    OrgChartNode: {
+      id: string;
+      name: string;
+      /** @enum {string} */
+      type: "company" | "branch" | "department" | "team" | "person";
+      managerPersonId?: string;
+      managerChain?: string[];
+      children?: components["schemas"]["OrgChartNode"][];
+    };
+    MovePersonRequest: {
+      personId: string;
+      targetBranchId?: string;
+      targetDepartmentId?: string;
+      targetTeamId?: string;
+    };
+    AuditLogEntry: {
+      id: string;
+      tenantId: string;
+      /** @description Actor username, identity or identifier */
+      actor?: string;
+      actorPersonId: string;
+      action: string;
+      entityType: string;
+      entityId: string;
+      before?: Record<string, unknown> | null;
+      after?: Record<string, unknown> | null;
+      /** Format: date-time */
+      occurredAt: string;
+      /** @description Client IP address */
+      ip?: string | null;
+    };
+    PaginatedAuditLogs: {
+      items: components["schemas"]["AuditLogEntry"][];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    SeatCardBinding: {
+      cardId?: string;
+      cardUrl?: string;
+      qrCodeUrl?: string;
+      nfcChipId?: string;
+    };
+    Seat: {
+      /** @example OB-7KQ2MX-E0001 */
+      id: string;
+      tenantId: string;
+      /** @example Senior Account Executive */
+      title: string;
+      branchId?: string | null;
+      departmentId?: string | null;
+      teamId?: string | null;
+      managerSeatId?: string | null;
+      personId?: string | null;
+      /** @enum {string} */
+      status: "vacant" | "invited" | "active" | "inactive" | "offboarded";
+      /** @default false */
+      isReadOnly: boolean;
+      cardBinding?: components["schemas"]["SeatCardBinding"];
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    CreateSeatRequest: {
+      title: string;
+      branchId?: string;
+      departmentId?: string;
+      teamId?: string;
+      managerSeatId?: string;
+      personId?: string;
+      /** @enum {string} */
+      status?: "vacant" | "invited" | "active" | "inactive";
+      cardBinding?: components["schemas"]["SeatCardBinding"];
+    };
+    UpdateSeatRequest: {
+      title?: string;
+      branchId?: string;
+      departmentId?: string;
+      teamId?: string;
+      managerSeatId?: string;
+      /** @enum {string} */
+      status?: "vacant" | "invited" | "active" | "inactive" | "offboarded";
+    };
+    AssignSeatRequest: {
+      personId: string;
+    };
+    PaginatedSeats: {
+      items: components["schemas"]["Seat"][];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    BrandColoursKit: {
+      /** @example #1B2A4A */
+      band: string;
+      /** @example #F68713 */
+      accent?: string;
+      /** @example #FFFFFF */
+      text: string;
+    };
+    BrandKit: {
+      /** Format: uri */
+      logo?: string;
+      brandColours: components["schemas"]["BrandColoursKit"];
+      /** Format: uri */
+      coverImage?: string;
+    };
+    UpdateBrandKitRequest: {
+      /** Format: uri */
+      logo?: string;
+      brandColours: components["schemas"]["BrandColoursKit"];
+      /** Format: uri */
+      coverImage?: string;
+      /**
+       * @description When true, auto-picks charcoal (#393536) or paper (#FAF7F2) if text-on-band contrast is below 4.5:1
+       * @default false
+       */
+      acceptAutoPick?: boolean;
+    };
+    FieldLocks: {
+      /**
+       * @example [
+       *   "logo",
+       *   "brandColours",
+       *   "title",
+       *   "departmentId",
+       *   "branchId"
+       * ]
+       */
+      lockedFields: string[];
+    };
+    UpdateFieldLocksRequest: {
+      lockedFields: string[];
+    };
+    UploadLogoRequest: {
+      /** @example logo.png */
+      filename: string;
+      /** @enum {string} */
+      contentType: "image/png" | "image/svg+xml" | "image/webp";
+      /** @example 1048576 */
+      size: number;
+      contentBase64: string;
+    };
+    UploadLogoResponse: {
+      /** @example https://cdn.onebridge.in/tenants/01JD2XORG/logos/logo.webp */
+      url: string;
+      key: string;
+      width: number;
+      height: number;
     };
   };
   responses: never;
