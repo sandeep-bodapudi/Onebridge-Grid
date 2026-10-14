@@ -10,3 +10,4 @@ export * from './mongo/index.js';
 export * from './business-id.js';
 export * from './contrast.js';
 export * from './redaction.js';
+export * from './event-bus.js';
