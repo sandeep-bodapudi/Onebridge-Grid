@@ -80,6 +80,11 @@ export const KNOWN_COLLECTIONS: Record<string, CollectionMetadata> = {
     classification: 'tenant-scoped',
     description: 'Immutable tenant-scoped audit trails',
   },
+  counters: {
+    name: 'counters',
+    classification: 'tenant-scoped',
+    description: 'Tenant-scoped monotonic sequence counters for derived IDs (branches, departments, seats)',
+  },
 };
 
 export const ALLOWLISTED_GLOBAL_COLLECTIONS = Object.values(KNOWN_COLLECTIONS)
