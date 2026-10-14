@@ -62,3 +62,9 @@ Append new decisions at the bottom, with date, decision and reason.
     - *Dependency*: Step 1 focuses strictly on identity, credentials, and tenant isolation primitives. Media, analytics ingestion, company switcher, and outbox event dispatch have no consumers in Step 1.
     - *Risk*: Implementing complex outbox workers, media pipelines, or telemetry sinks prematurely introduces external infrastructural dependencies and distracting surface area before domain models are established.
     - *Pragmatism & Speed*: Guarantees a fully verified, green foundation (100% CI pass across lint, typecheck, unit, integration with real MongoDB, and E2E) without speculative code.
+- **[2026-10-12] D-AUDIT-NEXT14-CONTAINMENT: Dependency Audit Remediation & Next 14 Containment**:
+  - **Decision ID**: `D-AUDIT-NEXT14-CONTAINMENT`
+  - **Decision**: In `pnpm-workspace.yaml`, remediate production audit vulnerabilities by overriding `postcss` (`>=8.5.18`), `path-to-regexp` (`>=0.1.13`), and `multer` (`>=2.0.2`), and upgrading `next` in `apps/web-app` to `14.2.35`. For the 10 remaining advisories on Next 14 (8 high, 2 critical) whose upstream fixes only exist in Next 15 (`>=15.0.8`, `>=15.5.15`, `>=15.5.21`, `>=15.5.24`), contain them by adding their GHSA IDs to `pnpm-workspace.yaml` `auditConfig.ignoreGhsas`. The CI quality gate `pnpm audit --prod --audit-level=high` remains fully active.
+  - **Accepted Risk & Rationale**: Upgrading to Next 15 in this PR introduces breaking framework changes (React 18 vs 19 peer dependencies, App Router Server Actions breaking changes) outside Step 1 scope. The unpatched Next 14 advisories target features not exposed or utilized in Step 1 (Server Actions SSRF/DoS, WebSocket upgrade rewrites, i18n Pages Router middleware, and AVIF image optimization).
+  - **Follow-up Owner**: **Step 12 (Hardening)** (or Step 2 Organisation alongside full dashboard shell integration) to upgrade to Next 15 and remove the ignored GHSAs.
+

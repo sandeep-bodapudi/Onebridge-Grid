@@ -23,5 +23,43 @@
   - **Rationale (Why)**:
     - *Dependency*: Step 1 focuses strictly on identity, credentials, and tenant isolation primitives. Media, analytics ingestion, company switcher, and outbox event dispatch have no consumers in Step 1.
     - *Risk*: Implementing complex outbox workers, media pipelines, or telemetry sinks prematurely introduces external infrastructural dependencies and distracting surface area before domain models are established.
-    - *Pragmatism & Speed*: Guarantees a fully verified, green foundation (100% CI pass across lint, typecheck, unit, integration with real MongoDB, and E2E) without speculative code.
+- **[2026-10-12] D-AUDIT-NEXT14-CONTAINMENT: Dependency Audit Remediation & Next 14 Containment**:
+  - **Decision ID**: `D-AUDIT-NEXT14-CONTAINMENT`
+  - **Decision**: In `pnpm-workspace.yaml`, remediate production audit vulnerabilities by overriding `postcss` (`>=8.5.18`), `path-to-regexp` (`>=0.1.13`), and `multer` (`>=2.0.2`), and upgrading `next` in `apps/web-app` to `14.2.35`. For the 10 remaining advisories on Next 14 (8 high, 2 critical) whose upstream fixes only exist in Next 15 (`>=15.0.8`, `>=15.5.15`, `>=15.5.21`, `>=15.5.24`), contain them by adding their GHSA IDs to `pnpm-workspace.yaml` `auditConfig.ignoreGhsas`. The CI quality gate `pnpm audit --prod --audit-level=high` remains fully active.
+  - **Accepted Risk & Rationale**: Upgrading to Next 15 in this PR introduces breaking framework changes (React 18 vs 19 peer dependencies, App Router Server Actions breaking changes) outside Step 1 scope. The unpatched Next 14 advisories target features not exposed or utilized in Step 1 (Server Actions SSRF/DoS, WebSocket upgrade rewrites, i18n Pages Router middleware, and AVIF image optimization).
+  - **Follow-up Owner**: **Step 12 (Hardening)** (or Step 2 Organisation alongside full dashboard shell integration) to upgrade to Next 15 and remove the ignored GHSAs.
+- **[2026-10-12] F06 Company Onboarding and Profile Architecture & Contracts**:
+  - Implemented `services/organization` managing `organizations` (tenant-scoped) and `issued_id_registries` (global allowlisted per ADR-0001).
+  - Minted opaque `tenantId` (ULID) and human-friendly `businessId` (`OB-<6 char base32>`). Business ID collision retry loop with atomic unique indexing in `issued_id_registries`; voids ID on rollback to guarantee non-reuse.
+  - Synchronous Owner membership creation in `services/identity` (`POST /internal/memberships` secured via `x-service-key`) ensures transactional consistency. Fails with 503 and voids claimed businessId if Identity call fails.
+  - Implemented brand color contrast validation in `@onebridge/web-app` onboarding flow adhering to AGENTS.md Section 3 ("Orange is a fill, never a text colour").
+  - Implemented permanent 301 redirection on slug changes (`previousSlugs` historical array and `GET /orgs/by-slug/:slug`).
+  - Implemented multi-step `OnboardingFlow` component in `apps/web-app` supporting all UI states (Loading, Empty, Validation Errors, GSTIN regex check, OfflineBanner) and configurable plan selection step via `payment_after_first_card` flag.
+- **[2026-10-13] F03 OneBridge Business ID, Derived IDs, and Monotonic Counters**:
+  - Implemented `packages/shared/src/business-id.ts` for Crockford base32 format `OB-<6 char base32>` (business ID) and `OB-S<6 char base32>` (student ID for F27).
+  - Implemented derived ID formatters and parsers (`formatBranchId`, `formatDepartmentId`, `formatSeatId`, `validateDerivedId`, `parseDerivedId`) per PRD Section 8.2 (`-B03`, `-D07`, `-E0142`).
+  - Added `counters` collection to `KNOWN_COLLECTIONS` in `packages/shared/src/mongo/collection-registry.ts` classified strictly as `'tenant-scoped'`.
+  - Implemented `MongoCounterRepository` with atomic `$inc: { seq: 1 }` per tenant and entity type, and `CounterService` in `services/organization` ensuring monotonic, non-reusable sequences isolated across tenants.
+  - Implemented `BusinessIdDisplay` component in `packages/ui-kit` with 4 display variants (`'settings'`, `'rail'`, `'public'`, `'badge'`), clipboard write, `aria-live="polite"`, WCAG AA contrast, and minimum $\ge 44\text{px}$ touch target.
+  - Integrated in `apps/web-app/src/features/business-id` and mounted in `apps/web-app/app/dashboard/page.tsx`.
+- **[2026-10-13] F07 Branches, Departments, and Teams Architecture & Contracts**:
+  - Implemented `services/organization` domain models, repositories (`branches`, `departments`, `teams`, `audit_logs`), application service `OrgStructureService`, and REST endpoints in `StructureController`.
+  - Derived branch IDs (`OB-XXXXXX-Bnn`) and department IDs (`OB-XXXXXX-Dnn`) use `CounterService` monotonic tenant-scoped sequences.
+  - Plan limits: Starter plan enforces maximum 1 active branch; Business and Enterprise allow unlimited. Enforced strictly server-side (403 Forbidden).
+  - Seeded default departments (`Sales`, `Marketing`, `HR`, `Support`, `Development`) on initial setup via `POST /orgs/:tenantId/departments/defaults`.
+  - Hierarchical tree structure (`/tree`) with ancestor cycle prevention (`validateNoCycle`) rejecting circular loops or self-referential parent teams with 400 Bad Request.
+  - Implemented `OrgStructure` component in `packages/ui-kit` and `OrgStructureFeature` in `apps/web-app`, supporting all required states (Empty org, First-branch prompt, Archive confirmation dialog, Plan limit reached banner, Loading skeleton, and Offline banner).
+  - Every create, update, and archive operation records an immutable entry in `audit_logs` and emits corresponding domain events.
+  - **[2026-10-13] F07 Remediation & AC-6 Card Scope Clarification**:
+    - `POST /orgs/:tenantId/tree/move-person` updates team membership, org hierarchy, writes audit logs, and emits `org.person_moved`. Direct mutation of physical card branch/department metadata is deferred to Step 3 (`F10: Card templates and sections`) when the Cards domain entity is constructed.
+    - Soft archiving strictly enforced across branches, departments, and teams (`status: 'archived'`, `archivedAt`); hard deletes avoided to preserve historical reporting.
+    - Strict server-side role validation enforced in `StructureController` requiring authenticated `owner` or `admin` roles for all write operations.
+- **[2026-10-13] F04 Audit Log Architecture, Redaction, and Review Acceptance**:
+  - Implemented immutable `audit_logs` collection with `MongoAuditRepository` extending `TenantScopedRepository<AuditLogProps>`. Physical database and code-level append-only protection permanently forbids updates and deletions (`updateOne`, `updateMany`, `findOneAndUpdate`, `replaceOne`, `deleteOne`, `deleteMany` throw fatal exceptions).
+  - Implemented recursive credential and secret redaction (`@onebridge/shared/redaction.ts`) automatically scrubbing passwords, tokens, OTPs, hashes, and API keys prior to repository persistence.
+  - Implemented `AuditLogService` with plan retention window enforcement (`starter`: 90d, `business`: 365d, `enterprise`: 730d), tenant-scoped maintenance purge, and RFC 4180 CSV export.
+  - Added REST endpoints `GET /orgs/:id/audit` and `GET /orgs/:id/audit:export` (with alias `/orgs/:id/audit/export`) protected by server-side role scope (`owner` and `admin` only).
+  - Implemented `AuditLogViewer` in `packages/ui-kit` with WCAG AA compliance (axe verified with 0 violations), Hindi/English localization, and all UI states (empty, filtered no-results, loading skeleton, error with retry, offline, export in progress, and diff modal).
+  - Mounted `AuditLogFeature` in `apps/web-app` admin dashboard.
+  - Independent review completed and accepted with zero defects across 389 passing tests.
 

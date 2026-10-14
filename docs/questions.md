@@ -20,3 +20,11 @@
 **Question:** Should the `.woff2` font files be bundled and published inside the `@onebridge/ui-kit` npm package itself, or should we assume consuming applications (`web-app`, `web-public`) will host these assets in their respective `public/fonts` directories?  
 **Status:** **Open (Agent proposal pending approval)**  
 **Later Features Affected:** F05 (ui-kit font asset publishing), F12 (web-public font hosting), F24 (web-app PWA font caching in Serwist service worker).  
+
+## Q-14: Single Person Multiple Seats Policy (Class C)
+**Feature:** F08 - Seats and people  
+**Context:** AC-1 states "A person is assigned to a seat." Does OneBridge allow a single human (`Person`) to occupy multiple seats within the same company (e.g., dual roles such as Founder + Head of Product), or is a person strictly constrained to one seat per tenant?  
+**Question:** Can a single person ID be assigned to more than one active seat simultaneously within the same organization?  
+**Status:** **Open (Agent proposal pending approval)**  
+**Later Features Affected:** F08 (seats), F14 (invite claim flow), F15 (CSV bulk import), F16 (offboarding).
+  
