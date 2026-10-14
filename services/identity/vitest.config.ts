@@ -12,6 +12,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    fileParallelism: false,
     include: ['tests/**/*.spec.ts', 'tests/**/*.test.ts', 'tests/**/*.suite.ts'],
     setupFiles: [path.resolve(import.meta.dirname, '../../tests/setup-mongo.ts')],
   },

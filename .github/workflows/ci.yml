@@ -43,6 +43,9 @@ jobs:
       - name: Script Check (No-Op & Echo Checker)
         run: pnpm run check:scripts
 
+      - name: Build Workspace Packages
+        run: pnpm -r --filter "./packages/**" --if-present run build
+
       - name: Typecheck
         run: pnpm run typecheck
 
