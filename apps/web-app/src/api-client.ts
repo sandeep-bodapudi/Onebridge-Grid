@@ -1,3 +1,29 @@
+import type {
+  Organization,
+  CreateOrganizationRequest,
+  UpdateOrganizationRequest,
+  Branch,
+  CreateBranchRequest,
+  Department,
+  CreateDepartmentRequest,
+  Team,
+  CreateTeamRequest,
+  OrgChartNode,
+  MovePersonRequest,
+  Seat,
+  PaginatedSeats,
+  CreateSeatRequest,
+  UpdateSeatRequest,
+  AssignSeatRequest,
+  BrandKit,
+  UpdateBrandKitRequest,
+  FieldLocks,
+  UpdateFieldLocksRequest,
+  UploadLogoRequest,
+  UploadLogoResponse,
+  PaginatedAuditLogs,
+} from '@onebridge/api-contracts';
+
 export interface AuthState {
   accessToken: string | null;
   user: Record<string, unknown> | null;
@@ -8,6 +34,7 @@ let inMemoryAccessToken: string | null = null;
 let inMemoryActiveTenantId: string | null = null;
 
 const IDENTITY_API_URL = process.env.NEXT_PUBLIC_IDENTITY_API_URL || 'http://localhost:4001';
+const ORGANIZATION_API_URL = process.env.NEXT_PUBLIC_ORGANIZATION_API_URL || 'http://localhost:4002';
 
 export const apiClient = {
   getAccessToken(): string | null {
@@ -162,5 +189,678 @@ export const apiClient = {
     } finally {
       this.clear();
     }
+  },
+
+  async createOrganization(req: CreateOrganizationRequest): Promise<Organization> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (inMemoryAccessToken) {
+      headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    }
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(req),
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to create organization');
+    }
+
+    return res.json();
+  },
+
+  async getOrganization(id: string): Promise<Organization> {
+    const headers: Record<string, string> = {};
+    if (inMemoryAccessToken) {
+      headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    }
+    if (inMemoryActiveTenantId) {
+      headers['X-Tenant-Id'] = inMemoryActiveTenantId;
+    }
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${id}`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to fetch organization');
+    }
+
+    return res.json();
+  },
+
+  async updateOrganization(id: string, req: UpdateOrganizationRequest): Promise<Organization> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (inMemoryAccessToken) {
+      headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    }
+    if (inMemoryActiveTenantId) {
+      headers['X-Tenant-Id'] = inMemoryActiveTenantId;
+    }
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(req),
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to update organization');
+    }
+
+    return res.json();
+  },
+
+  async resolveSlug(slug: string): Promise<{ organization?: Organization; redirectUrl?: string }> {
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/by-slug/${slug}`, {
+      method: 'GET',
+      redirect: 'manual',
+    });
+
+    if (res.status === 301) {
+      const location = res.headers.get('Location') || undefined;
+      return { redirectUrl: location };
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to resolve organization slug');
+    }
+
+    const org = await res.json();
+    return { organization: org };
+  },
+
+  async recordFirstCardPublished(orgId: string): Promise<Organization> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (inMemoryAccessToken) {
+      headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    }
+    if (inMemoryActiveTenantId) {
+      headers['X-Tenant-Id'] = inMemoryActiveTenantId;
+    } else {
+      headers['X-Tenant-Id'] = orgId;
+    }
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${orgId}/first-card`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to record first card published');
+    }
+
+    return res.json();
+  },
+
+  // ---------------------------------------------------------------------------
+  // F07: STRUCTURE API (Branches, Departments, Teams, Tree)
+  // ---------------------------------------------------------------------------
+
+  async listBranches(tenantId: string, includeArchived = false): Promise<Branch[]> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/branches?includeArchived=${includeArchived}`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to list branches');
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : data.items || [];
+  },
+
+  async createBranch(tenantId: string, req: CreateBranchRequest): Promise<Branch> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/branches`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(req),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to create branch');
+    }
+    return res.json();
+  },
+
+  async archiveBranch(tenantId: string, branchId: string): Promise<Branch> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/branches/${branchId}/archive`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to archive branch');
+    }
+    return res.json();
+  },
+
+  async listDepartments(tenantId: string, branchId?: string, includeArchived = false): Promise<Department[]> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    let url = `${ORGANIZATION_API_URL}/orgs/${tenantId}/departments?includeArchived=${includeArchived}`;
+    if (branchId) url += `&branchId=${branchId}`;
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to list departments');
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : data.items || [];
+  },
+
+  async createDepartment(tenantId: string, req: CreateDepartmentRequest): Promise<Department> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/departments`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(req),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to create department');
+    }
+    return res.json();
+  },
+
+  async seedDefaultDepartments(tenantId: string): Promise<Department[]> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/departments/defaults`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to seed default departments');
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : data.items || [];
+  },
+
+  async archiveDepartment(tenantId: string, departmentId: string): Promise<Department> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/departments/${departmentId}/archive`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to archive department');
+    }
+    return res.json();
+  },
+
+  async listTeams(tenantId: string, departmentId?: string, includeArchived = false): Promise<Team[]> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    let url = `${ORGANIZATION_API_URL}/orgs/${tenantId}/teams?includeArchived=${includeArchived}`;
+    if (departmentId) url += `&departmentId=${departmentId}`;
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to list teams');
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : data.items || [];
+  },
+
+  async archiveTeam(tenantId: string, teamId: string): Promise<Team> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/teams/${teamId}/archive`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to archive team');
+    }
+    return res.json();
+  },
+
+
+  async createTeam(tenantId: string, req: CreateTeamRequest): Promise<Team> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/teams`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(req),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to create team');
+    }
+    return res.json();
+  },
+
+  async getTree(tenantId: string): Promise<OrgChartNode> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/tree`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to fetch organization tree');
+    }
+    return res.json();
+  },
+
+  async movePersonInTree(tenantId: string, req: MovePersonRequest): Promise<OrgChartNode> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/tree/move-person`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(req),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to move person in tree');
+    }
+    return res.json();
+  },
+
+  async listSeats(
+    tenantId: string,
+    options?: {
+      status?: string;
+      branchId?: string;
+      departmentId?: string;
+      teamId?: string;
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<PaginatedSeats> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const params = new URLSearchParams();
+    if (options?.status) params.set('status', options.status);
+    if (options?.branchId) params.set('branchId', options.branchId);
+    if (options?.departmentId) params.set('departmentId', options.departmentId);
+    if (options?.teamId) params.set('teamId', options.teamId);
+    if (options?.limit !== undefined) params.set('limit', String(options.limit));
+    if (options?.offset !== undefined) params.set('offset', String(options.offset));
+
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/seats${queryString}`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to list seats');
+    }
+    return res.json();
+  },
+
+  async getSeat(tenantId: string, seatId: string): Promise<Seat> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/seats/${seatId}`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to get seat');
+    }
+    return res.json();
+  },
+
+  async createSeat(
+    tenantId: string,
+    req: CreateSeatRequest,
+    idempotencyKey?: string
+  ): Promise<Seat> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/seats`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(req),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to create seat');
+    }
+    return res.json();
+  },
+
+  async updateSeat(tenantId: string, seatId: string, req: UpdateSeatRequest): Promise<Seat> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/seats/${seatId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(req),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to update seat');
+    }
+    return res.json();
+  },
+
+  async assignSeat(tenantId: string, seatId: string, req: AssignSeatRequest): Promise<Seat> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/seats/${seatId}/assign`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(req),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to assign seat');
+    }
+    return res.json();
+  },
+
+  async archiveSeat(tenantId: string, seatId: string): Promise<Seat> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/seats/${seatId}/archive`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to archive seat');
+    }
+    return res.json();
+  },
+
+  async getBrandKit(tenantId: string): Promise<BrandKit> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/brand`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to fetch brand kit');
+    }
+    return res.json();
+  },
+
+  async updateBrandKit(
+    tenantId: string,
+    req: UpdateBrandKitRequest,
+    acceptAutoPick = false,
+    idempotencyKey?: string
+  ): Promise<BrandKit> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+
+    const res = await fetch(
+      `${ORGANIZATION_API_URL}/orgs/${tenantId}/brand${acceptAutoPick ? '?acceptAutoPick=true' : ''}`,
+      {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ ...req, acceptAutoPick }),
+        credentials: 'include',
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to update brand kit');
+    }
+    return res.json();
+  },
+
+  async getFieldLocks(tenantId: string): Promise<FieldLocks> {
+    const headers: Record<string, string> = { 'X-Tenant-Id': tenantId };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/locks`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to fetch field locks');
+    }
+    return res.json();
+  },
+
+  async updateFieldLocks(tenantId: string, req: UpdateFieldLocksRequest): Promise<FieldLocks> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/locks`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(req),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to update field locks');
+    }
+    return res.json();
+  },
+
+  async uploadLogo(tenantId: string, file: File): Promise<UploadLogoResponse> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    // Convert file to base64
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Strip data:image/...;base64, prefix
+        const base64Data = result.split(',')[1] || result;
+        resolve(base64Data);
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+
+    const payload: UploadLogoRequest = {
+      filename: file.name,
+      contentType: file.type as 'image/png' | 'image/svg+xml' | 'image/webp',
+      size: file.size,
+      contentBase64: base64,
+    };
+
+    const res = await fetch(`${ORGANIZATION_API_URL}/orgs/${tenantId}/brand/logo`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to upload logo');
+    }
+    return res.json();
+  },
+
+  async getAuditLogs(
+    tenantId: string,
+    params: {
+      actor?: string;
+      action?: string;
+      entity?: string;
+      startDate?: string;
+      endDate?: string;
+      limit?: number;
+      offset?: number;
+    } = {}
+  ): Promise<PaginatedAuditLogs> {
+    const headers: Record<string, string> = {
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const query = new URLSearchParams();
+    if (params.actor) query.append('actor', params.actor);
+    if (params.action) query.append('action', params.action);
+    if (params.entity) query.append('entity', params.entity);
+    if (params.startDate) query.append('startDate', params.startDate);
+    if (params.endDate) query.append('endDate', params.endDate);
+    if (params.limit !== undefined) query.append('limit', String(params.limit));
+    if (params.offset !== undefined) query.append('offset', String(params.offset));
+
+    const qs = query.toString();
+    const url = `${ORGANIZATION_API_URL}/orgs/${tenantId}/audit${qs ? `?${qs}` : ''}`;
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to fetch audit logs');
+    }
+    return res.json();
+  },
+
+  async exportAuditLogsCsv(
+    tenantId: string,
+    params: {
+      actor?: string;
+      action?: string;
+      entity?: string;
+      startDate?: string;
+      endDate?: string;
+    } = {}
+  ): Promise<string> {
+    const headers: Record<string, string> = {
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const query = new URLSearchParams();
+    if (params.actor) query.append('actor', params.actor);
+    if (params.action) query.append('action', params.action);
+    if (params.entity) query.append('entity', params.entity);
+    if (params.startDate) query.append('startDate', params.startDate);
+    if (params.endDate) query.append('endDate', params.endDate);
+
+    const qs = query.toString();
+    const url = `${ORGANIZATION_API_URL}/orgs/${tenantId}/audit/export${qs ? `?${qs}` : ''}`;
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to export audit logs');
+    }
+    return res.text();
   },
 };
