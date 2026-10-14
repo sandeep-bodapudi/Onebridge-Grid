@@ -1928,6 +1928,206 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
+  /cards/templates:
+    get:
+      summary: List the 8 premium card templates (F10 AC-2)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CardTemplate'
+
+  /cards/{cardId}:
+    get:
+      summary: Get a card
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    patch:
+      summary: Update a card's template, language or sections (F10 AC-2, AC-3)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCardRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '400':
+          description: Unknown template, or a locked section was edited by a non-admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /cards/{cardId}:publish:
+    post:
+      summary: Publish a card; fires card.published and triggers web-public revalidation (F10 AC-6)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '201':
+          description: Published, or moved to pending_approval if the company requires admin approval and the caller is not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /cards/{cardId}:approve:
+    post:
+      summary: Admin approves a card sitting in pending_approval and publishes it
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '400':
+          description: Card is not pending approval
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /cards:bulk-template:
+    post:
+      summary: Apply one template to several cards at once, keeping all other content (F10 AC-2)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cardIds, templateId]
+              properties:
+                cardIds:
+                  type: array
+                  items: { type: string }
+                templateId:
+                  $ref: '#/components/schemas/CardTemplateId'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Card'
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
 components:
   schemas:
     ProblemDetails:
@@ -2351,6 +2551,82 @@ components:
         total: { type: integer }
         limit: { type: integer }
         offset: { type: integer }
+    CardTemplateId:
+      type: string
+      enum:
+        - classic-charcoal
+        - bridge-orange
+        - arch-minimal
+        - keystone-dark
+        - paper-light
+        - enterprise-blue
+        - grid-mono
+        - sand-warm
+    CardTemplate:
+      type: object
+      required: [id, name, description]
+      properties:
+        id:
+          $ref: '#/components/schemas/CardTemplateId'
+        name: { type: string }
+        description: { type: string }
+    CardSectionType:
+      type: string
+      enum: [about, products, services, portfolio, gallery, documents, social_links, company_info, branch_map]
+    CardSection:
+      type: object
+      required: [type, enabled, order, locked, visibility, content]
+      properties:
+        type:
+          $ref: '#/components/schemas/CardSectionType'
+        enabled: { type: boolean }
+        order: { type: integer }
+        locked: { type: boolean, description: "Admin-locked; rejected server-side if an employee edits it (F10 AC-3)" }
+        visibility:
+          type: string
+          enum: [public, internal]
+        content:
+          type: object
+          additionalProperties: true
+    Card:
+      type: object
+      required: [id, tenantId, ownerType, ownerId, slug, templateId, status, language, sections, verifiedBadge, approvalRequired, aggregateVersion, createdAt, updatedAt]
+      properties:
+        id: { type: string, example: "OB-7KQ2MX-E0001" }
+        tenantId: { type: string }
+        ownerType: { type: string, enum: [seat] }
+        ownerId: { type: string }
+        slug: { type: string, example: "acme-steels/sneha-r" }
+        templateId:
+          $ref: '#/components/schemas/CardTemplateId'
+        status:
+          type: string
+          enum: [draft, pending_approval, published]
+        language:
+          type: string
+          enum: [en, hi]
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardSection'
+        verifiedBadge: { type: boolean }
+        approvalRequired: { type: boolean }
+        publishedAt: { type: string, format: date-time, nullable: true }
+        aggregateVersion: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    UpdateCardRequest:
+      type: object
+      properties:
+        templateId:
+          $ref: '#/components/schemas/CardTemplateId'
+        language:
+          type: string
+          enum: [en, hi]
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardSection'
     BrandColoursKit:
       type: object
       required: [band, text]

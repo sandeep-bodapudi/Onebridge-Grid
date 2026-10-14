@@ -537,5 +537,23 @@ components:
             brandKit: { type: object }
             fieldLocks: { type: object }
         aggregateVersion: { type: integer }
+    CardPublishedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "card.published" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [cardId, tenantId, slug]
+          properties:
+            cardId: { type: string }
+            tenantId: { type: string }
+            slug: { type: string }
+        aggregateVersion: { type: integer }
 
 

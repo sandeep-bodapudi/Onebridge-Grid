@@ -1724,6 +1724,185 @@ export interface paths {
       };
     };
   };
+  "/cards/templates": {
+    /** List the 8 premium card templates (F10 AC-2) */
+    get: {
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              items: components["schemas"]["CardTemplate"][];
+            };
+          };
+        };
+      };
+    };
+  };
+  "/cards/{cardId}": {
+    /** Get a card */
+    get: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+        };
+        path: {
+          cardId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Card"];
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+    /** Update a card's template, language or sections (F10 AC-2, AC-3) */
+    patch: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          cardId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateCardRequest"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["Card"];
+          };
+        };
+        /** @description Unknown template, or a locked section was edited by a non-admin */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/cards/{cardId}:publish": {
+    /** Publish a card; fires card.published and triggers web-public revalidation (F10 AC-6) */
+    post: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          cardId: string;
+        };
+      };
+      responses: {
+        /** @description Published, or moved to pending_approval if the company requires admin approval and the caller is not an admin */
+        201: {
+          content: {
+            "application/json": components["schemas"]["Card"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/cards/{cardId}:approve": {
+    /** Admin approves a card sitting in pending_approval and publishes it */
+    post: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          cardId: string;
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": components["schemas"]["Card"];
+          };
+        };
+        /** @description Card is not pending approval */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/cards:bulk-template": {
+    /** Apply one template to several cards at once, keeping all other content (F10 AC-2) */
+    post: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            cardIds: string[];
+            templateId: components["schemas"]["CardTemplateId"];
+          };
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": components["schemas"]["Card"][];
+          };
+        };
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
 }
 
 export type webhooks = Record<string, never>;
@@ -2111,6 +2290,58 @@ export interface components {
       total: number;
       limit: number;
       offset: number;
+    };
+    /** @enum {string} */
+    CardTemplateId: "classic-charcoal" | "bridge-orange" | "arch-minimal" | "keystone-dark" | "paper-light" | "enterprise-blue" | "grid-mono" | "sand-warm";
+    CardTemplate: {
+      id: components["schemas"]["CardTemplateId"];
+      name: string;
+      description: string;
+    };
+    /** @enum {string} */
+    CardSectionType: "about" | "products" | "services" | "portfolio" | "gallery" | "documents" | "social_links" | "company_info" | "branch_map";
+    CardSection: {
+      type: components["schemas"]["CardSectionType"];
+      enabled: boolean;
+      order: number;
+      /** @description Admin-locked; rejected server-side if an employee edits it (F10 AC-3) */
+      locked: boolean;
+      /** @enum {string} */
+      visibility: "public" | "internal";
+      content: {
+        [key: string]: unknown;
+      };
+    };
+    Card: {
+      /** @example OB-7KQ2MX-E0001 */
+      id: string;
+      tenantId: string;
+      /** @enum {string} */
+      ownerType: "seat";
+      ownerId: string;
+      /** @example acme-steels/sneha-r */
+      slug: string;
+      templateId: components["schemas"]["CardTemplateId"];
+      /** @enum {string} */
+      status: "draft" | "pending_approval" | "published";
+      /** @enum {string} */
+      language: "en" | "hi";
+      sections: components["schemas"]["CardSection"][];
+      verifiedBadge: boolean;
+      approvalRequired: boolean;
+      /** Format: date-time */
+      publishedAt?: string | null;
+      aggregateVersion: number;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    UpdateCardRequest: {
+      templateId?: components["schemas"]["CardTemplateId"];
+      /** @enum {string} */
+      language?: "en" | "hi";
+      sections?: components["schemas"]["CardSection"][];
     };
     BrandColoursKit: {
       /** @example #1B2A4A */
