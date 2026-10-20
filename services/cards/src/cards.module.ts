@@ -198,7 +198,8 @@ export class CardsModule implements OnModuleInit {
           branchReadModelRepo,
           eventBus,
           edgeNotifier,
-          config.webPublicUrl || 'https://grid.onebridge.in'
+          config.webPublicUrl || 'https://grid.onebridge.in',
+          config.shortLinkBaseUrl
         ),
       inject: [
         MongoShortLinkRepository,
@@ -228,7 +229,8 @@ export class CardsModule implements OnModuleInit {
           eventBus,
           revalidationNotifier,
           shortLinkService,
-          branchReadModelRepo
+          branchReadModelRepo,
+          config.webPublicUrl
         ),
       inject: [
         MongoCardRepository,

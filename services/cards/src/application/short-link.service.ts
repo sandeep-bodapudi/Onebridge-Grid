@@ -8,6 +8,8 @@ import {
   ShortLinkProps,
   ShortLinkStatus,
   createShortLink,
+  DEFAULT_SHORT_LINK_BASE_URL,
+  hostsOf,
   repointShortLink,
   updateShortLinkStatus,
   validateDestinationUrl,
@@ -39,8 +41,19 @@ export class ShortLinkService {
     private readonly branchRepo: MongoBranchReadModelRepository,
     private readonly eventBus: EventBus,
     private readonly edgeNotifier: EdgeShortLinkNotifier,
-    private readonly publicBaseUrl = 'https://grid.onebridge.in'
+    private readonly publicBaseUrl = 'https://grid.onebridge.in',
+    private readonly shortLinkBaseUrl = DEFAULT_SHORT_LINK_BASE_URL
   ) {}
+
+  /** The deployment's own public hosts count as OneBridge pages, not external. */
+  private get trustedHosts(): string[] {
+    return hostsOf(this.publicBaseUrl, this.shortLinkBaseUrl);
+  }
+
+  /** Visitor card pages are served at /c/<slug> by apps/web-public. */
+  private cardPageUrl(cardSlug: string): string {
+    return `${this.publicBaseUrl.replace(/\/+$/, '')}/c/${cardSlug}`;
+  }
 
   async ensureDefaultCardShortLink(
     tenantId: string,
@@ -53,9 +66,11 @@ export class ShortLinkService {
         return existing;
       }
 
-      const destinationUrl = `${this.publicBaseUrl}/${cardSlug}`;
+      const destinationUrl = this.cardPageUrl(cardSlug);
       const shortLink = createShortLink({
         id: ulid(),
+        shortLinkBaseUrl: this.shortLinkBaseUrl,
+        trustedHosts: this.trustedHosts,
         tenantId,
         targetType: 'card',
         targetId: cardId,
@@ -125,11 +140,12 @@ export class ShortLinkService {
 
       let destinationUrl = customDestination?.trim();
       if (!destinationUrl) {
-        destinationUrl = `${this.publicBaseUrl}/${defaultSlug || card.slug || cardId}`;
+        destinationUrl = this.cardPageUrl(defaultSlug || card.slug || cardId);
       } else {
         const validation = validateDestinationUrl(destinationUrl, {
           allowExternal: callerRole === 'owner' || callerRole === 'admin',
           callerRole,
+          trustedHosts: this.trustedHosts,
         });
 
         if (!validation.isValid) {
@@ -140,6 +156,8 @@ export class ShortLinkService {
 
       const shortLink = createShortLink({
         id: ulid(),
+        shortLinkBaseUrl: this.shortLinkBaseUrl,
+        trustedHosts: this.trustedHosts,
         tenantId,
         targetType: 'card',
         targetId: cardId,
@@ -189,6 +207,7 @@ export class ShortLinkService {
         const validation = validateDestinationUrl(newUrl, {
           allowExternal: options.callerRole === 'owner' || options.callerRole === 'admin',
           callerRole: options.callerRole,
+          trustedHosts: this.trustedHosts,
         });
 
         if (!validation.isValid) {
@@ -197,7 +216,7 @@ export class ShortLinkService {
         }
 
         const prevUrl = current.destinationUrl;
-        updated = repointShortLink(updated, newUrl, options.callerPersonId || 'admin');
+        updated = repointShortLink(updated, newUrl, options.callerPersonId || 'admin', this.trustedHosts);
 
         await this.eventBus.publish({
           eventId: ulid(),

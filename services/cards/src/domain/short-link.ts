@@ -43,7 +43,12 @@ export function validateShortLinkCode(code: string): boolean {
   return /^[0-9a-zA-Z]{8}$/.test(code);
 }
 
-export function isOneBridgeDestination(url: string): boolean {
+/**
+ * True for OneBridge's own pages. `trustedHosts` adds the deployment's
+ * configured public hosts (WEB_PUBLIC_URL, SHORT_LINK_BASE_URL), so a
+ * staging or demo host is not mistaken for an external destination.
+ */
+export function isOneBridgeDestination(url: string, trustedHosts: string[] = []): boolean {
   if (typeof url !== 'string' || !url.trim()) return false;
   const trimmed = url.trim();
 
@@ -59,7 +64,8 @@ export function isOneBridgeDestination(url: string): boolean {
       host === 'obg.in' ||
       host.endsWith('.obg.in') ||
       host === 'onebridge.in' ||
-      host.endsWith('.onebridge.in')
+      host.endsWith('.onebridge.in') ||
+      trustedHosts.some((h) => h.toLowerCase() === host)
     );
   } catch {
     return false;
@@ -70,7 +76,7 @@ const PRIVATE_IP_REGEX = /^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]
 
 export function validateDestinationUrl(
   url: string,
-  options: { allowExternal?: boolean; callerRole?: string } = {}
+  options: { allowExternal?: boolean; callerRole?: string; trustedHosts?: string[] } = {}
 ): { isValid: boolean; reason?: string } {
   if (typeof url !== 'string' || !url.trim()) {
     return { isValid: false, reason: 'Destination URL is required' };
@@ -83,7 +89,7 @@ export function validateDestinationUrl(
     return { isValid: false, reason: 'Destination URL contains unsafe or prohibited scheme' };
   }
 
-  const isInternal = isOneBridgeDestination(trimmed);
+  const isInternal = isOneBridgeDestination(trimmed, options.trustedHosts);
 
   if (!isInternal) {
     // AC-7: External destinations require Company Admin approval
@@ -121,6 +127,22 @@ export function validateDestinationUrl(
   return { isValid: true };
 }
 
+export const DEFAULT_SHORT_LINK_BASE_URL = 'https://obg.in';
+
+/** Hostnames of the given URLs, ignoring any that fail to parse. */
+export function hostsOf(...urls: Array<string | undefined>): string[] {
+  const hosts: string[] = [];
+  for (const u of urls) {
+    if (!u) continue;
+    try {
+      hosts.push(new URL(u).hostname.toLowerCase());
+    } catch {
+      // ignore malformed configuration values
+    }
+  }
+  return hosts;
+}
+
 export function createShortLink(params: {
   id: string;
   tenantId: string;
@@ -133,11 +155,15 @@ export function createShortLink(params: {
   status?: ShortLinkStatus;
   callerRole?: string;
   approvedBy?: string;
+  /** Defaults to https://obg.in. Set from SHORT_LINK_BASE_URL. */
+  shortLinkBaseUrl?: string;
+  /** Extra hosts treated as OneBridge pages (see isOneBridgeDestination). */
+  trustedHosts?: string[];
 }): ShortLinkProps {
   const code = params.code || generateShortLinkCode();
   const source = params.source || 'default';
   const now = new Date().toISOString();
-  const isExternal = !isOneBridgeDestination(params.destinationUrl);
+  const isExternal = !isOneBridgeDestination(params.destinationUrl, params.trustedHosts);
 
   const initialStatus: ShortLinkStatus = params.status || (isExternal && !params.approvedBy ? 'pending_approval' : 'active');
 
@@ -145,7 +171,7 @@ export function createShortLink(params: {
     id: params.id,
     tenantId: params.tenantId,
     code,
-    shortUrl: `https://obg.in/${code}`,
+    shortUrl: `${(params.shortLinkBaseUrl || DEFAULT_SHORT_LINK_BASE_URL).replace(/\/+$/, '')}/${code}`,
     targetType: params.targetType,
     targetId: params.targetId,
     destinationUrl: params.destinationUrl,
@@ -164,9 +190,10 @@ export function createShortLink(params: {
 export function repointShortLink(
   current: ShortLinkProps,
   newDestinationUrl: string,
-  repointedBy: string
+  repointedBy: string,
+  trustedHosts: string[] = []
 ): ShortLinkProps {
-  const isExternal = !isOneBridgeDestination(newDestinationUrl);
+  const isExternal = !isOneBridgeDestination(newDestinationUrl, trustedHosts);
   const now = new Date().toISOString();
 
   return {

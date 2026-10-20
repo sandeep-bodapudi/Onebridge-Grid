@@ -135,6 +135,8 @@ describe('F11: Short Links & QR Codes HTTP API', () => {
       expect(defaultQr.code).toMatch(/^[0-9a-zA-Z]{8}$/);
       expect(defaultQr.shortUrl).toContain(defaultQr.code);
       expect(defaultQr.status).toBe('active');
+      // Visitor pages are served at /c/<slug> on web-public (testConfig.webPublicUrl)
+      expect(defaultQr.destinationUrl).toMatch(/^http:\/\/localhost:3001\/c\//);
     });
   });
 

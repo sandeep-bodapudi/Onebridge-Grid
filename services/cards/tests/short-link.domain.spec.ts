@@ -7,6 +7,7 @@ import {
   updateShortLinkStatus,
   validateDestinationUrl,
   isOneBridgeDestination,
+  hostsOf,
   ShortLinkProps,
 } from '../src/domain/short-link.js';
 
@@ -106,6 +107,67 @@ describe('ShortLink Domain Model (F11)', () => {
         expect(result.isValid).toBe(false);
         expect(result.reason).toMatch(/unsafe or prohibited/i);
       }
+    });
+  });
+
+  describe('Configurable short-link base and trusted hosts (demo / staging hosts)', () => {
+    const base = {
+      id: '01JD2XSL00000000000000009',
+      tenantId: '01JD2XORG00000000000000001',
+      targetType: 'card' as const,
+      targetId: 'OB-7KQ2MX-E0001',
+      source: 'default',
+    };
+
+    it('defaults the short URL to https://obg.in/<code>', () => {
+      const link = createShortLink({ ...base, destinationUrl: 'https://grid.onebridge.in/c/acme/sneha' });
+      expect(link.shortUrl).toBe(`https://obg.in/${link.code}`);
+    });
+
+    it('uses a configured base (trailing slash tolerated)', () => {
+      const link = createShortLink({
+        ...base,
+        destinationUrl: 'https://demo-public.example.com/c/acme/sneha',
+        shortLinkBaseUrl: 'https://demo-public.example.com/r/',
+        trustedHosts: ['demo-public.example.com'],
+      });
+      expect(link.shortUrl).toBe(`https://demo-public.example.com/r/${link.code}`);
+    });
+
+    it('treats a trusted deployment host as a OneBridge page, so the default link is active, not pending approval', () => {
+      const link = createShortLink({
+        ...base,
+        destinationUrl: 'https://demo-public.example.com/c/acme/sneha',
+        trustedHosts: ['demo-public.example.com'],
+      });
+      expect(link.isExternal).toBe(false);
+      expect(link.status).toBe('active');
+    });
+
+    it('without the trusted host, the same destination is external and needs approval', () => {
+      const link = createShortLink({ ...base, destinationUrl: 'https://demo-public.example.com/c/acme/sneha' });
+      expect(link.isExternal).toBe(true);
+      expect(link.status).toBe('pending_approval');
+    });
+
+    it('trusted hosts match exactly, not by suffix', () => {
+      expect(isOneBridgeDestination('https://evil-demo-public.example.com/x', ['demo-public.example.com'])).toBe(false);
+      expect(isOneBridgeDestination('https://demo-public.example.com/x', ['demo-public.example.com'])).toBe(true);
+    });
+
+    it('validateDestinationUrl lets a non-admin point at a trusted host', () => {
+      const res = validateDestinationUrl('https://demo-public.example.com/c/acme/sneha', {
+        callerRole: 'employee',
+        trustedHosts: ['demo-public.example.com'],
+      });
+      expect(res.isValid).toBe(true);
+    });
+
+    it('hostsOf extracts hostnames and ignores malformed values', () => {
+      expect(hostsOf('https://A.example.com/r', 'not a url', undefined, 'http://localhost:3001')).toEqual([
+        'a.example.com',
+        'localhost',
+      ]);
     });
   });
 });

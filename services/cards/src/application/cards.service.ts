@@ -52,7 +52,9 @@ export class CardsService {
     private readonly eventBus: PublishableEventBus,
     private readonly revalidationNotifier: RevalidationNotifier,
     private readonly shortLinkService?: ShortLinkService,
-    private readonly branchReadModelRepo?: MongoBranchReadModelRepository
+    private readonly branchReadModelRepo?: MongoBranchReadModelRepository,
+    /** apps/web-public origin (WEB_PUBLIC_URL); visitor pages live at /c/<slug>. */
+    private readonly publicBaseUrl = 'https://grid.onebridge.in'
   ) {}
 
   /**
@@ -287,7 +289,7 @@ export class CardsService {
     const nameParts = personName.trim().split(/\s+/);
     const firstName = nameParts[0] || 'Contact';
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
-    const cardUrl = `https://grid.onebridge.in/c/${cardView.slug}`;
+    const cardUrl = `${this.publicBaseUrl.replace(/\/+$/, '')}/c/${cardView.slug}`;
     const vcardNote = [cardView.person.bio, `Card: ${cardUrl}`].filter(Boolean).join('\n\n');
 
     const vcard = generateVCard({

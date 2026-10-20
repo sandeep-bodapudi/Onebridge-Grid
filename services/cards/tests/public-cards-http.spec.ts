@@ -196,8 +196,8 @@ describe('F12: Public Cards HTTP API (GET /public/c/:slug and vCard)', () => {
     expect(res.text).toContain('FN:Sneha Reddy');
     expect(res.text).toContain('ORG:Acme Steels');
     expect(res.text).toContain('TEL;TYPE=CELL,VOICE:+919876543210');
-    expect(res.text).toContain('URL:https://grid.onebridge.in/c/acme-steels/sneha-reddy');
-    expect(res.text.replace(/\r\n /g, '')).toContain('NOTE:TMT bar specialist\\n\\nCard: https://grid.onebridge.in/c/acme-steels/sneha-reddy');
+    expect(res.text).toContain('URL:http://localhost:3001/c/acme-steels/sneha-reddy');
+    expect(res.text.replace(/\r\n /g, '')).toContain('NOTE:TMT bar specialist\\n\\nCard: http://localhost:3001/c/acme-steels/sneha-reddy');
     expect(res.text).toContain('END:VCARD');
   });
 
