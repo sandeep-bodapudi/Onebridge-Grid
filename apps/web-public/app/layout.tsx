@@ -1,4 +1,5 @@
 import React from 'react';
+import '@onebridge/ui-kit/src/styles/tokens.css';
 import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
@@ -25,36 +26,10 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-              :root {
-                --bg-sand: #FAF7F2;
-                --text-charcoal: #1B2A4A;
-              }
-              @media (prefers-color-scheme: dark) {
-                :root {
-                  --bg-sand: #121824;
-                  --text-charcoal: #FAF7F2;
-                }
-              }
-              body {
-                margin: 0;
-                padding: 0;
-                font-family: Manrope, "Noto Sans Devanagari", system-ui, -apple-system, sans-serif;
-                background-color: var(--bg-sand);
-                color: var(--text-charcoal);
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: flex-start;
-              }
-            `,
-          }}
-        />
       </head>
-      <body className="font-body">{children}</body>
+      <body className="min-h-screen flex flex-col items-center bg-warm-paper text-charcoal font-body antialiased dark:bg-charcoal-deep dark:text-warm-paper">
+        {children}
+      </body>
     </html>
   );
 }

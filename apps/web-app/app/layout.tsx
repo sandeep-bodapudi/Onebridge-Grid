@@ -1,4 +1,5 @@
 import React from 'react';
+import '@onebridge/ui-kit/src/styles/tokens.css';
 
 export const metadata = {
   title: 'OneBridge Grid',
@@ -12,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, padding: 0, fontFamily: 'system-ui, sans-serif', backgroundColor: '#F8F9FA' }}>
+      <body className="min-h-screen bg-warm-paper text-charcoal font-body antialiased dark:bg-charcoal-deep dark:text-warm-paper">
         {children}
       </body>
     </html>

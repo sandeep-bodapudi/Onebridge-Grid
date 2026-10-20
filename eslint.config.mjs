@@ -20,6 +20,14 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    // CommonJS tool configs (e.g. postcss.config.cjs in apps).
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: { module: 'writable', require: 'readonly', __dirname: 'readonly' },
+    },
+  },
+  {
     languageOptions: {
       globals: {
         process: 'readonly',
