@@ -1,12 +1,12 @@
-import { cardsServiceUrl } from '../../../../lib/cards-service';
+import { cardsServiceUrl } from '../../../../../lib/cards-service';
 import { NextRequest } from 'next/server';
 
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string[] } }
+  { params }: { params: { org: string; person: string } }
 ) {
-  const slugPath = params.slug.join('/');
+  const slugPath = `${params.org}/${params.person}`;
 
   try {
     const res = await fetch(`${cardsServiceUrl()}/public/c/${slugPath}/vcard`);
@@ -27,7 +27,7 @@ export async function GET(
     }
 
     const vcardText = await res.text();
-    const contentDisposition = res.headers.get('content-disposition') || `attachment; filename="${params.slug[params.slug.length - 1] || 'contact'}.vcf"`;
+    const contentDisposition = res.headers.get('content-disposition') || `attachment; filename="${params.person || 'contact'}.vcf"`;
 
     return new Response(vcardText, {
       status: 200,

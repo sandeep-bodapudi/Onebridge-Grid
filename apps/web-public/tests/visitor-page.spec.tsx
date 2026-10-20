@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { NextRequest } from 'next/server';
 import crypto from 'node:crypto';
-import VisitorCardPage, { generateMetadata } from '../app/c/[...slug]/page';
+import VisitorCardPage, { generateMetadata } from '../app/c/[org]/[person]/page';
 import { POST as revalidateHandler } from '../app/api/revalidate/route';
-import { GET as vcardHandler } from '../app/c/[...slug]/vcard/route';
-import { GET as publicVcardHandler } from '../app/public/c/[...slug]/vcard/route';
+import { GET as vcardHandler } from '../app/c/[org]/[person]/vcard/route';
+import { GET as publicVcardHandler } from '../app/public/c/[org]/[person]/vcard/route';
 import { POST as analyticsHandler } from '../app/api/analytics/route';
 import { POST as sharebackHandler } from '../app/api/shareback/route';
 
@@ -59,7 +59,7 @@ describe('F12: Web-Public Visitor Page, Metadata, vCard and Revalidate', () => {
       json: async () => mockCard,
     });
 
-    const jsx = await VisitorCardPage({ params: { slug: ['acme', 'sneha'] } });
+    const jsx = await VisitorCardPage({ params: { org: 'acme', person: 'sneha' } });
     const { container } = render(jsx);
 
     expect(screen.getByText('Sneha Reddy')).toBeDefined();
@@ -96,7 +96,7 @@ describe('F12: Web-Public Visitor Page, Metadata, vCard and Revalidate', () => {
       json: async () => mockCard,
     });
 
-    const meta = await generateMetadata({ params: { slug: ['acme', 'sneha'] } });
+    const meta = await generateMetadata({ params: { org: 'acme', person: 'sneha' } });
     expect(meta.title).toBe('Sneha Reddy | Acme Steels');
     expect(meta.description).toContain('Sneha Reddy, Senior Sales Executive at Acme Steels');
     expect(meta.openGraph?.title).toBe('Sneha Reddy | Acme Steels');
@@ -109,7 +109,7 @@ describe('F12: Web-Public Visitor Page, Metadata, vCard and Revalidate', () => {
       statusText: 'Not Found',
     });
 
-    const jsx = await VisitorCardPage({ params: { slug: ['non-existent', 'card'] } });
+    const jsx = await VisitorCardPage({ params: { org: 'non-existent', person: 'card' } });
     const { container } = render(jsx);
 
     expect(screen.getByText('This card is not active yet')).toBeDefined();
@@ -184,7 +184,7 @@ describe('F12: Web-Public Visitor Page, Metadata, vCard and Revalidate', () => {
 
     // 1. Direct /c/ route
     const req = new NextRequest('http://localhost:3001/c/acme/sneha/vcard');
-    const res = await vcardHandler(req, { params: { slug: ['acme', 'sneha'] } });
+    const res = await vcardHandler(req, { params: { org: 'acme', person: 'sneha' } });
 
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/vcard');
@@ -194,7 +194,7 @@ describe('F12: Web-Public Visitor Page, Metadata, vCard and Revalidate', () => {
 
     // 2. Alias /public/c/ route
     const publicReq = new NextRequest('http://localhost:3001/public/c/acme/sneha/vcard');
-    const publicRes = await publicVcardHandler(publicReq, { params: { slug: ['acme', 'sneha'] } });
+    const publicRes = await publicVcardHandler(publicReq, { params: { org: 'acme', person: 'sneha' } });
     expect(publicRes.status).toBe(200);
     expect(publicRes.headers.get('content-type')).toContain('text/vcard');
   });
@@ -273,7 +273,7 @@ describe('F12: Web-Public Visitor Page, Metadata, vCard and Revalidate', () => {
       json: async () => mockCard,
     });
 
-    const jsx = await VisitorCardPage({ params: { slug: ['acme', 'sneha'] } });
+    const jsx = await VisitorCardPage({ params: { org: 'acme', person: 'sneha' } });
     const { container } = render(jsx);
 
     const htmlString = container.innerHTML;

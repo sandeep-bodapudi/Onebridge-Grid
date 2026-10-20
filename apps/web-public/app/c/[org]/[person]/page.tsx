@@ -1,4 +1,4 @@
-import { cardsServiceUrl } from '../../../lib/cards-service';
+import { cardsServiceUrl } from '../../../../lib/cards-service';
 import React from 'react';
 import type { Metadata } from 'next';
 import { type VisitorCardData, type VisitorCardProps } from '@onebridge/ui-kit';
@@ -8,8 +8,12 @@ import { VisitorCardClient } from './VisitorCardClient';
 export const revalidate = 86400;
 
 interface PageProps {
+  // Card slugs are always "<company-slug>/<person-slug>". A catch-all
+  // ([...slug]) cannot be followed by /vcard in Next.js, which stopped the
+  // whole app from routing, so the two segments are explicit.
   params: {
-    slug: string[];
+    org: string;
+    person: string;
   };
   searchParams?: {
     source?: string;
@@ -40,7 +44,7 @@ async function fetchCardData(slug: string): Promise<PublicCardResponse | null> {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const slugPath = params.slug.join('/');
+  const slugPath = `${params.org}/${params.person}`;
   const card = await fetchCardData(slugPath);
 
   if (!card || card.status === 'inactive' || card.status === 'unactivated') {
@@ -79,7 +83,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function VisitorCardPage({ params, searchParams }: PageProps) {
-  const slugPath = params.slug.join('/');
+  const slugPath = `${params.org}/${params.person}`;
   const card = await fetchCardData(slugPath);
 
   const rawSource = searchParams?.source;
