@@ -12,9 +12,7 @@ export async function createApp(options: CardsModuleOptions = {}): Promise<INest
   const app = await NestFactory.create(
     CardsModule.register({
       envConfig: config,
-      connectionHandle: options.connectionHandle,
-      eventBus: options.eventBus,
-      revalidationNotifier: options.revalidationNotifier,
+      ...options,
     })
   );
 

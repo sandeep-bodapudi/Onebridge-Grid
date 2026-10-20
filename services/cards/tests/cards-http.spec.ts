@@ -170,7 +170,7 @@ describe('F10: Cards HTTP API and read-model sync (supertest + mongodb-memory-se
     });
   });
 
-  describe('AC-3: locked sections are rejected server-side for non-admins', () => {
+  describe('AC-3 & AC-4: section locks, editing, and visibility', () => {
     it('employee cannot change a section the admin locked', async () => {
       await eventBus.publish(seatCreatedEvent(TENANT_A, 'OB-7KQ2MX-E0008'));
 
@@ -193,6 +193,105 @@ describe('F10: Cards HTTP API and read-model sync (supertest + mongodb-memory-se
         .send({ sections: attempted });
 
       expect(res.status).toBe(400);
+      expect(res.body.title).toBe('Bad Request');
+      expect(res.body.detail).toMatch(/locked/i);
+    });
+
+    it('employee can update unlocked sections and field visibility on their own card', async () => {
+      await eventBus.publish(seatCreatedEvent(TENANT_A, 'OB-7KQ2MX-E0013', { personId: 'emp_13' }));
+
+      const current = await request(app.getHttpServer())
+        .get('/cards/OB-7KQ2MX-E0013')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'emp_13').set('x-user-role', 'employee');
+
+      const modified = current.body.sections.map((s: { type: string; enabled: boolean; visibility: string }) =>
+        s.type === 'social_links' ? { ...s, enabled: false, visibility: 'internal' } : s
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch('/cards/OB-7KQ2MX-E0013')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'emp_13').set('x-user-role', 'employee')
+        .send({ sections: modified });
+
+      expect(res.status).toBe(200);
+      const updatedSection = res.body.sections.find((s: { type: string }) => s.type === 'social_links');
+      expect(updatedSection.enabled).toBe(false);
+      expect(updatedSection.visibility).toBe('internal');
+    });
+
+    it('manager holding a seat (e.g. team_lead) can update their own card', async () => {
+      await eventBus.publish(seatCreatedEvent(TENANT_A, 'OB-7KQ2MX-E0014', { personId: 'lead_14' }));
+
+      const res = await request(app.getHttpServer())
+        .patch('/cards/OB-7KQ2MX-E0014')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'lead_14').set('x-user-role', 'team_lead')
+        .send({ language: 'hi' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.language).toBe('hi');
+    });
+
+    it('rejects an employee trying to edit another employee card', async () => {
+      await eventBus.publish(seatCreatedEvent(TENANT_A, 'OB-7KQ2MX-E0015', { personId: 'person_target' }));
+
+      const res = await request(app.getHttpServer())
+        .patch('/cards/OB-7KQ2MX-E0015')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'person_other').set('x-user-role', 'employee')
+        .send({ language: 'hi' });
+
+      expect(res.status).toBe(403);
+    });
+
+    it('rejects document section exceeding 25 MB size limit with 400', async () => {
+      await eventBus.publish(seatCreatedEvent(TENANT_A, 'OB-7KQ2MX-E0016', { personId: 'emp_16' }));
+      const current = await request(app.getHttpServer())
+        .get('/cards/OB-7KQ2MX-E0016')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'p').set('x-user-role', 'owner');
+
+      const sections = current.body.sections.map((s: { type: string; content: Record<string, unknown> }) =>
+        s.type === 'documents'
+          ? {
+              ...s,
+              content: {
+                items: [{ name: 'massive.pdf', size: 26 * 1024 * 1024, mimeType: 'application/pdf', url: 'https://cdn/m.pdf' }],
+              },
+            }
+          : s
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch('/cards/OB-7KQ2MX-E0016')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'p').set('x-user-role', 'owner')
+        .send({ sections });
+
+      expect(res.status).toBe(400);
+      expect(res.body.detail).toMatch(/25 MB/i);
+    });
+
+    it('rejects document section with non-PDF file with 400', async () => {
+      await eventBus.publish(seatCreatedEvent(TENANT_A, 'OB-7KQ2MX-E0017', { personId: 'emp_17' }));
+      const current = await request(app.getHttpServer())
+        .get('/cards/OB-7KQ2MX-E0017')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'p').set('x-user-role', 'owner');
+
+      const sections = current.body.sections.map((s: { type: string; content: Record<string, unknown> }) =>
+        s.type === 'documents'
+          ? {
+              ...s,
+              content: {
+                items: [{ name: 'archive.zip', size: 1024, mimeType: 'application/zip', url: 'https://cdn/a.zip' }],
+              },
+            }
+          : s
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch('/cards/OB-7KQ2MX-E0017')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'p').set('x-user-role', 'owner')
+        .send({ sections });
+
+      expect(res.status).toBe(400);
+      expect(res.body.detail).toMatch(/PDF/i);
     });
   });
 
@@ -216,8 +315,8 @@ describe('F10: Cards HTTP API and read-model sync (supertest + mongodb-memory-se
     });
   });
 
-  describe('Approval workflow: company setting routes a non-admin publish through pending_approval', () => {
-    it('owner can always publish directly even when approval is required on the card', async () => {
+  describe('Approval workflow: company setting routes a non-admin publish through pending_approval (AC-8)', () => {
+    it('owner can always publish directly even when approval is required', async () => {
       await eventBus.publish(seatCreatedEvent(TENANT_A, 'OB-7KQ2MX-E0010'));
       const res = await request(app.getHttpServer())
         .post('/cards/OB-7KQ2MX-E0010/publish')
@@ -225,6 +324,85 @@ describe('F10: Cards HTTP API and read-model sync (supertest + mongodb-memory-se
 
       expect(res.status).toBe(201);
       expect(res.body.status).toBe('published');
+    });
+
+    it('company setting cardApprovalRequired routes employee publish to pending_approval', async () => {
+      // Turn on company setting via org.updated
+      await eventBus.publish({
+        eventId: ulid(),
+        type: 'org.updated',
+        version: '1.0.0',
+        tenantId: TENANT_A,
+        occurredAt: new Date().toISOString(),
+        correlationId: 'corr_appr',
+        aggregateVersion: 2,
+        payload: { orgId: TENANT_A, updatedFields: { cardApprovalRequired: true } },
+      });
+
+      await eventBus.publish(seatCreatedEvent(TENANT_A, 'OB-7KQ2MX-E0018', { personId: 'emp_18' }));
+
+      // Employee attempts to publish
+      const res = await request(app.getHttpServer())
+        .post('/cards/OB-7KQ2MX-E0018/publish')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'emp_18').set('x-user-role', 'employee');
+
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe('pending_approval');
+    });
+
+    it('non-admin cannot approve a card', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/cards/OB-7KQ2MX-E0018/approve')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'emp_18').set('x-user-role', 'employee');
+
+      expect(res.status).toBe(403);
+    });
+
+    it('admin approves a card sitting in pending_approval and triggers publish', async () => {
+      const callsBefore = revalidationNotifier.calls.length;
+
+      const res = await request(app.getHttpServer())
+        .post('/cards/OB-7KQ2MX-E0018/approve')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'admin_1').set('x-user-role', 'admin');
+
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe('published');
+      expect(res.body.publishedAt).toBeTruthy();
+      expect(revalidationNotifier.calls.length).toBe(callsBefore + 1);
+    });
+
+    it('admin cannot approve a card that is not in pending_approval', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/cards/OB-7KQ2MX-E0018/approve')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'admin_1').set('x-user-role', 'admin');
+
+      expect(res.status).toBe(400);
+      expect(res.body.detail).toMatch(/not pending approval/i);
+    });
+  });
+
+  describe('Write endpoint idempotency (AGENTS.md Section 3)', () => {
+    it('replaying publish with the same Idempotency-Key returns cached response without duplicate events', async () => {
+      await eventBus.publish(seatCreatedEvent(TENANT_A, 'OB-7KQ2MX-E0019'));
+      const callsBefore = revalidationNotifier.calls.length;
+
+      const first = await request(app.getHttpServer())
+        .post('/cards/OB-7KQ2MX-E0019/publish')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'p').set('x-user-role', 'owner')
+        .set('idempotency-key', 'idem_pub_1');
+
+      expect(first.status).toBe(201);
+      expect(revalidationNotifier.calls.length).toBe(callsBefore + 1);
+
+      // Replay identical request with same key
+      const replay = await request(app.getHttpServer())
+        .post('/cards/OB-7KQ2MX-E0019/publish')
+        .set('x-tenant-id', TENANT_A).set('x-user-id', 'p').set('x-user-role', 'owner')
+        .set('idempotency-key', 'idem_pub_1');
+
+      expect(replay.status).toBe(201);
+      expect(replay.body.id).toBe(first.body.id);
+      expect(revalidationNotifier.calls.length).toBe(callsBefore + 1); // no second revalidation
     });
   });
 
@@ -244,7 +422,7 @@ describe('F10: Cards HTTP API and read-model sync (supertest + mongodb-memory-se
         tenantId: TENANT_A,
         occurredAt: new Date().toISOString(),
         correlationId: 'corr_2',
-        aggregateVersion: 2,
+        aggregateVersion: 3,
         payload: { orgId: TENANT_A, businessId: 'OB-7KQ2MX', logo: 'https://cdn/x.png', brandColours: { band: '#1F4E9A', text: '#FFFFFF' } },
       });
 

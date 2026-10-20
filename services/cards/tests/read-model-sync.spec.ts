@@ -130,4 +130,23 @@ describe('ADR-0003: Cards read-model sync (direct, no HTTP)', () => {
     const card = await cardsService.getCard(TENANT, 'OB-AAAAAA-E0001');
     expect(card.status).toBe('draft');
   });
+
+  it('kyb.status_changed updates org read model verifiedBadge and revalidates published cards', async () => {
+    // First, publish a card for this tenant so revalidation has a target
+    await cardsService.publishCard(TENANT, 'OB-AAAAAA-E0001', { personId: 'person_x', role: 'owner' });
+    const callsBefore = revalidationNotifier.calls.length;
+
+    await bus.publish(evt('kyb.status_changed', { orgId: TENANT, status: 'verified' }, 4));
+
+    const model = await TenantContext.run(TENANT, () => orgRepo.findByTenantId(TENANT));
+    expect(model?.verifiedBadge).toBe(true);
+    expect(revalidationNotifier.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it('org.updated syncs cardApprovalRequired company setting', async () => {
+    await bus.publish(evt('org.updated', { orgId: TENANT, updatedFields: { cardApprovalRequired: true } }, 5));
+
+    const model = await TenantContext.run(TENANT, () => orgRepo.findByTenantId(TENANT));
+    expect(model?.cardApprovalRequired).toBe(true);
+  });
 });

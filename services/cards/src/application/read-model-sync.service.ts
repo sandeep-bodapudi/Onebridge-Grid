@@ -42,6 +42,7 @@ export class ReadModelSyncService {
     bus.subscribe('seat.updated', (e) => this.handleSeatEvent(e));
     bus.subscribe('seat.assigned', (e) => this.handleSeatEvent(e));
     bus.subscribe('seat.status_changed', (e) => this.handleSeatStatusChanged(e));
+    bus.subscribe('kyb.status_changed', (e) => this.handleKybStatusChanged(e));
   }
 
   private async withTenant<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
@@ -54,24 +55,29 @@ export class ReadModelSyncService {
 
     await this.withTenant(tenantId, async () => {
       const existing = await this.orgReadModelRepo.findByTenantId(tenantId);
+      const updatedFields = payload.updatedFields as Record<string, unknown> | undefined;
       const merged: OrgReadModel = {
         tenantId,
         businessId: (payload.businessId as string) ?? existing?.businessId ?? '',
         name: (payload.name as string) ?? existing?.name ?? '',
         slug:
           (payload.slug as string) ??
-          ((payload.updatedFields as Record<string, unknown> | undefined)?.slug as string | undefined) ??
+          (updatedFields?.slug as string | undefined) ??
           existing?.slug ??
           '',
         logo: existing?.logo,
         brandColours: existing?.brandColours,
         verifiedBadge: existing?.verifiedBadge ?? false,
+        cardApprovalRequired:
+          (payload.cardApprovalRequired as boolean | undefined) ??
+          (updatedFields?.cardApprovalRequired as boolean | undefined) ??
+          existing?.cardApprovalRequired ??
+          false,
         aggregateVersion: event.aggregateVersion ?? (existing?.aggregateVersion ?? 0) + 1,
         updatedAt: event.occurredAt,
       };
 
       // org.updated may patch display name via updatedFields without repeating it top-level.
-      const updatedFields = payload.updatedFields as Record<string, unknown> | undefined;
       if (updatedFields?.name) merged.name = updatedFields.name as string;
 
       await this.orgReadModelRepo.upsertIfNewer(merged);
@@ -103,6 +109,7 @@ export class ReadModelSyncService {
         logo: incomingLogo ?? existing?.logo,
         brandColours: incomingBrandColours ?? existing?.brandColours,
         verifiedBadge: existing?.verifiedBadge ?? false,
+        cardApprovalRequired: existing?.cardApprovalRequired ?? false,
         aggregateVersion: event.aggregateVersion ?? (existing?.aggregateVersion ?? 0) + 1,
         updatedAt: event.occurredAt,
       };
@@ -112,6 +119,37 @@ export class ReadModelSyncService {
 
       // AC-4 (F06) / AC-6 (F10): branding changes must reach every published
       // card within 60 seconds. Revalidate every currently published card.
+      const publishedCards = await this.cardsService.listPublishedCardsForTenant(tenantId);
+      for (const card of publishedCards) {
+        await this.revalidationNotifier.revalidateCard({ cardId: card.id, slug: card.slug, tenantId });
+      }
+    });
+  }
+
+  /**
+   * AC-1 / ADR-0003: kyb.status_changed updates the org read model's
+   * verification badge and revalidates published cards.
+   */
+  async handleKybStatusChanged(event: DomainEvent): Promise<void> {
+    const payload = event.payload as Record<string, unknown>;
+    const tenantId = event.tenantId;
+    const isVerified = payload.status === 'verified';
+
+    await this.withTenant(tenantId, async () => {
+      const existing = await this.orgReadModelRepo.findByTenantId(tenantId);
+      if (!existing) return;
+
+      const merged: OrgReadModel = {
+        ...existing,
+        verifiedBadge: isVerified,
+        aggregateVersion: event.aggregateVersion ?? existing.aggregateVersion + 1,
+        updatedAt: event.occurredAt,
+      };
+
+      const applied = await this.orgReadModelRepo.upsertIfNewer(merged);
+      if (!applied) return;
+
+      // Revalidate every currently published card when verification badge changes
       const publishedCards = await this.cardsService.listPublishedCardsForTenant(tenantId);
       for (const card of publishedCards) {
         await this.revalidationNotifier.revalidateCard({ cardId: card.id, slug: card.slug, tenantId });

@@ -105,6 +105,52 @@ export function createDraftCard(input: CreateDraftCardInput, now: string): CardP
   };
 }
 
+export class LockedSectionError extends Error {
+  constructor(sectionType: string) {
+    super(`Section "${sectionType}" is locked by the company and cannot be edited`);
+    this.name = 'LockedSectionError';
+  }
+}
+
+export class InvalidSectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidSectionError';
+  }
+}
+
+export const MAX_DOCUMENT_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB (AC-3)
+
+export function validateCardSections(sections: CardSectionConfig[]): void {
+  for (const section of sections) {
+    if (section.type === 'documents' && section.content) {
+      const items = Array.isArray(section.content.items)
+        ? section.content.items
+        : Array.isArray(section.content.documents)
+        ? section.content.documents
+        : Array.isArray(section.content.files)
+        ? section.content.files
+        : null;
+
+      if (items) {
+        for (const item of items as Array<Record<string, unknown>>) {
+          if (typeof item.size === 'number' && item.size > MAX_DOCUMENT_SIZE_BYTES) {
+            throw new InvalidSectionError(`Document "${item.name || 'file'}" exceeds 25 MB size limit`);
+          }
+          const mime = (item.mimeType || item.contentType) as string | undefined;
+          const name = (item.name || item.filename || item.url) as string | undefined;
+          if (mime && mime !== 'application/pdf') {
+            throw new InvalidSectionError(`Document "${name || 'file'}" must be a PDF`);
+          }
+          if (name && typeof name === 'string' && !name.toLowerCase().endsWith('.pdf') && !mime) {
+            throw new InvalidSectionError(`Document "${name}" must be a PDF`);
+          }
+        }
+      }
+    }
+  }
+}
+
 /**
  * AC-3: locked sections are rejected server-side if an employee tries to edit them.
  * `isAdmin` callers (owner/admin) may edit locked sections; everyone else may not.
@@ -125,7 +171,8 @@ export function assertSectionsEditable(
       existing.visibility !== incoming.visibility ||
       JSON.stringify(existing.content) !== JSON.stringify(incoming.content);
     if (changed) {
-      throw new Error(`Section "${incoming.type}" is locked by the company and cannot be edited`);
+      throw new LockedSectionError(incoming.type);
     }
   }
 }
+

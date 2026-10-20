@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createDraftCard,
   assertSectionsEditable,
+  validateCardSections,
   defaultCardSections,
   CARD_TEMPLATE_IDS,
   CARD_SECTION_TYPES,
@@ -95,6 +96,41 @@ describe('F10: Card domain', () => {
       sections[0] = { ...sections[0], locked: true };
 
       expect(() => assertSectionsEditable(sections, sections, false)).not.toThrow();
+    });
+  });
+
+  describe('validateCardSections (AC-3: Documents PDF <= 25 MB)', () => {
+    it('accepts documents within 25 MB and PDF format', () => {
+      const sections = defaultCardSections();
+      const docSection = sections.find((s) => s.type === 'documents')!;
+      docSection.content = {
+        items: [
+          { name: 'brochure.pdf', size: 5 * 1024 * 1024, mimeType: 'application/pdf', url: 'https://cdn/b.pdf' },
+        ],
+      };
+      expect(() => validateCardSections(sections)).not.toThrow();
+    });
+
+    it('rejects a document exceeding 25 MB', () => {
+      const sections = defaultCardSections();
+      const docSection = sections.find((s) => s.type === 'documents')!;
+      docSection.content = {
+        items: [
+          { name: 'large.pdf', size: 26 * 1024 * 1024, mimeType: 'application/pdf', url: 'https://cdn/l.pdf' },
+        ],
+      };
+      expect(() => validateCardSections(sections)).toThrow(/25 MB/i);
+    });
+
+    it('rejects a non-PDF document', () => {
+      const sections = defaultCardSections();
+      const docSection = sections.find((s) => s.type === 'documents')!;
+      docSection.content = {
+        items: [
+          { name: 'doc.docx', size: 1024, mimeType: 'application/msword', url: 'https://cdn/d.docx' },
+        ],
+      };
+      expect(() => validateCardSections(sections)).toThrow(/PDF/i);
     });
   });
 

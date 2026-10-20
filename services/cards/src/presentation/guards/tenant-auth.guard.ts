@@ -18,7 +18,7 @@ export class TenantAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest();
 
-    const personId = req.headers?.['x-user-id'] as string | undefined;
+    const personId = (req.headers?.['x-user-id'] ?? req.headers?.['x-person-id']) as string | undefined;
     const role = req.headers?.['x-user-role'] as Role | undefined;
     const tenantId = req.headers?.['x-tenant-id'] as string | undefined;
 

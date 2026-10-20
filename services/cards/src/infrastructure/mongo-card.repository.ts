@@ -26,6 +26,16 @@ export class MongoCardRepository extends TenantScopedRepository<CardDoc> {
     return doc ? (doc as unknown as CardProps) : null;
   }
 
+  /**
+   * Public card lookup by unique card slug across tenants (F12).
+   * The caller MUST immediately enter TenantContext.run(card.tenantId)
+   * before querying any tenant-scoped read models or child entities.
+   */
+  async findBySlugGlobal(slug: string): Promise<CardProps | null> {
+    const doc = await this.collection.findOne({ slug } as unknown as Parameters<typeof this.collection.findOne>[0]);
+    return doc ? (doc as unknown as CardProps) : null;
+  }
+
   async listPublishedByTenant(): Promise<CardProps[]> {
     const docs = await this.find({ status: 'published' } as unknown as Parameters<typeof this.find>[0]);
     return docs as unknown as CardProps[];

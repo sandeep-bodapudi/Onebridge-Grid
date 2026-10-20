@@ -1,15 +1,21 @@
 import { ulid } from 'ulid';
-import { PublishableEventBus, Role, TenantContext } from '@onebridge/shared';
+import { PublishableEventBus, Role, TenantContext, generateVCard } from '@onebridge/shared';
+import type { PublicCardResponse } from '@onebridge/api-contracts';
 import {
   CardProps,
   CardSectionConfig,
   CardTemplateId,
   assertSectionsEditable,
+  validateCardSections,
   createDraftCard,
   isCardTemplateId,
 } from '../domain/card.js';
 import { MongoCardRepository } from '../infrastructure/mongo-card.repository.js';
-import { MongoOrgReadModelRepository, MongoSeatReadModelRepository } from '../infrastructure/mongo-read-model.repositories.js';
+import {
+  MongoOrgReadModelRepository,
+  MongoSeatReadModelRepository,
+  MongoBranchReadModelRepository,
+} from '../infrastructure/mongo-read-model.repositories.js';
 import { RevalidationNotifier } from '../infrastructure/revalidation-notifier.js';
 
 export class ProblemError extends Error {
@@ -36,13 +42,17 @@ export interface UpdateCardDto {
   sections?: CardSectionConfig[];
 }
 
+import type { ShortLinkService } from './short-link.service.js';
+
 export class CardsService {
   constructor(
     private readonly cardRepo: MongoCardRepository,
     private readonly orgReadModelRepo: MongoOrgReadModelRepository,
     private readonly seatReadModelRepo: MongoSeatReadModelRepository,
     private readonly eventBus: PublishableEventBus,
-    private readonly revalidationNotifier: RevalidationNotifier
+    private readonly revalidationNotifier: RevalidationNotifier,
+    private readonly shortLinkService?: ShortLinkService,
+    private readonly branchReadModelRepo?: MongoBranchReadModelRepository
   ) {}
 
   /**
@@ -53,7 +63,12 @@ export class CardsService {
   async ensureDraftCardForSeat(tenantId: string, seatId: string): Promise<CardProps> {
     return TenantContext.run(tenantId, async () => {
       const existing = await this.cardRepo.findById(seatId);
-      if (existing) return existing;
+      if (existing) {
+        if (this.shortLinkService) {
+          await this.shortLinkService.ensureDefaultCardShortLink(tenantId, existing.id, existing.slug);
+        }
+        return existing;
+      }
 
       const org = await this.orgReadModelRepo.findByTenantId(tenantId);
       const now = new Date().toISOString();
@@ -63,7 +78,13 @@ export class CardsService {
         { tenantId, seatId, slug, verifiedBadge: org?.verifiedBadge ?? false },
         now
       );
-      return this.cardRepo.save(card);
+      const saved = await this.cardRepo.save(card);
+
+      if (this.shortLinkService) {
+        await this.shortLinkService.ensureDefaultCardShortLink(tenantId, saved.id, saved.slug);
+      }
+
+      return saved;
     });
   }
 
@@ -84,6 +105,210 @@ export class CardsService {
   }
 
   /**
+   * F12 AC-1, AC-3, AC-7: Assembles public card view model for visitor page.
+   * Strips all personal data if card is inactive or unactivated.
+   */
+  async getPublicCardView(slug: string): Promise<PublicCardResponse> {
+    const card = await this.cardRepo.findBySlugGlobal(slug);
+    if (!card) {
+      throw new ProblemError(404, 'Not Found', `Card with slug "${slug}" not found`);
+    }
+
+    return TenantContext.run(card.tenantId, async () => {
+      const org = await this.orgReadModelRepo.findByTenantId(card.tenantId);
+      const seat = await this.seatReadModelRepo.findBySeatId(card.ownerId);
+      const branch =
+        seat?.branchId && this.branchReadModelRepo
+          ? await this.branchReadModelRepo.findByBranchId(seat.branchId)
+          : null;
+
+      const aboutSection = card.sections.find((s) => s.type === 'about')?.content as
+        | Record<string, unknown>
+        | undefined;
+
+      // Check if employee is offboarded
+      if (seat?.status === 'offboarded') {
+        const personName = (aboutSection?.name as string) || 'Employee';
+        return {
+          cardId: card.id,
+          slug: card.slug,
+          status: 'offboarded',
+          templateId: card.templateId,
+          language: card.language,
+          verifiedBadge: card.verifiedBadge,
+          company: {
+            id: org?.tenantId || card.tenantId,
+            businessId: org?.businessId || '',
+            name: org?.name || 'OneBridge',
+            logoUrl: org?.logo,
+            brandColours: org?.brandColours,
+          },
+          branch: branch
+            ? {
+                id: branch.branchId,
+                name: branch.name,
+                address: branch.address,
+                mapPin: branch.mapPin,
+              }
+            : undefined,
+          sections: [],
+          actions: {
+            saveContactUrl: `/c/${card.slug}/vcard`,
+          },
+          offboardedDetails: {
+            personName,
+            successorName: (aboutSection?.successorName as string) || undefined,
+            successorMessageUrl: (aboutSection?.successorMessageUrl as string) || undefined,
+            redirectUrl: (aboutSection?.redirectUrl as string) || undefined,
+          },
+        };
+      }
+
+      // Check if inactive or unactivated (Zero personal data)
+      if (
+        card.status !== 'published' ||
+        seat?.status === 'inactive' ||
+        seat?.status === 'unactivated'
+      ) {
+        const isUnactivated = seat?.status === 'unactivated';
+        return {
+          cardId: card.id,
+          slug: card.slug,
+          status: isUnactivated ? 'unactivated' : 'inactive',
+          templateId: card.templateId,
+          language: card.language,
+          verifiedBadge: false,
+          company: {
+            id: org?.tenantId || card.tenantId,
+            businessId: org?.businessId || '',
+            name: org?.name || 'OneBridge',
+          },
+          sections: [],
+          actions: {
+            saveContactUrl: `/c/${card.slug}/vcard`,
+          },
+        };
+      }
+
+      // Published card view
+      const personName = (aboutSection?.name as string) || 'Cardholder';
+      const designation = (aboutSection?.designation as string) || seat?.title || '';
+      const photoUrl = aboutSection?.photoUrl as string | undefined;
+      const phone = aboutSection?.phone as string | undefined;
+      const email = aboutSection?.email as string | undefined;
+      const bio =
+        (aboutSection?.bio as string | undefined) ||
+        (aboutSection?.text as string | undefined);
+
+      const publicSections = card.sections
+        .filter((s) => s.enabled !== false && s.visibility !== 'internal')
+        .map((s) => ({
+          type: s.type,
+          order: s.order,
+          content: s.content,
+        }));
+
+      let cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : undefined;
+      if (cleanPhone) {
+        if (cleanPhone.length === 10) {
+          cleanPhone = `91${cleanPhone}`;
+        } else if (cleanPhone.length === 11 && cleanPhone.startsWith('0')) {
+          cleanPhone = `91${cleanPhone.slice(1)}`;
+        }
+      }
+      const whatsappUrl = cleanPhone
+        ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+            `Hi ${personName}, I came across your digital card`
+          )}`
+        : undefined;
+
+      const directionsUrl = branch?.mapPin
+        ? `https://www.google.com/maps/search/?api=1&query=${branch.mapPin.lat},${branch.mapPin.lng}`
+        : branch?.address
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(branch.address)}`
+        : undefined;
+
+      return {
+        cardId: card.id,
+        slug: card.slug,
+        status: 'published',
+        templateId: card.templateId,
+        language: card.language,
+        verifiedBadge: card.verifiedBadge,
+        person: {
+          name: personName,
+          designation,
+          photoUrl,
+          phone,
+          email,
+          bio,
+        },
+        company: {
+          id: org?.tenantId || card.tenantId,
+          businessId: org?.businessId || '',
+          name: org?.name || 'OneBridge',
+          logoUrl: org?.logo,
+          brandColours: org?.brandColours,
+        },
+        branch: branch
+          ? {
+              id: branch.branchId,
+              name: branch.name,
+              address: branch.address,
+              mapPin: branch.mapPin,
+            }
+          : undefined,
+        sections: publicSections,
+        actions: {
+          saveContactUrl: `/c/${card.slug}/vcard`,
+          whatsappUrl,
+          callUrl: phone ? `tel:${phone}` : undefined,
+          emailUrl: email ? `mailto:${email}` : undefined,
+          directionsUrl,
+        },
+      };
+    });
+  }
+
+  /**
+   * F12 AC-2: Generates standard vCard 3.0 / 4.0 file for public contact download.
+   */
+  async getPublicCardVCard(slug: string): Promise<{ vcard: string; filename: string }> {
+    const cardView = await this.getPublicCardView(slug);
+    if (cardView.status !== 'published' || !cardView.person || !cardView.person.name) {
+      throw new ProblemError(
+        404,
+        'Not Found',
+        'Cannot download vCard for inactive or non-published card'
+      );
+    }
+
+    const personName = cardView.person.name;
+    const nameParts = personName.trim().split(/\s+/);
+    const firstName = nameParts[0] || 'Contact';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+    const cardUrl = `https://grid.onebridge.in/c/${cardView.slug}`;
+    const vcardNote = [cardView.person.bio, `Card: ${cardUrl}`].filter(Boolean).join('\n\n');
+
+    const vcard = generateVCard({
+      firstName,
+      lastName,
+      company: cardView.company.name,
+      branch: cardView.branch?.name,
+      title: cardView.person.designation,
+      phone: cardView.person.phone,
+      email: cardView.person.email,
+      url: cardUrl,
+      photoUrl: cardView.person.photoUrl,
+      address: cardView.branch?.address ? { street: cardView.branch.address } : undefined,
+      note: vcardNote,
+    });
+
+    const safeFilename = `${personName.replace(/[^a-zA-Z0-9_-]/g, '_')}.vcf`;
+    return { vcard, filename: safeFilename };
+  }
+
+  /**
    * Returns true when the caller is an admin (owner/admin, may edit any card
    * and locked sections). Throws when the caller is neither an admin nor
    * the person actually assigned to the card's seat (checked against the
@@ -94,11 +319,9 @@ export class CardsService {
     const isAdmin = ADMIN_ROLES.includes(caller.role);
     if (isAdmin) return true;
 
-    if (caller.role === 'employee') {
-      const seat = await TenantContext.run(tenantId, () => this.seatReadModelRepo.findBySeatId(card.ownerId));
-      if (seat && seat.personId && seat.personId === caller.personId) {
-        return false;
-      }
+    const seat = await TenantContext.run(tenantId, () => this.seatReadModelRepo.findBySeatId(card.ownerId));
+    if (seat && seat.personId && seat.personId === caller.personId) {
+      return false;
     }
 
     throw new ProblemError(403, 'Forbidden', 'Only the company owner, an admin, or the seat holder may edit this card');
@@ -114,7 +337,15 @@ export class CardsService {
     }
 
     if (dto.sections !== undefined) {
-      assertSectionsEditable(existing.sections, dto.sections, isAdmin);
+      try {
+        validateCardSections(dto.sections);
+        assertSectionsEditable(existing.sections, dto.sections, isAdmin);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          throw new ProblemError(400, 'Bad Request', err.message);
+        }
+        throw err;
+      }
     }
 
     const now = new Date().toISOString();
@@ -167,15 +398,19 @@ export class CardsService {
 
   /**
    * AC-6: publish fires card.published and triggers the outbox revalidate
-   * call. When the company requires approval (approvalRequired) and the
-   * caller is not an admin, the card moves to pending_approval instead.
+   * call. When the company requires approval (approvalRequired or company
+   * setting cardApprovalRequired) and caller is not an admin, the card
+   * moves to pending_approval instead.
    */
   async publishCard(tenantId: string, cardId: string, caller: CallerContext, correlationId = 'unknown'): Promise<CardProps> {
     const existing = await this.getCard(tenantId, cardId);
     const isAdmin = await this.assertCanEditCard(tenantId, existing, caller);
     const now = new Date().toISOString();
 
-    if (existing.approvalRequired && !isAdmin) {
+    const org = await TenantContext.run(tenantId, () => this.orgReadModelRepo.findByTenantId(tenantId));
+    const requiresApproval = existing.approvalRequired || (org?.cardApprovalRequired ?? false);
+
+    if (requiresApproval && !isAdmin) {
       const pending: CardProps = {
         ...existing,
         status: 'pending_approval',

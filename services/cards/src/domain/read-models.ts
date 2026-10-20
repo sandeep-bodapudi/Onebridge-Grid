@@ -16,6 +16,7 @@ export interface OrgReadModel {
   logo?: string;
   brandColours?: { band: string; accent?: string; text: string };
   verifiedBadge: boolean;
+  cardApprovalRequired?: boolean; // Company setting (AC-8)
   aggregateVersion: number;
   updatedAt: string;
 }
