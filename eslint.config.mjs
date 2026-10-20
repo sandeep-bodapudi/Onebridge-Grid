@@ -124,5 +124,29 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    // Next.js webpack resolves these packages straight from .ts/.tsx source,
+    // so a Node-style './Foo.js' relative import (correct in services/*)
+    // breaks the build. This broke test:e2e twice (Step 2, Step 3).
+    files: [
+      'apps/web-app/**/*.{ts,tsx}',
+      'apps/web-public/**/*.{ts,tsx}',
+      'packages/ui-kit/**/*.{ts,tsx}',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'TSAsExpression[typeAnnotation.type="TSNeverKeyword"]',
+          message: 'The use of "as never" is strictly forbidden. Use explicit typed casts.',
+        },
+        {
+          selector: ':matches(ImportDeclaration, ExportAllDeclaration, ExportNamedDeclaration)[source.value=/^\\.{1,2}\\/.*\\.js$/]',
+          message:
+            'Use an extensionless relative import here (e.g. "./Foo", not "./Foo.js"). Next.js resolves this package from TypeScript source and cannot find .js files.',
+        },
+      ],
+    },
   }
 );

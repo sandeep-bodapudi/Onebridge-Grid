@@ -1,1 +1,1 @@
-export { GET } from '../../../../c/[...slug]/vcard/route.js';
+export { GET } from '../../../../c/[...slug]/vcard/route';

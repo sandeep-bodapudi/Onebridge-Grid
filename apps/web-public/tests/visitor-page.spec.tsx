@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { NextRequest } from 'next/server';
 import crypto from 'node:crypto';
-import VisitorCardPage, { generateMetadata } from '../app/c/[...slug]/page.js';
-import { POST as revalidateHandler } from '../app/api/revalidate/route.js';
-import { GET as vcardHandler } from '../app/c/[...slug]/vcard/route.js';
-import { GET as publicVcardHandler } from '../app/public/c/[...slug]/vcard/route.js';
-import { POST as analyticsHandler } from '../app/api/analytics/route.js';
-import { POST as sharebackHandler } from '../app/api/shareback/route.js';
+import VisitorCardPage, { generateMetadata } from '../app/c/[...slug]/page';
+import { POST as revalidateHandler } from '../app/api/revalidate/route';
+import { GET as vcardHandler } from '../app/c/[...slug]/vcard/route';
+import { GET as publicVcardHandler } from '../app/public/c/[...slug]/vcard/route';
+import { POST as analyticsHandler } from '../app/api/analytics/route';
+import { POST as sharebackHandler } from '../app/api/shareback/route';
 
 // Mock next/cache
 vi.mock('next/cache', () => ({

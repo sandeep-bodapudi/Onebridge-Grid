@@ -2,7 +2,7 @@ import React from 'react';
 import type { Metadata } from 'next';
 import { type VisitorCardData, type VisitorCardProps } from '@onebridge/ui-kit';
 import type { PublicCardResponse } from '@onebridge/api-contracts';
-import { VisitorCardClient } from './VisitorCardClient.js';
+import { VisitorCardClient } from './VisitorCardClient';
 
 export const revalidate = 86400;
 

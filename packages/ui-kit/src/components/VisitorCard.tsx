@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { KeystoneBadge } from './KeystoneBadge.js';
+import { KeystoneBadge } from './KeystoneBadge';
 
 export interface PublicCardPerson {
   name: string;
