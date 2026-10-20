@@ -22,6 +22,9 @@ import type {
   UploadLogoRequest,
   UploadLogoResponse,
   PaginatedAuditLogs,
+  ShortLink,
+  CreateCardQrRequest,
+  UpdateShortLinkRequest,
 } from '@onebridge/api-contracts';
 
 export interface AuthState {
@@ -35,6 +38,7 @@ let inMemoryActiveTenantId: string | null = null;
 
 const IDENTITY_API_URL = process.env.NEXT_PUBLIC_IDENTITY_API_URL || 'http://localhost:4001';
 const ORGANIZATION_API_URL = process.env.NEXT_PUBLIC_ORGANIZATION_API_URL || 'http://localhost:4002';
+const CARDS_API_URL = process.env.NEXT_PUBLIC_CARDS_API_URL || 'http://localhost:4003';
 
 export const apiClient = {
   getAccessToken(): string | null {
@@ -862,5 +866,100 @@ export const apiClient = {
       throw new Error(err.detail || err.title || 'Failed to export audit logs');
     }
     return res.text();
+  },
+
+  async listCardQrs(tenantId: string, cardId: string): Promise<ShortLink[]> {
+    const headers: Record<string, string> = {
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${CARDS_API_URL}/cards/${cardId}/qr`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to fetch card QR codes');
+    }
+    return res.json();
+  },
+
+  async createCardQr(
+    tenantId: string,
+    cardId: string,
+    data: CreateCardQrRequest,
+    idempotencyKey?: string
+  ): Promise<ShortLink> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+
+    const res = await fetch(`${CARDS_API_URL}/cards/${cardId}/qr`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to create QR code');
+    }
+    return res.json();
+  },
+
+  async updateShortLink(
+    tenantId: string,
+    cardId: string,
+    qrId: string,
+    data: UpdateShortLinkRequest
+  ): Promise<ShortLink> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': tenantId,
+    };
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+
+    const res = await fetch(`${CARDS_API_URL}/cards/${cardId}/qr/${qrId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(data),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Failed to update short link');
+    }
+    return res.json();
+  },
+
+  getQrAssetUrl(
+    cardId: string,
+    qrId: string,
+    format: 'png' | 'svg' | 'pdf',
+    size?: number,
+    template?: 'a4' | 'a5',
+    tenantId?: string
+  ): string {
+    const params = new URLSearchParams();
+    if (size) params.set('size', String(size));
+    if (template) params.set('template', template);
+    const activeTenant = tenantId || inMemoryActiveTenantId;
+    if (activeTenant) params.set('tenantId', activeTenant);
+    const qs = params.toString();
+    return `${CARDS_API_URL}/cards/${cardId}/qr/${qrId}.${format}${qs ? `?${qs}` : ''}`;
+  },
+
+  getStandeeUrl(tenantId: string, branchId?: string, template: 'a4' | 'a5' = 'a4'): string {
+    const params = new URLSearchParams({ template });
+    const qs = params.toString();
+    if (branchId) {
+      return `${CARDS_API_URL}/orgs/${tenantId}/branches/${branchId}/qr/standee?${qs}`;
+    }
+    return `${CARDS_API_URL}/orgs/${tenantId}/qr/standee?${qs}`;
   },
 };

@@ -2,5 +2,30 @@
   "name": "@onebridge/web-public",
   "version": "1.0.0",
   "private": true,
-  "scripts": {}
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@onebridge/api-contracts": "workspace:*",
+    "@onebridge/shared": "workspace:*",
+    "@onebridge/ui-kit": "workspace:*",
+    "next": "14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.2.1",
+    "@types/node": "^20.0.0",
+    "@types/react": "18.3.11",
+    "@types/react-dom": "18.3.0",
+    "jsdom": "^24.0.0",
+    "typescript": "^5.2.2",
+    "unplugin-swc": "^1.5.1",
+    "vitest": "^5.0.3"
+  }
 }
