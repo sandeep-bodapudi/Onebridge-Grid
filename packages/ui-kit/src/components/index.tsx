@@ -6,6 +6,11 @@ export * from './OrgStructure';
 export * from './SeatsManagement';
 export * from './BrandKitManager';
 export * from './AuditLogViewer';
+export * from './NeutralInactivePage';
+export * from './QrDownloadModal';
+export * from './SourceTagManager';
+export * from './KeystoneBadge';
+export * from './VisitorCard';
 
 export const StatusChip = ({ status, children }: { status: 'success'|'warning'|'error'|'info'; children: React.ReactNode }) => {
   return (
@@ -34,10 +39,6 @@ export const ArchCard = ({ children, isLoading, error, isEmpty, className, ...pr
   if (isEmpty) return <div className={cn("rounded-arch bg-white dark:bg-charcoal shadow-md p-16 text-center text-charcoal/50 font-bold", className)} {...props}>Empty</div>;
   return <div className={cn("rounded-arch bg-white dark:bg-charcoal shadow-md p-16", className)} {...props}>{children}</div>;
 };
-
-export const KeystoneBadge = ({ children }: { children: React.ReactNode }) => (
-  <div className="inline-block bg-bridge-orange text-charcoal px-8 py-4 font-bold rounded-16">{children}</div>
-);
 
 export const QrFrame = ({ children, isLoading, error, isEmpty }: { children?: React.ReactNode; isLoading?: boolean; error?: string; isEmpty?: boolean }) => {
   if (isLoading) return <div className="border-4 border-sand-border p-16 rounded-16 animate-pulse bg-sand/50 min-w-[128px] min-h-[128px]"></div>;

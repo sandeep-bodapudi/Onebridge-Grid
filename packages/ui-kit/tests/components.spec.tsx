@@ -18,6 +18,9 @@ import {
   defaultBrandKitLabelsHi,
   defaultAuditLogLabelsHi,
   AuditLogItem,
+  NeutralInactivePage,
+  QrDownloadModal,
+  SourceTagManager,
 } from '../src/components/index';
 
 expect.extend(toHaveNoViolations);
@@ -676,6 +679,213 @@ describe('UI Kit Components', () => {
 
       expect(getByText('ऑडिट ट्रेल')).toBeTruthy();
       expect(getByText('CSV में निर्यात करें')).toBeTruthy();
+    });
+  });
+
+  describe('NeutralInactivePage (AC-3)', () => {
+    it('renders default neutral message without personal data', () => {
+      const { getByText, queryByText } = render(<NeutralInactivePage />);
+      expect(getByText('Card or link inactive')).toBeTruthy();
+      expect(getByText(/This OneBridge Grid card, link, or NFC chip is currently inactive/i)).toBeTruthy();
+      // Ensure strictly NO personal data is present
+      expect(queryByText(/Rahul/i)).toBeNull();
+      expect(queryByText(/@/i)).toBeNull();
+      expect(queryByText(/\+91/i)).toBeNull();
+    });
+
+    it('renders custom titles when provided', () => {
+      const { getByText } = render(
+        <NeutralInactivePage
+          title="Chip not activated"
+          message="Please tap card again or activate in portal."
+        />
+      );
+      expect(getByText('Chip not activated')).toBeTruthy();
+      expect(getByText('Please tap card again or activate in portal.')).toBeTruthy();
+    });
+  });
+
+  describe('QrDownloadModal (AC-2, AC-5)', () => {
+    it('renders download options and calls onDownload with chosen format and resolution', () => {
+      const onDownload = vi.fn();
+      const onClose = vi.fn();
+
+      const { getByText, getByRole } = render(
+        <QrDownloadModal
+          isOpen={true}
+          onClose={onClose}
+          qrId="qr_123"
+          sourceLabel="Event Desk"
+          shortUrl="https://1b.co/r/evnt1234"
+          onDownload={onDownload}
+        />
+      );
+
+      expect(getByText('Download branded QR code')).toBeTruthy();
+      expect(getByText(/Event Desk/i)).toBeTruthy();
+
+      // Click SVG format option
+      const svgBtn = getByRole('button', { name: /svg/i });
+      fireEvent.click(svgBtn);
+
+      // Click download button
+      const downloadBtn = getByRole('button', { name: /Download file/i });
+      fireEvent.click(downloadBtn);
+
+      expect(onDownload).toHaveBeenCalledTimes(1);
+      expect(onDownload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          format: 'svg',
+        })
+      );
+    });
+
+    it('returns null when isOpen is false', () => {
+      const { container } = render(
+        <QrDownloadModal
+          isOpen={false}
+          onClose={vi.fn()}
+          qrId="qr_123"
+          sourceLabel="Desk"
+          shortUrl="https://1b.co/r/test1234"
+          onDownload={vi.fn()}
+        />
+      );
+      expect(container.firstChild).toBeNull();
+    });
+  });
+
+  describe('SourceTagManager (AC-4, AC-6)', () => {
+    const sampleItems = [
+      {
+        id: 'qr_1',
+        code: 'dflt1234',
+        shortUrl: 'https://1b.co/r/dflt1234',
+        source: 'default',
+        label: 'Default Card Link',
+        destinationUrl: 'https://onebridge.in/p/c_1',
+        status: 'active' as const,
+      },
+      {
+        id: 'qr_2',
+        code: 'conf1234',
+        shortUrl: 'https://1b.co/r/conf1234',
+        source: 'conference_booth',
+        label: 'Tech Expo Booth',
+        destinationUrl: 'https://onebridge.in/p/c_1?src=conf',
+        status: 'active' as const,
+      },
+    ];
+
+    it('renders list of tagged short links and handles empty state', () => {
+      const onCreate = vi.fn().mockResolvedValue(undefined);
+      const onDownload = vi.fn();
+
+      const { getByText, rerender } = render(
+        <SourceTagManager
+          cardId="c_1"
+          cardName="Rajesh Sharma"
+          items={sampleItems}
+          onCreateTag={onCreate}
+          onDownloadAsset={onDownload}
+        />
+      );
+
+      expect(getByText('Default Card Link')).toBeTruthy();
+      expect(getByText('Tech Expo Booth')).toBeTruthy();
+
+      // Empty state
+      rerender(
+        <SourceTagManager
+          cardId="c_1"
+          items={[]}
+          onCreateTag={onCreate}
+          onDownloadAsset={onDownload}
+        />
+      );
+      expect(getByText(/No QR tags created yet/i)).toBeTruthy();
+    });
+
+    it('displays loading, error, and offline states', () => {
+      const onCreate = vi.fn().mockResolvedValue(undefined);
+      const onDownload = vi.fn();
+
+      const { getByText, rerender, container } = render(
+        <SourceTagManager
+          cardId="c_1"
+          items={[]}
+          isLoading={true}
+          onCreateTag={onCreate}
+          onDownloadAsset={onDownload}
+        />
+      );
+      expect(container.querySelector('.animate-pulse')).toBeTruthy();
+
+      // Error state
+      rerender(
+        <SourceTagManager
+          cardId="c_1"
+          items={[]}
+          error="Failed to load tags from API"
+          onCreateTag={onCreate}
+          onDownloadAsset={onDownload}
+        />
+      );
+      expect(getByText('Failed to load tags from API')).toBeTruthy();
+
+      // Offline banner
+      rerender(
+        <SourceTagManager
+          cardId="c_1"
+          items={sampleItems}
+          isOffline={true}
+          onCreateTag={onCreate}
+          onDownloadAsset={onDownload}
+        />
+      );
+      expect(getByText(/You are currently offline/i)).toBeTruthy();
+    });
+
+    it('opens create modal, submits new tag, and opens download modal', async () => {
+      const onCreate = vi.fn().mockResolvedValue(undefined);
+      const onDownload = vi.fn();
+
+      const { getByText, getByPlaceholderText, getAllByText } = render(
+        <SourceTagManager
+          cardId="c_1"
+          items={sampleItems}
+          onCreateTag={onCreate}
+          onDownloadAsset={onDownload}
+        />
+      );
+
+      // Open new source tag form
+      const newTagBtn = getByText('+ Add new QR tag');
+      fireEvent.click(newTagBtn);
+
+      const sourceInput = getByPlaceholderText(/Expo 2026/i);
+      fireEvent.change(sourceInput, { target: { value: 'linkedin_bio' } });
+
+      const labelInput = getByPlaceholderText(/Exhibition Hall B/i);
+      fireEvent.change(labelInput, { target: { value: 'LinkedIn Bio' } });
+
+      const createBtn = getByText('Create QR tag');
+      await act(async () => {
+        fireEvent.click(createBtn);
+      });
+
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: 'linkedin_bio',
+          label: 'LinkedIn Bio',
+        })
+      );
+
+      // Open download modal
+      const downloadButtons = getAllByText('Download QR');
+      fireEvent.click(downloadButtons[0]);
+
+      expect(getByText('Download branded QR code')).toBeTruthy();
     });
   });
 });

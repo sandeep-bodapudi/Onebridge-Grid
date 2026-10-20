@@ -72,6 +72,21 @@
     @apply bg-warm-paper text-charcoal font-body antialiased;
   }
 }
+@keyframes arc-success {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-arc-success {
+  animation: arc-success 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.01ms !important;
@@ -80,4 +95,9 @@
     transition-property: opacity, background-color, border-color, color, fill, stroke !important;
     scroll-behavior: auto !important;
   }
+  .animate-arc-success {
+    animation: none !important;
+    transition: opacity 150ms ease-out !important;
+  }
 }
+
