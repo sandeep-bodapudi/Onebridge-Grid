@@ -6,6 +6,7 @@ export * from './OrgStructure';
 export * from './SeatsManagement';
 export * from './BrandKitManager';
 export * from './AuditLogViewer';
+export * from './CardEditor';
 export * from './NeutralInactivePage';
 export * from './QrDownloadModal';
 export * from './SourceTagManager';

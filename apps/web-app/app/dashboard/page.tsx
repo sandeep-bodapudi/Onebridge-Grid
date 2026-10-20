@@ -1,16 +1,22 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ActionButton, cn } from '@onebridge/ui-kit';
+import type { Organization } from '@onebridge/api-contracts';
 import { apiClient } from '../../src/api-client';
-import { AdminSettingsBusinessIdCard, AdminRailFooter } from '../../src/features/business-id';
+import { AdminSettingsBusinessIdCard } from '../../src/features/business-id';
 import { OrgStructureFeature } from '../../src/features/structure';
 import { SeatsFeature } from '../../src/features/seats';
 import { BrandKitFeature } from '../../src/features/brand-kit';
 import { AuditLogFeature } from '../../src/features/audit-log';
+import { CardsFeature } from '../../src/features/cards';
+import { QrFeature } from '../../src/features/qr-codes';
+import { OnboardingFlow, enOnboardingLabels, type OnboardingFormData } from '../../src/features/onboarding';
 
 export interface UserProfile {
   person?: {
+    id?: string;
     name?: string;
     phone?: string;
     email?: string;
@@ -24,116 +30,196 @@ export interface UserProfile {
   };
 }
 
+type TabId = 'cards' | 'seats' | 'structure' | 'brand' | 'audit';
+
+const TABS: Array<{ id: TabId; label: string; adminOnly?: boolean }> = [
+  { id: 'cards', label: 'Cards' },
+  { id: 'seats', label: 'People and seats', adminOnly: true },
+  { id: 'structure', label: 'Branches and teams', adminOnly: true },
+  { id: 'brand', label: 'Brand kit', adminOnly: true },
+  { id: 'audit', label: 'Audit log', adminOnly: true },
+];
+
 export default function DashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [org, setOrg] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<TabId>('cards');
+  const [onboardingError, setOnboardingError] = useState<string | null>(null);
+  const [onboardingBusy, setOnboardingBusy] = useState(false);
+
+  const loadProfile = useCallback(async () => {
+    // Access token lives in memory only; after a reload, restore it from the
+    // httpOnly refresh cookie instead of sending the user back to sign in.
+    if (!apiClient.getAccessToken()) {
+      await apiClient.silentRefresh();
+    }
+    const me = (await apiClient.getMe()) as UserProfile;
+    const tenantId = me.activeTenant?.tenantId || me.activeTenant?.id || '';
+    apiClient.setActiveTenantId(tenantId || null);
+    setProfile(me);
+    if (tenantId) {
+      setOrg(await apiClient.getOrganization(tenantId).catch(() => null));
+    }
+  }, []);
 
   useEffect(() => {
-    async function loadIdentity() {
-      try {
-        const data = await apiClient.getMe();
-        setProfile(data);
-      } catch {
-        router.push('/login');
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadIdentity();
-  }, [router]);
+    loadProfile()
+      .catch(() => router.push('/login'))
+      .finally(() => setLoading(false));
+  }, [loadProfile, router]);
 
   const handleLogout = async () => {
     await apiClient.logout();
     router.push('/login');
   };
 
+  /** F06 onboarding: create the company, then the owner's own seat and first card. */
+  const handleOnboardingComplete = async (data: OnboardingFormData) => {
+    setOnboardingBusy(true);
+    setOnboardingError(null);
+    try {
+      const created = await apiClient.createOrganization({
+        name: data.name,
+        industry: data.industry,
+        size: data.size,
+        city: data.city,
+        gstin: data.gstin || undefined,
+        slug: data.slug || undefined,
+        plan: data.plan,
+      });
+      apiClient.setActiveTenantId(created.id);
+      const seat = await apiClient.createSeat(created.id, {
+        title: data.firstCardRole || 'Owner',
+        personId: profile?.person?.id,
+      });
+      // The cards service creates the draft card from seat.created; fill in the owner's details.
+      const card = await apiClient.getCard(seat.id, created.id);
+      await apiClient.updateCard(
+        card.id,
+        {
+          sections: card.sections.map((s) =>
+            s.type === 'about'
+              ? { ...s, content: { ...s.content, name: data.firstCardName, designation: data.firstCardRole, phone: profile?.person?.phone } }
+              : s
+          ),
+        },
+        created.id
+      );
+      await loadProfile();
+    } catch (err) {
+      setOnboardingError(err instanceof Error ? err.message : 'Could not create your company. Try again.');
+    } finally {
+      setOnboardingBusy(false);
+    }
+  };
+
   if (loading) {
     return (
-      <main style={{ padding: '2rem', textAlign: 'center' }}>
-        <p>Loading your OneBridge identity...</p>
+      <main className="mx-auto max-w-5xl p-24" aria-busy="true">
+        <p className="text-charcoal/70 dark:text-warm-paper/70">Loading your OneBridge identity...</p>
       </main>
     );
   }
 
-  if (!profile) {
-    return null;
-  }
+  if (!profile) return null;
 
   const activeOrgId = profile.activeTenant?.tenantId || profile.activeTenant?.id || '';
-  const businessId = profile.activeTenant?.businessId || '';
+  const role = profile.activeTenant?.role;
+  const isAdmin = role === 'owner' || role === 'admin';
+  const plan = (org?.plan as 'starter' | 'business' | undefined) || profile.activeTenant?.plan || 'starter';
+  const businessId = org?.businessId || profile.activeTenant?.businessId || '';
+  const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin);
 
   return (
-    <main data-testid="dashboard-container" style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 data-testid="welcome-header">Welcome, {profile.person?.name || profile.person?.phone}</h1>
-        <button
-          data-testid="logout-button"
-          onClick={handleLogout}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: '#F3F4F6',
-            border: '1px solid #D1D5DB',
-            borderRadius: '6px',
-            cursor: 'pointer',
-          }}
-        >
-          Sign Out
-        </button>
+    <main data-testid="dashboard-container" className="mx-auto max-w-5xl space-y-24 p-16 md:p-24">
+      <header className="flex flex-wrap items-center justify-between gap-12">
+        <div>
+          <p className="text-sm font-bold text-deep-orange">OneBridge Grid</p>
+          <h1 data-testid="welcome-header" className="text-2xl font-extrabold">
+            Welcome, {profile.person?.name || profile.person?.phone}
+          </h1>
+        </div>
+        <ActionButton variant="ghost" data-testid="logout-button" onClick={handleLogout}>
+          Sign out
+        </ActionButton>
       </header>
 
-      <section
-        data-testid="tenant-info-card"
-        style={{
-          backgroundColor: '#FFFFFF',
-          padding: '1.5rem',
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        }}
-        className="space-y-16"
-      >
-        <h2>Active Organization</h2>
-        <p data-testid="active-org-id"><strong>Org ID:</strong> {activeOrgId}</p>
-        <p data-testid="active-role"><strong>Role:</strong> {profile.activeTenant?.role}</p>
-
-        <div className="pt-8">
-          <AdminSettingsBusinessIdCard businessId={businessId} isEmpty={!businessId} />
-        </div>
-      </section>
-
-      {activeOrgId ? (
+      {!activeOrgId ? (
+        <section className="rounded-16 bg-white p-16 shadow-md dark:bg-charcoal" data-testid="dashboard-onboarding">
+          <OnboardingFlow
+            labels={enOnboardingLabels}
+            isLoading={onboardingBusy}
+            error={onboardingError}
+            onComplete={handleOnboardingComplete}
+          />
+        </section>
+      ) : (
         <>
-          <section className="mt-24 bg-white dark:bg-charcoal rounded-16 shadow-md" data-testid="dashboard-org-structure-section">
-            <OrgStructureFeature tenantId={activeOrgId} plan={profile.activeTenant?.plan || 'starter'} />
+          <section
+            data-testid="tenant-info-card"
+            className="flex flex-wrap items-center justify-between gap-16 rounded-16 bg-white p-16 shadow-md dark:bg-charcoal"
+          >
+            <div>
+              <h2 className="text-xl font-extrabold">{org?.name || 'Your company'}</h2>
+              <p data-testid="active-role" className="text-sm text-charcoal/70 dark:text-warm-paper/70">
+                Your role: <span className="font-bold capitalize">{role}</span>
+              </p>
+              <p data-testid="active-org-id" className="sr-only">
+                Org ID: {activeOrgId}
+              </p>
+            </div>
+            <AdminSettingsBusinessIdCard businessId={businessId} isEmpty={!businessId} />
           </section>
 
-          <section className="mt-24 bg-white dark:bg-charcoal rounded-16 shadow-md" data-testid="dashboard-seats-section">
-            <SeatsFeature tenantId={activeOrgId} plan={profile.activeTenant?.plan || 'starter'} />
-          </section>
+          <nav aria-label="Dashboard sections" className="flex flex-wrap gap-8 border-b border-sand-border">
+            {visibleTabs.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                aria-current={tab === t.id ? 'page' : undefined}
+                className={cn(
+                  'min-h-[44px] px-16 font-bold',
+                  tab === t.id ? 'border-b-4 border-bridge-orange' : 'text-charcoal/70 dark:text-warm-paper/70'
+                )}
+                data-testid={`tab-${t.id}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
 
-          <section className="mt-24 bg-white dark:bg-charcoal rounded-16 shadow-md p-16" data-testid="dashboard-brand-kit-section">
-            <BrandKitFeature
-              tenantId={activeOrgId}
-              userRole={(profile.activeTenant?.role as 'owner' | 'admin' | 'employee') || 'admin'}
-            />
-          </section>
-
-          {profile.activeTenant?.role === 'owner' || profile.activeTenant?.role === 'admin' ? (
-            <section className="mt-24 bg-white dark:bg-charcoal rounded-16 shadow-md p-16" data-testid="dashboard-audit-log-section">
-              <AuditLogFeature
+          <section className="rounded-16 bg-white p-16 shadow-md dark:bg-charcoal md:p-24">
+            {tab === 'cards' ? (
+              <CardsFeature
                 tenantId={activeOrgId}
-                userRole={(profile.activeTenant?.role as 'owner' | 'admin') || 'admin'}
+                userRole={role}
+                personId={profile.person?.id}
+                renderCardExtras={(card) => (
+                  <div className="border-t border-sand-border pt-24">
+                    <QrFeature
+                      tenantId={activeOrgId}
+                      cardId={card.id}
+                      cardName={card.name}
+                      userRole={(role as 'owner' | 'admin' | 'employee') || 'employee'}
+                    />
+                  </div>
+                )}
               />
-            </section>
-          ) : null}
+            ) : null}
+            {tab === 'seats' && isAdmin ? <SeatsFeature tenantId={activeOrgId} plan={plan} /> : null}
+            {tab === 'structure' && isAdmin ? <OrgStructureFeature tenantId={activeOrgId} plan={plan} /> : null}
+            {tab === 'brand' && isAdmin ? (
+              <BrandKitFeature tenantId={activeOrgId} userRole={(role as 'owner' | 'admin') || 'admin'} />
+            ) : null}
+            {tab === 'audit' && isAdmin ? (
+              <AuditLogFeature tenantId={activeOrgId} userRole={(role as 'owner' | 'admin') || 'admin'} />
+            ) : null}
+          </section>
         </>
-      ) : null}
-
-      {businessId ? (
-        <aside className="mt-24 max-w-xs" data-testid="dashboard-rail-footer">
-          <AdminRailFooter businessId={businessId} />
-        </aside>
-      ) : null}
+      )}
     </main>
   );
 }

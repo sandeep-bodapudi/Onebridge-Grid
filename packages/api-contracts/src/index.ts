@@ -47,3 +47,9 @@ export type PublicCardResponse = components['schemas']['PublicCardResponse'];
 export type SharebackRequest = components['schemas']['SharebackRequest'];
 export type SharebackResponse = components['schemas']['SharebackResponse'];
 
+export type Card = components['schemas']['Card'];
+export type CardSection = components['schemas']['CardSection'];
+export type CardSectionType = components['schemas']['CardSectionType'];
+export type CardTemplate = components['schemas']['CardTemplate'];
+export type CardTemplateId = components['schemas']['CardTemplateId'];
+export type UpdateCardRequest = components['schemas']['UpdateCardRequest'];
