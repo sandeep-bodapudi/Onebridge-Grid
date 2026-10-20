@@ -11,3 +11,8 @@ export * from './business-id.js';
 export * from './contrast.js';
 export * from './redaction.js';
 export * from './event-bus.js';
+export * from './vcard.js';
+export * from './bot-detector.js';
+export * from './lead-encryption.js';
+export * from './rate-limiter.js';
+export * from './key-vault.js';

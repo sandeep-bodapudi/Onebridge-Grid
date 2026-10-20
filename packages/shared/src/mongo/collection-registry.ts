@@ -100,6 +100,11 @@ export const KNOWN_COLLECTIONS: Record<string, CollectionMetadata> = {
     classification: 'tenant-scoped',
     description: 'Cards service denormalised copy of branch data (ADR-0003), used for the branch-map card section',
   },
+  short_links: {
+    name: 'short_links',
+    classification: 'tenant-scoped',
+    description: 'Immutable short link codes and QR targets (obg.in/<8 char>) per F11',
+  },
 };
 
 export const ALLOWLISTED_GLOBAL_COLLECTIONS = Object.values(KNOWN_COLLECTIONS)
