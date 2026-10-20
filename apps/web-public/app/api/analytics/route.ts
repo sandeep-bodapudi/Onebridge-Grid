@@ -1,7 +1,7 @@
+import { cardsServiceUrl } from '../../../lib/cards-service';
 import { NextRequest } from 'next/server';
 import { isBotUserAgent } from '@onebridge/shared';
 
-const CARDS_SERVICE_URL = process.env.CARDS_SERVICE_URL || 'http://localhost:4002';
 
 export async function POST(request: NextRequest) {
   const userAgent = request.headers.get('user-agent');
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const event = await request.json();
     const payload = Array.isArray(event) ? event : [event];
 
-    await fetch(`${CARDS_SERVICE_URL}/analytics/events`, {
+    await fetch(`${cardsServiceUrl()}/analytics/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

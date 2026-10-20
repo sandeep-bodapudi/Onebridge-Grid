@@ -1,6 +1,6 @@
+import { cardsServiceUrl } from '../../../../lib/cards-service';
 import { NextRequest } from 'next/server';
 
-const CARDS_SERVICE_URL = process.env.CARDS_SERVICE_URL || 'http://localhost:4002';
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +9,7 @@ export async function GET(
   const slugPath = params.slug.join('/');
 
   try {
-    const res = await fetch(`${CARDS_SERVICE_URL}/public/c/${slugPath}/vcard`);
+    const res = await fetch(`${cardsServiceUrl()}/public/c/${slugPath}/vcard`);
 
     if (!res.ok) {
       return new Response(

@@ -1,6 +1,6 @@
+import { cardsServiceUrl } from '../../../lib/cards-service';
 import { NextRequest, NextResponse } from 'next/server';
 
-const CARDS_SERVICE_URL = process.env.CARDS_SERVICE_URL || 'http://localhost:4002';
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       headers['idempotency-key'] = idempotencyKey;
     }
 
-    const res = await fetch(`${CARDS_SERVICE_URL}/public/c/${slug}/shareback`, {
+    const res = await fetch(`${cardsServiceUrl()}/public/c/${slug}/shareback`, {
       method: 'POST',
       headers,
       body: JSON.stringify(sharebackData),

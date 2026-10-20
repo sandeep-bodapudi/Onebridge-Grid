@@ -1,3 +1,4 @@
+import { cardsServiceUrl } from '../../../lib/cards-service';
 import React from 'react';
 import type { Metadata } from 'next';
 import { type VisitorCardData, type VisitorCardProps } from '@onebridge/ui-kit';
@@ -16,11 +17,10 @@ interface PageProps {
   };
 }
 
-const CARDS_SERVICE_URL = process.env.CARDS_SERVICE_URL || 'http://localhost:4002';
 
 async function fetchCardData(slug: string): Promise<PublicCardResponse | null> {
   try {
-    const res = await fetch(`${CARDS_SERVICE_URL}/public/c/${slug}`, {
+    const res = await fetch(`${cardsServiceUrl()}/public/c/${slug}`, {
       next: { tags: [`card-${slug}`] },
     });
 

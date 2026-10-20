@@ -21,7 +21,7 @@ describe('F12: Web-Public Visitor Page, Metadata, vCard and Revalidate', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     process.env.REVALIDATION_SIGNING_SECRET = SECRET;
-    process.env.CARDS_SERVICE_URL = 'http://localhost:4002';
+    process.env.CARDS_SERVICE_URL = 'http://localhost:4003';
   });
 
   it('renders published VisitorCard with structured data and contact buttons', async () => {
@@ -241,7 +241,7 @@ describe('F12: Web-Public Visitor Page, Metadata, vCard and Revalidate', () => {
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://localhost:4002/analytics/events',
+      'http://localhost:4003/analytics/events',
       expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -325,7 +325,7 @@ describe('F12: Web-Public Visitor Page, Metadata, vCard and Revalidate', () => {
       expect(data.leadId).toBe('lead_123');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:4002/public/c/acme/sneha/shareback',
+        'http://localhost:4003/public/c/acme/sneha/shareback',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
