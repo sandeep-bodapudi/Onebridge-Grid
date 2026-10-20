@@ -25,7 +25,7 @@ export interface HttpResponse {
   clearCookie(name: string, options?: Record<string, unknown>): this;
   [key: string]: unknown;
 }
-import { ProblemException } from '@onebridge/shared';
+import { ProblemException, Logger } from '@onebridge/shared';
 import { AuthService } from '../application/auth.service.js';
 import { MfaService } from '../application/mfa.service.js';
 import { getRefreshTokenCookieOptions } from '../config/cookie.config.js';
@@ -232,12 +232,25 @@ export class NestAuthController {
     const ip = getClientIp(req);
     const userAgent = getClientUserAgent(req);
 
-    const result = await this.authService.rotateTokens(oldRefreshToken, userAgent, ip);
-
     const cookieOpts = getRefreshTokenCookieOptions(
       this.envConfig.cookieSecure,
       this.envConfig.cookieDomain
     );
+
+    let result: Awaited<ReturnType<AuthService['rotateTokens']>>;
+    try {
+      result = await this.authService.rotateTokens(oldRefreshToken, userAgent, ip);
+    } catch (err) {
+      // Expired, revoked, reused or unknown refresh token: the session is over.
+      // 401 (sign in again) and clear the cookie, instead of an unhandled 500.
+      Logger.warn('Refresh token rejected', {
+        correlationId,
+        reason: err instanceof Error ? err.message : 'unknown',
+      });
+      res.clearCookie('refreshToken', cookieOpts);
+      throw new ProblemException(401, 'Unauthorized', 'Your session has ended. Sign in again.', correlationId);
+    }
+
     res.cookie('refreshToken', result.refreshToken, cookieOpts);
 
     return {

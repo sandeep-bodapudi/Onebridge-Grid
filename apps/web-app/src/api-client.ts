@@ -25,6 +25,9 @@ import type {
   ShortLink,
   CreateCardQrRequest,
   UpdateShortLinkRequest,
+  Card,
+  CardTemplate,
+  UpdateCardRequest,
 } from '@onebridge/api-contracts';
 
 export interface AuthState {
@@ -35,10 +38,12 @@ export interface AuthState {
 // In-memory token storage (Rule: NEVER put tokens or lead data in localStorage or sessionStorage)
 let inMemoryAccessToken: string | null = null;
 let inMemoryActiveTenantId: string | null = null;
+let inFlightRefresh: Promise<string | null> | null = null;
 
 const IDENTITY_API_URL = process.env.NEXT_PUBLIC_IDENTITY_API_URL || 'http://localhost:4001';
 const ORGANIZATION_API_URL = process.env.NEXT_PUBLIC_ORGANIZATION_API_URL || 'http://localhost:4002';
 const CARDS_API_URL = process.env.NEXT_PUBLIC_CARDS_API_URL || 'http://localhost:4003';
+const WEB_PUBLIC_URL = process.env.NEXT_PUBLIC_WEB_PUBLIC_URL || 'http://localhost:3001';
 
 export const apiClient = {
   getAccessToken(): string | null {
@@ -58,7 +63,21 @@ export const apiClient = {
     inMemoryActiveTenantId = null;
   },
 
-  async silentRefresh(): Promise<string | null> {
+  /**
+   * Refresh tokens rotate and reuse revokes the whole session (identity
+   * TokenService), so concurrent refreshes (React StrictMode double effects,
+   * several components at once) must share one request.
+   */
+  silentRefresh(): Promise<string | null> {
+    if (!inFlightRefresh) {
+      inFlightRefresh = this.doSilentRefresh().finally(() => {
+        inFlightRefresh = null;
+      });
+    }
+    return inFlightRefresh;
+  },
+
+  async doSilentRefresh(): Promise<string | null> {
     try {
       const res = await fetch(`${IDENTITY_API_URL}/auth/refresh`, {
         method: 'POST',
@@ -952,6 +971,60 @@ export const apiClient = {
     if (activeTenant) params.set('tenantId', activeTenant);
     const qs = params.toString();
     return `${CARDS_API_URL}/cards/${cardId}/qr/${qrId}.${format}${qs ? `?${qs}` : ''}`;
+  },
+
+  /** Shared headers for cards-service calls (token + active company). */
+  cardsHeaders(tenantId?: string, json = false): Record<string, string> {
+    const headers: Record<string, string> = {};
+    if (json) headers['Content-Type'] = 'application/json';
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    const activeTenant = tenantId || inMemoryActiveTenantId;
+    if (activeTenant) headers['X-Tenant-Id'] = activeTenant;
+    return headers;
+  },
+
+  async cardsRequest<T>(path: string, init: RequestInit, tenantId?: string, fallbackError = 'Request failed'): Promise<T> {
+    const res = await fetch(`${CARDS_API_URL}${path}`, {
+      ...init,
+      headers: { ...this.cardsHeaders(tenantId, Boolean(init.body)), ...(init.headers as Record<string, string> | undefined) },
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || fallbackError);
+    }
+    return res.json() as Promise<T>;
+  },
+
+  async listCardTemplates(tenantId?: string): Promise<CardTemplate[]> {
+    const data = await this.cardsRequest<{ items: CardTemplate[] }>('/cards/templates', { method: 'GET' }, tenantId, 'Could not load card templates');
+    return data.items || [];
+  },
+
+  async getCard(cardId: string, tenantId?: string): Promise<Card> {
+    return this.cardsRequest<Card>(`/cards/${encodeURIComponent(cardId)}`, { method: 'GET' }, tenantId, 'Could not load the card');
+  },
+
+  async updateCard(cardId: string, update: UpdateCardRequest, tenantId?: string): Promise<Card> {
+    return this.cardsRequest<Card>(
+      `/cards/${encodeURIComponent(cardId)}`,
+      { method: 'PATCH', body: JSON.stringify(update) },
+      tenantId,
+      'Could not save the card'
+    );
+  },
+
+  async publishCard(cardId: string, tenantId?: string): Promise<Card> {
+    return this.cardsRequest<Card>(`/cards/${encodeURIComponent(cardId)}/publish`, { method: 'POST' }, tenantId, 'Could not publish the card');
+  },
+
+  async approveCard(cardId: string, tenantId?: string): Promise<Card> {
+    return this.cardsRequest<Card>(`/cards/${encodeURIComponent(cardId)}/approve`, { method: 'POST' }, tenantId, 'Could not approve the card');
+  },
+
+  /** Public visitor page for a card (apps/web-public). */
+  publicCardUrl(cardSlug: string): string {
+    return `${WEB_PUBLIC_URL}/c/${cardSlug}`;
   },
 
   /**
