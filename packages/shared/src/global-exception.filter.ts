@@ -1,3 +1,5 @@
+import { Logger } from './logger.js';
+
 export interface ProblemDetails {
   type: string;
   title: string;
@@ -78,12 +80,21 @@ export class GlobalExceptionFilter {
       });
     }
 
+    // Unexpected error: log the real message and stack server-side, but never
+    // send them to the client (they can carry database errors, file paths or
+    // personal data). The correlation ID ties the response to the log line.
     const err = exception instanceof Error ? exception : new Error(String(exception));
+    Logger.error(`Unhandled error: ${err.message}`, {
+      correlationId,
+      errorName: err.name,
+      stack: err.stack ? Logger.scrub(err.stack) : undefined,
+    });
+
     const problemDetails: ProblemDetails = {
       type: 'about:blank',
-      title: err.message || 'Internal Server Error',
+      title: 'Internal Server Error',
       status: 500,
-      detail: err.message || 'An unexpected error occurred',
+      detail: `Something went wrong on our side. Try again in a moment. If it keeps happening, contact support with reference ${correlationId}.`,
       correlationId,
     };
 

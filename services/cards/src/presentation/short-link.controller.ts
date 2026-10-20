@@ -66,14 +66,7 @@ function toHttpException(err: unknown): never {
     if (err.statusCode === 422) throw new UnprocessableEntityException(body);
     throw new BadRequestException(body);
   }
-  if (err instanceof Error) {
-    throw new BadRequestException({
-      type: 'https://tools.ietf.org/html/rfc7807',
-      title: 'Bad Request',
-      status: 400,
-      detail: err.message,
-    });
-  }
+  // Unexpected: rethrow to GlobalExceptionFilter (500, no internal message).
   throw err;
 }
 

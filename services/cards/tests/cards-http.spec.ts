@@ -445,6 +445,26 @@ describe('F10: Cards HTTP API and read-model sync (supertest + mongodb-memory-se
     });
   });
 
+  describe('Unexpected errors return 500 problem details without internal messages', () => {
+    it('a failing dependency yields 500, not 400, and does not echo the internal error', async () => {
+      await eventBus.publish(seatCreatedEvent(TENANT_A, 'OB-7KQ2MX-E0020'));
+      revalidationNotifier.shouldFail = true;
+      try {
+        const res = await request(app.getHttpServer())
+          .post('/cards/OB-7KQ2MX-E0020/publish')
+          .set('x-tenant-id', TENANT_A).set('x-user-id', 'p').set('x-user-role', 'owner')
+          .set('x-correlation-id', 'corr-500-test');
+
+        expect(res.status).toBe(500);
+        expect(res.body.title).toBe('Internal Server Error');
+        expect(JSON.stringify(res.body)).not.toContain('Fake revalidation failure');
+        expect(res.body.correlationId).toBe('corr-500-test');
+      } finally {
+        revalidationNotifier.shouldFail = false;
+      }
+    });
+  });
+
   it('lists the 8 card templates', async () => {
     const res = await request(app.getHttpServer()).get('/cards/templates');
     expect(res.status).toBe(200);

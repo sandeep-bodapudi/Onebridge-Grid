@@ -80,15 +80,8 @@ function toHttpException(err: unknown): never {
     if (err.status === 403) throw new ForbiddenException(body);
     throw new BadRequestException(body);
   }
-  if (err instanceof Error) {
-    const body = {
-      type: 'https://tools.ietf.org/html/rfc7807',
-      title: 'Bad Request',
-      status: 400,
-      detail: err.message,
-    };
-    throw new BadRequestException(body);
-  }
+  // Unexpected (including InvalidLeadError, which signals a broken internal
+  // invariant, not bad visitor input): rethrow to GlobalExceptionFilter (500, no internal message).
   throw err;
 }
 

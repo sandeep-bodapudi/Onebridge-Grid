@@ -14,6 +14,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Role, CacheStore } from '@onebridge/shared';
+import { LockedSectionError, InvalidSectionError } from '../domain/card.js';
 import { CardsService, ProblemError, UpdateCardDto } from '../application/cards.service.js';
 import { listCardTemplates } from '../application/card-templates.js';
 import { TenantAuthGuard } from './guards/tenant-auth.guard.js';
@@ -57,14 +58,15 @@ function toHttpException(err: unknown): never {
     if (err.status === 403) throw new ForbiddenException(body);
     throw new BadRequestException(body);
   }
-  if (err instanceof Error) {
-    const body = {
+  // Known, user-facing validation errors only. Anything else is unexpected
+  // and is rethrown to GlobalExceptionFilter (500, no internal message).
+  if (err instanceof LockedSectionError || err instanceof InvalidSectionError) {
+    throw new BadRequestException({
       type: 'https://tools.ietf.org/html/rfc7807',
       title: 'Bad Request',
       status: 400,
       detail: err.message,
-    };
-    throw new BadRequestException(body);
+    });
   }
   throw err;
 }
