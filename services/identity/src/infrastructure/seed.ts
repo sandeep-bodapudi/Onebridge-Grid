@@ -27,10 +27,10 @@ export async function seedDevDatabase(customHandle?: MongoConnectionHandle): Pro
     const keyService = new KeyService(env.encryptionKey);
 
     // 1. Idempotency Check: check if already seeded
-    const orgCount = await db.collection('organizations').countDocuments({
-      id: SEED_DATA.tenants.acme.id,
+    const seededPersons = await db.collection('persons').countDocuments({
+      userId: SEED_DATA.persons.acmeOwner.id,
     });
-    if (orgCount > 0) {
+    if (seededPersons > 0) {
       return {
         seeded: false,
         message: 'Dev database already seeded. Skipping seed execution.',
@@ -39,13 +39,11 @@ export async function seedDevDatabase(customHandle?: MongoConnectionHandle): Pro
 
     console.log('[OneBridge Seed] Seeding fresh dev database with fixed ULID entities...');
 
-    // 2. Seed Tenants (Organizations)
-    const orgs = Object.values(SEED_DATA.tenants).map((t) => ({
-      ...t,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }));
-    await db.collection('organizations').insertMany(orgs);
+    // 2. Tenants: identity no longer writes the organizations collection (it
+    // belongs to the organization service, AGENTS.md section 3). The
+    // organization service's seedDevOrganizations() creates well-formed
+    // records for SEED_DATA.tenants (see scripts/dev.mjs).
+    const orgs = Object.values(SEED_DATA.tenants);
 
     // 3. Seed Persons (with encrypted TOTP secrets for Owner & Admin)
     const personDocs = Object.values(SEED_DATA.persons).map((p) => {

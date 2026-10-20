@@ -126,13 +126,8 @@ async function main() {
 
   mongoHandle = await shared.connectMongo(activeMongoUri);
 
-  const db = mongoHandle._getInternalDb();
-  if ((await db.collection('organizations').countDocuments({})) === 0) {
-    log('Empty database: seeding demo tenants, persons and memberships...');
-    await seedDevDatabase(mongoHandle);
-  } else {
-    log('Database already seeded.');
-  }
+  const seedResult = await seedDevDatabase(mongoHandle);
+  log(`Identity seed: ${seedResult.message}`);
 
   const eventBus = new shared.InMemoryEventBus();
 
@@ -160,6 +155,18 @@ async function main() {
   });
   await organizationApp.listen(PORTS.organization);
   nestApps.push(organizationApp);
+
+  // Well-formed companies for the tenants identity's seed gives memberships
+  // to, published as org.created so the cards read model has them too.
+  const { seedDevOrganizations } = await importDist('services/organization/dist/infrastructure/dev-seed.js');
+  const { SEED_DATA } = await importDist('services/identity/dist/infrastructure/seed.data.js');
+  const orgSeed = await seedDevOrganizations(
+    mongoHandle,
+    eventBus,
+    Object.values(SEED_DATA.tenants).map((t) => ({ id: t.id, name: t.name, plan: t.plan })),
+    process.env.NODE_ENV
+  );
+  log(`Organization seed: created ${orgSeed.created.length}, already present ${orgSeed.skipped.length}`);
 
   log(`Services ready: identity :${PORTS.identity}, organization :${PORTS.organization}, cards :${PORTS.cards} (shared event bus)`);
 

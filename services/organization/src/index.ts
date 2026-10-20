@@ -28,3 +28,4 @@ export * from './presentation/audit.controller.js';
 export * from './organization.module.js';
 export * from './app.js';
 
+export * from './infrastructure/dev-seed.js';

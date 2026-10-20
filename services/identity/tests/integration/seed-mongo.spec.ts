@@ -47,7 +47,9 @@ describe('Real MongoDB Seed Idempotency & Production Refusal (Fix 1: AC-A9)', ()
     const personCount1 = await db.collection('persons').countDocuments();
     const membershipCount1 = await db.collection('memberships').countDocuments();
 
-    expect(orgCount1).toBeGreaterThan(0);
+    // Organizations belong to the organization service (seedDevOrganizations);
+    // identity's seed must not write that collection.
+    expect(orgCount1).toBe(0);
     expect(personCount1).toBeGreaterThan(0);
     expect(membershipCount1).toBeGreaterThan(0);
 
