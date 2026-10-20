@@ -38,3 +38,12 @@ export type FieldLocks = components['schemas']['FieldLocks'];
 export type UpdateFieldLocksRequest = components['schemas']['UpdateFieldLocksRequest'];
 export type UploadLogoRequest = components['schemas']['UploadLogoRequest'];
 export type UploadLogoResponse = components['schemas']['UploadLogoResponse'];
+export type ShortLink = components['schemas']['ShortLink'];
+export type ShortLinkResolution = components['schemas']['ShortLinkResolution'];
+export type CreateCardQrRequest = components['schemas']['CreateCardQrRequest'];
+export type UpdateShortLinkRequest = components['schemas']['UpdateShortLinkRequest'];
+export type AnalyticsEvent = components['schemas']['AnalyticsEvent'];
+export type PublicCardResponse = components['schemas']['PublicCardResponse'];
+export type SharebackRequest = components['schemas']['SharebackRequest'];
+export type SharebackResponse = components['schemas']['SharebackResponse'];
+

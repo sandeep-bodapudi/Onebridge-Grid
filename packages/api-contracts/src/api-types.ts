@@ -1260,24 +1260,55 @@ export interface paths {
       };
     };
   };
-  "/cards/{id}": {
-    /** Get Card Details */
+  "/r/{code}": {
+    /** Resolve short link and redirect (Edge Worker) */
     get: {
+      parameters: {
+        path: {
+          code: string;
+        };
+      };
       responses: {
-        /** @description OK */
+        /** @description Neutral inactive page when chip/link is disabled or unactivated */
         200: {
+          content: {
+            "text/html": string;
+          };
+        };
+        /** @description Temporary redirect to destination URL */
+        302: {
+          headers: {
+            Location?: string;
+          };
           content: never;
+        };
+        /** @description Unknown shortlink code (renders neutral not-found page) */
+        404: {
+          content: {
+            "text/html": string;
+          };
         };
       };
     };
   };
   "/links/{code}": {
-    /** Resolve Shortlink */
+    /** Resolve Shortlink metadata (origin fallback) */
     get: {
+      parameters: {
+        path: {
+          code: string;
+        };
+      };
       responses: {
-        /** @description OK */
         200: {
-          content: never;
+          content: {
+            "application/json": components["schemas"]["ShortLinkResolution"];
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
         };
       };
     };
@@ -1768,6 +1799,7 @@ export interface paths {
         header?: {
           "X-Tenant-Id"?: string;
           "X-User-Role"?: components["schemas"]["Role"];
+          "Idempotency-Key"?: string;
         };
         path: {
           cardId: string;
@@ -1810,6 +1842,7 @@ export interface paths {
         header?: {
           "X-Tenant-Id"?: string;
           "X-User-Role"?: components["schemas"]["Role"];
+          "Idempotency-Key"?: string;
         };
         path: {
           cardId: string;
@@ -1842,6 +1875,7 @@ export interface paths {
         header?: {
           "X-Tenant-Id"?: string;
           "X-User-Role"?: components["schemas"]["Role"];
+          "Idempotency-Key"?: string;
         };
         path: {
           cardId: string;
@@ -1874,6 +1908,7 @@ export interface paths {
         header?: {
           "X-Tenant-Id"?: string;
           "X-User-Role"?: components["schemas"]["Role"];
+          "Idempotency-Key"?: string;
         };
       };
       requestBody: {
@@ -1895,13 +1930,264 @@ export interface paths {
             "application/problem+json": components["schemas"]["ProblemDetails"];
           };
         };
+      };
+    };
+  };
+  "/cards/{cardId}/qr": {
+    /** List all QR codes / source tags for a card */
+    get: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+        };
+        path: {
+          cardId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["ShortLink"][];
+          };
+        };
         403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        404: {
           content: {
             "application/problem+json": components["schemas"]["ProblemDetails"];
           };
         };
       };
     };
+    /** Create an additional source-tagged QR code for a card */
+    post: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+          "Idempotency-Key"?: string;
+        };
+        path: {
+          cardId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateCardQrRequest"];
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": components["schemas"]["ShortLink"];
+          };
+        };
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/cards/{cardId}/qr/{qrId}": {
+    /** Repoint short link destination or update status */
+    patch: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+          "X-User-Role"?: components["schemas"]["Role"];
+          "Idempotency-Key"?: string;
+        };
+        path: {
+          cardId: string;
+          qrId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateShortLinkRequest"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["ShortLink"];
+          };
+        };
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        403: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/cards/{cardId}/qr/{qrId}.{format}": {
+    /** Download branded QR code in specified format (PNG, SVG, PDF) */
+    get: {
+      parameters: {
+        query?: {
+          size?: number;
+        };
+        path: {
+          cardId: string;
+          qrId: string;
+          format: "png" | "svg" | "pdf";
+        };
+      };
+      responses: {
+        /** @description Branded QR image file */
+        200: {
+          content: {
+            "image/png": string;
+            "image/svg+xml": string;
+            "application/pdf": string;
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/qr/standee": {
+    /** Generate Company Standee print template (A4/A5) */
+    get: {
+      parameters: {
+        query?: {
+          template?: "a4" | "a5";
+          format?: "pdf" | "svg";
+        };
+        path: {
+          tenantId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/pdf": string;
+            "image/svg+xml": string;
+          };
+        };
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/branches/{branchId}/qr/standee": {
+    /** Generate Branch Standee print template (A4/A5) */
+    get: {
+      parameters: {
+        query?: {
+          template?: "a4" | "a5";
+          format?: "pdf" | "svg";
+        };
+        path: {
+          tenantId: string;
+          branchId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/pdf": string;
+            "image/svg+xml": string;
+          };
+        };
+      };
+    };
+  };
+  "/public/c/{slug}": {
+    /**
+     * Retrieve public card view model for visitor page
+     * @description Returns published card details, company branding, branch location, and public sections. When inactive or unactivated, personal details are sanitized.
+     */
+    get: {
+      parameters: {
+        path: {
+          /** @example acme-steels/ob-01jd2x-e0001 */
+          slug: string;
+        };
+      };
+      responses: {
+        /** @description Public card view model */
+        200: {
+          content: {
+            "application/json": components["schemas"]["PublicCardResponse"];
+          };
+        };
+        /** @description Card not found */
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/public/c/{slug}/vcard": {
+    /**
+     * Download contact as standard vCard (3.0 / 4.0)
+     * @description Returns a .vcf file with Content-Disposition attachment containing cardholder name, company, branch, title, phone, email, and photo URI.
+     */
+    get: {
+      parameters: {
+        path: {
+          slug: string;
+        };
+      };
+      responses: {
+        /** @description vCard file */
+        200: {
+          content: {
+            "text/vcard": string;
+          };
+        };
+        /** @description Card not found */
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/public/c/{slug}/shareback": {
+    /**
+     * Submit visitor details via card share-back to create a lead
+     * @description Captures visitor contact details from public card share-back panel, encrypts PII per ADR-0002, enforces spam rate limits, and notifies card owner.
+     */
+    post: operations["submitShareback"];
   };
 }
 
@@ -2401,6 +2687,142 @@ export interface components {
       width: number;
       height: number;
     };
+    ShortLinkResolution: {
+      code: string;
+      destinationUrl: string;
+      /** @enum {string} */
+      status: "active" | "disabled" | "unactivated" | "pending_approval";
+      /** @enum {string} */
+      targetType: "card" | "company" | "branch" | "external";
+      targetId: string;
+      tenantId?: string;
+      source?: string;
+    };
+    ShortLink: {
+      id: string;
+      tenantId: string;
+      code: string;
+      /** @example https://obg.in/x8Fk2LpQ */
+      shortUrl?: string;
+      /** @enum {string} */
+      targetType: "card" | "company" | "branch" | "external";
+      targetId: string;
+      destinationUrl: string;
+      source?: string;
+      label?: string;
+      /** @enum {string} */
+      status: "active" | "disabled" | "unactivated" | "pending_approval";
+      isExternal?: boolean;
+      externalApprovedBy?: string | null;
+      /** Format: date-time */
+      externalApprovedAt?: string | null;
+      aggregateVersion: number;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    CreateCardQrRequest: {
+      /** @example Expo 2026 standee */
+      source: string;
+      /** @example Expo Standee Counter */
+      label?: string;
+      /** @description Custom destination URL (OneBridge page by default; external requires Company Admin) */
+      destinationUrl?: string;
+    };
+    UpdateShortLinkRequest: {
+      destinationUrl?: string;
+      label?: string;
+      /** @enum {string} */
+      status?: "active" | "disabled";
+    };
+    PublicCardResponse: {
+      cardId: string;
+      slug: string;
+      /** @enum {string} */
+      status: "published" | "draft" | "pending_approval" | "inactive" | "unactivated" | "offboarded";
+      /** @example classic-charcoal */
+      templateId: string;
+      /** @enum {string} */
+      language: "en" | "hi";
+      verifiedBadge: boolean;
+      /** @description Omitted if card is inactive or unactivated (no personal data rule) */
+      person?: {
+        name?: string;
+        designation?: string;
+        /** Format: uri */
+        photoUrl?: string;
+        phone?: string;
+        /** Format: email */
+        email?: string;
+        bio?: string;
+      };
+      company: {
+        id: string;
+        businessId: string;
+        name: string;
+        /** Format: uri */
+        logoUrl?: string;
+        brandColours?: {
+          band?: string;
+          accent?: string;
+          text?: string;
+        };
+      };
+      branch?: {
+        id?: string;
+        name?: string;
+        address?: string;
+        mapPin?: {
+          lat?: number;
+          lng?: number;
+        };
+      };
+      sections: {
+          type: string;
+          order: number;
+          content: {
+            [key: string]: unknown;
+          };
+        }[];
+      actions: {
+        saveContactUrl: string;
+        whatsappUrl?: string;
+        callUrl?: string;
+        emailUrl?: string;
+        directionsUrl?: string;
+      };
+      offboardedDetails?: {
+        personName?: string;
+        successorName?: string;
+        successorMessageUrl?: string;
+        redirectUrl?: string;
+      };
+    };
+    SharebackRequest: {
+      name: string;
+      /** @description 10-digit Indian phone or E.164 phone number */
+      phone: string;
+      /** Format: email */
+      email?: string;
+      company?: string;
+      note?: string;
+      /** @description Explicit consent to share details with the card owner and company */
+      consent: boolean;
+      /** @default v1.0 */
+      noticeVersion?: string;
+      /** @description Cloudflare Turnstile CAPTCHA response token */
+      turnstileToken?: string;
+    };
+    SharebackResponse: {
+      leadId: string;
+      cardId: string;
+      /** @enum {string} */
+      status: "created" | "duplicate";
+      message: string;
+      /** Format: date-time */
+      createdAt: string;
+    };
   };
   responses: never;
   parameters: never;
@@ -2413,4 +2835,65 @@ export type $defs = Record<string, never>;
 
 export type external = Record<string, never>;
 
-export type operations = Record<string, never>;
+export interface operations {
+
+  /**
+   * Submit visitor details via card share-back to create a lead
+   * @description Captures visitor contact details from public card share-back panel, encrypts PII per ADR-0002, enforces spam rate limits, and notifies card owner.
+   */
+  submitShareback: {
+    parameters: {
+      query?: {
+        /** @description Capture channel */
+        source?: "shareback" | "manual" | "company_enquiry" | "qr" | "nfc" | "link";
+        /** @description Optional source tag (e.g. qr tag like 'booth-a' or 'standee') */
+        sourceTag?: string;
+      };
+      header?: {
+        /** @description Client-provided idempotency key */
+        "Idempotency-Key"?: string;
+      };
+      path: {
+        /** @description Unique card slug or orgSlug/cardSlug */
+        slug: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SharebackRequest"];
+      };
+    };
+    responses: {
+      /** @description Duplicate submission within 24 hours returning original confirmation */
+      200: {
+        content: {
+          "application/json": components["schemas"]["SharebackResponse"];
+        };
+      };
+      /** @description Lead successfully created */
+      201: {
+        content: {
+          "application/json": components["schemas"]["SharebackResponse"];
+        };
+      };
+      /** @description Validation failure, invalid phone, or missing consent */
+      400: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Card not found or inactive */
+      404: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Rate limit exceeded (per IP or per card) */
+      429: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+}

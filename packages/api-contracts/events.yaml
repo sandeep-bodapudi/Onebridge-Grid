@@ -555,5 +555,133 @@ components:
             tenantId: { type: string }
             slug: { type: string }
         aggregateVersion: { type: integer }
+    KybStatusChangedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "kyb.status_changed" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, status]
+          properties:
+            orgId: { type: string }
+            status: { type: string, enum: [pending, verified, rejected] }
+        aggregateVersion: { type: integer }
+    ShortLinkCreatedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "shortlink.created" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [shortLinkId, code, targetType, targetId, destinationUrl, status]
+          properties:
+            shortLinkId: { type: string }
+            code: { type: string }
+            targetType: { type: string, enum: [card, company, branch, external] }
+            targetId: { type: string }
+            destinationUrl: { type: string }
+            source: { type: string }
+            status: { type: string, enum: [active, disabled, unactivated, pending_approval] }
+        aggregateVersion: { type: integer }
+    ShortLinkRepointedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "shortlink.repointed" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [shortLinkId, code, previousDestinationUrl, newDestinationUrl, repointedAt]
+          properties:
+            shortLinkId: { type: string }
+            code: { type: string }
+            previousDestinationUrl: { type: string }
+            newDestinationUrl: { type: string }
+            repointedAt: { type: string, format: date-time }
+            repointedBy: { type: string }
+        aggregateVersion: { type: integer }
+    ShortLinkStatusChangedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "shortlink.status_changed" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [shortLinkId, code, previousStatus, newStatus]
+          properties:
+            shortLinkId: { type: string }
+            code: { type: string }
+            previousStatus: { type: string }
+            newStatus: { type: string }
+            reason: { type: string }
+        aggregateVersion: { type: integer }
+    SharebackSubmittedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "shareback.submitted" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [leadId, cardId, ownerSeatId, source, isDuplicate, consent]
+          properties:
+            leadId: { type: string }
+            cardId: { type: string }
+            ownerSeatId: { type: string }
+            source: { type: string }
+            sourceTag: { type: string }
+            isDuplicate: { type: boolean }
+            consent:
+              type: object
+              required: [timestamp, noticeVersion]
+              properties:
+                timestamp: { type: string, format: date-time }
+                noticeVersion: { type: string }
+        aggregateVersion: { type: integer }
+    LeadCreatedEvent:
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "lead.created" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [leadId, cardId, ownerSeatId, source, createdAt]
+          properties:
+            leadId: { type: string }
+            cardId: { type: string }
+            ownerSeatId: { type: string }
+            source: { type: string }
+            sourceTag: { type: string }
+            createdAt: { type: string, format: date-time }
+        aggregateVersion: { type: integer }
 
 

@@ -1464,18 +1464,51 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  /cards/{id}:
+
+  /r/{code}:
     get:
-      summary: Get Card Details
+      summary: Resolve short link and redirect (Edge Worker)
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema: { type: string, pattern: '^[0-9a-zA-Z]{8}$' }
       responses:
+        '302':
+          description: Temporary redirect to destination URL
+          headers:
+            Location:
+              schema: { type: string }
         '200':
-          description: OK
+          description: Neutral inactive page when chip/link is disabled or unactivated
+          content:
+            text/html:
+              schema: { type: string }
+        '404':
+          description: Unknown shortlink code (renders neutral not-found page)
+          content:
+            text/html:
+              schema: { type: string }
+
   /links/{code}:
     get:
-      summary: Resolve Shortlink
+      summary: Resolve Shortlink metadata (origin fallback)
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema: { type: string }
       responses:
         '200':
-          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortLinkResolution'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /billing/plans:
     get:
       summary: List Plans
@@ -1984,6 +2017,10 @@ paths:
           name: X-User-Role
           schema:
             $ref: '#/components/schemas/Role'
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -2030,6 +2067,10 @@ paths:
           name: X-User-Role
           schema:
             $ref: '#/components/schemas/Role'
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema: { type: string }
       responses:
         '201':
           description: Published, or moved to pending_approval if the company requires admin approval and the caller is not an admin
@@ -2065,6 +2106,10 @@ paths:
           name: X-User-Role
           schema:
             $ref: '#/components/schemas/Role'
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema: { type: string }
       responses:
         '201':
           content:
@@ -2096,6 +2141,10 @@ paths:
           name: X-User-Role
           schema:
             $ref: '#/components/schemas/Role'
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -2122,7 +2171,343 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /cards/{cardId}/qr:
+    get:
+      summary: List all QR codes / source tags for a card
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShortLink'
         '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      summary: Create an additional source-tagged QR code for a card
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCardQrRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortLink'
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /cards/{cardId}/qr/{qrId}:
+    patch:
+      summary: Repoint short link destination or update status
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: qrId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+        - in: header
+          name: X-User-Role
+          schema:
+            $ref: '#/components/schemas/Role'
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateShortLinkRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortLink'
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /cards/{cardId}/qr/{qrId}.{format}:
+    get:
+      summary: Download branded QR code in specified format (PNG, SVG, PDF)
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: qrId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: format
+          required: true
+          schema: { type: string, enum: [png, svg, pdf] }
+        - in: query
+          name: size
+          schema: { type: integer, default: 1000 }
+      responses:
+        '200':
+          description: Branded QR image file
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+            image/svg+xml:
+              schema: { type: string }
+            application/pdf:
+              schema: { type: string, format: binary }
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/qr/standee:
+    get:
+      summary: Generate Company Standee print template (A4/A5)
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: template
+          schema: { type: string, enum: [a4, a5], default: a4 }
+        - in: query
+          name: format
+          schema: { type: string, enum: [pdf, svg], default: pdf }
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            image/svg+xml:
+              schema: { type: string }
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/branches/{branchId}/qr/standee:
+    get:
+      summary: Generate Branch Standee print template (A4/A5)
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: branchId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: template
+          schema: { type: string, enum: [a4, a5], default: a4 }
+        - in: query
+          name: format
+          schema: { type: string, enum: [pdf, svg], default: pdf }
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            image/svg+xml:
+              schema: { type: string }
+  /public/c/{slug}:
+    get:
+      summary: Retrieve public card view model for visitor page
+      description: Returns published card details, company branding, branch location, and public sections. When inactive or unactivated, personal details are sanitized.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "acme-steels/ob-01jd2x-e0001"
+      responses:
+        '200':
+          description: Public card view model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicCardResponse'
+        '404':
+          description: Card not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /public/c/{slug}/vcard:
+    get:
+      summary: Download contact as standard vCard (3.0 / 4.0)
+      description: Returns a .vcf file with Content-Disposition attachment containing cardholder name, company, branch, title, phone, email, and photo URI.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: vCard file
+          content:
+            text/vcard:
+              schema:
+                type: string
+        '404':
+          description: Card not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /public/c/{slug}/shareback:
+    post:
+      summary: Submit visitor details via card share-back to create a lead
+      description: Captures visitor contact details from public card share-back panel, encrypts PII per ADR-0002, enforces spam rate limits, and notifies card owner.
+      operationId: submitShareback
+      tags:
+        - Public Cards
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique card slug or orgSlug/cardSlug
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [shareback, manual, company_enquiry, qr, nfc, link]
+            default: shareback
+          description: Capture channel
+        - name: sourceTag
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional source tag (e.g. qr tag like 'booth-a' or 'standee')
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Client-provided idempotency key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SharebackRequest'
+      responses:
+        '201':
+          description: Lead successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharebackResponse'
+        '200':
+          description: Duplicate submission within 24 hours returning original confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharebackResponse'
+        '400':
+          description: Validation failure, invalid phone, or missing consent
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Card not found or inactive
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: Rate limit exceeded (per IP or per card)
           content:
             application/problem+json:
               schema:
@@ -2683,6 +3068,184 @@ components:
         key: { type: string }
         width: { type: integer }
         height: { type: integer }
+    ShortLinkResolution:
+      type: object
+      required: [code, destinationUrl, status, targetType, targetId]
+      properties:
+        code: { type: string }
+        destinationUrl: { type: string }
+        status: { type: string, enum: [active, disabled, unactivated, pending_approval] }
+        targetType: { type: string, enum: [card, company, branch, external] }
+        targetId: { type: string }
+        tenantId: { type: string }
+        source: { type: string }
+    ShortLink:
+      type: object
+      required: [id, tenantId, code, targetType, targetId, destinationUrl, status, aggregateVersion, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        code: { type: string }
+        shortUrl: { type: string, example: "https://obg.in/x8Fk2LpQ" }
+        targetType: { type: string, enum: [card, company, branch, external] }
+        targetId: { type: string }
+        destinationUrl: { type: string }
+        source: { type: string }
+        label: { type: string }
+        status: { type: string, enum: [active, disabled, unactivated, pending_approval] }
+        isExternal: { type: boolean }
+        externalApprovedBy: { type: string, nullable: true }
+        externalApprovedAt: { type: string, format: date-time, nullable: true }
+        aggregateVersion: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateCardQrRequest:
+      type: object
+      required: [source]
+      properties:
+        source: { type: string, example: "Expo 2026 standee" }
+        label: { type: string, example: "Expo Standee Counter" }
+        destinationUrl: { type: string, description: "Custom destination URL (OneBridge page by default; external requires Company Admin)" }
+    UpdateShortLinkRequest:
+      type: object
+      properties:
+        destinationUrl: { type: string }
+        label: { type: string }
+        status: { type: string, enum: [active, disabled] }
+    PublicCardResponse:
+      type: object
+      required: [cardId, slug, status, templateId, language, verifiedBadge, company, sections, actions]
+      properties:
+        cardId:
+          type: string
+        slug:
+          type: string
+        status:
+          type: string
+          enum: [published, draft, pending_approval, inactive, unactivated, offboarded]
+        templateId:
+          type: string
+          example: "classic-charcoal"
+        language:
+          type: string
+          enum: [en, hi]
+        verifiedBadge:
+          type: boolean
+        person:
+          type: object
+          description: "Omitted if card is inactive or unactivated (no personal data rule)"
+          properties:
+            name: { type: string }
+            designation: { type: string }
+            photoUrl: { type: string, format: uri }
+            phone: { type: string }
+            email: { type: string, format: email }
+            bio: { type: string }
+        company:
+          type: object
+          required: [id, businessId, name]
+          properties:
+            id: { type: string }
+            businessId: { type: string }
+            name: { type: string }
+            logoUrl: { type: string, format: uri }
+            brandColours:
+              type: object
+              properties:
+                band: { type: string }
+                accent: { type: string }
+                text: { type: string }
+        branch:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string }
+            address: { type: string }
+            mapPin:
+              type: object
+              properties:
+                lat: { type: number }
+                lng: { type: number }
+        sections:
+          type: array
+          items:
+            type: object
+            required: [type, order, content]
+            properties:
+              type: { type: string }
+              order: { type: integer }
+              content:
+                type: object
+                additionalProperties: true
+        actions:
+          type: object
+          required: [saveContactUrl]
+          properties:
+            saveContactUrl: { type: string }
+            whatsappUrl: { type: string }
+            callUrl: { type: string }
+            emailUrl: { type: string }
+            directionsUrl: { type: string }
+        offboardedDetails:
+          type: object
+          properties:
+            personName: { type: string }
+            successorName: { type: string }
+            successorMessageUrl: { type: string }
+            redirectUrl: { type: string }
+    SharebackRequest:
+      type: object
+      required:
+        - name
+        - phone
+        - consent
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        phone:
+          type: string
+          description: 10-digit Indian phone or E.164 phone number
+        email:
+          type: string
+          format: email
+        company:
+          type: string
+          maxLength: 120
+        note:
+          type: string
+          maxLength: 500
+        consent:
+          type: boolean
+          description: Explicit consent to share details with the card owner and company
+        noticeVersion:
+          type: string
+          default: 'v1.0'
+        turnstileToken:
+          type: string
+          description: Cloudflare Turnstile CAPTCHA response token
+    SharebackResponse:
+      type: object
+      required:
+        - leadId
+        - cardId
+        - status
+        - message
+        - createdAt
+      properties:
+        leadId:
+          type: string
+        cardId:
+          type: string
+        status:
+          type: string
+          enum: [created, duplicate]
+        message:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
   securitySchemes:
     BearerAuth:
       type: http

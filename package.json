@@ -5,8 +5,8 @@
     "dev": "node scripts/dev.mjs",
     "seed": "tsx services/identity/src/infrastructure/seed.ts",
     "lint": "eslint . --ignore-pattern \"tests/fixtures/**\"",
-    "typecheck": "pnpm -r --if-present run typecheck",
-    "test": "pnpm -r --workspace-concurrency=1 --if-present run test && vitest run tests/check-no-echo-scripts.spec.ts tests/workspace.spec.ts",
+    "typecheck": "cross-env NODE_OPTIONS=--max-old-space-size=4096 pnpm -r --if-present run typecheck",
+    "test": "cross-env NODE_OPTIONS=--max-old-space-size=4096 pnpm -r --workspace-concurrency=1 --if-present run test && vitest run tests/check-no-echo-scripts.spec.ts tests/workspace.spec.ts",
     "test:e2e": "playwright test",
     "check:scripts": "node scripts/check-no-echo-scripts.mjs",
     "contracts:gen": "pnpm -r --if-present run contracts:gen"
