@@ -110,6 +110,20 @@ export class RbacService {
     };
   }
 
+  /**
+   * Role of a person in one company, for other services' request
+   * authentication (GET /internal/memberships/role, D-SERVICE-AUTH).
+   * Returns null if the person is not a member.
+   */
+  async getMembershipRole(
+    personId: string,
+    tenantId: string
+  ): Promise<{ role: Role; scope?: MembershipProps['scope'] } | null> {
+    const membership = await this.membershipRepo.findByPersonAndOrg(personId, tenantId);
+    if (!membership) return null;
+    return { role: membership.role, scope: membership.scope };
+  }
+
   async createMembership(props: {
     personId: string;
     orgId: string;

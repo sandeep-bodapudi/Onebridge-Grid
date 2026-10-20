@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { resolveServiceJwtSecret } from '@onebridge/shared';
 
 dotenv.config();
 
@@ -9,11 +10,15 @@ export interface OrganizationEnvConfig {
   mongoUri: string;
   identityApiUrl: string;
   internalServiceKey: string;
+  /** Verifies identity access tokens (D-SERVICE-AUTH). Must equal identity's JWT_SECRET. */
+  jwtSecret?: string;
 }
 
 export function loadAndValidateEnv(): OrganizationEnvConfig {
+  const nodeEnv = process.env.NODE_ENV || 'development';
   return {
-    nodeEnv: process.env.NODE_ENV || 'development',
+    nodeEnv,
+    jwtSecret: resolveServiceJwtSecret(nodeEnv, process.env.JWT_SECRET),
     port: parseInt(process.env.ORGANIZATION_PORT || '4002', 10),
     appUrl: process.env.APP_URL || 'http://localhost:3000',
     mongoUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/onebridge_dev',

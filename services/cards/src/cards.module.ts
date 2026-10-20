@@ -37,7 +37,8 @@ import { CardsController } from './presentation/cards.controller.js';
 import { ShortLinkController } from './presentation/short-link.controller.js';
 import { AnalyticsStubController } from './presentation/analytics-stub.controller.js';
 import { PublicCardsController } from './presentation/public-cards.controller.js';
-import { TenantAuthGuard } from './presentation/guards/tenant-auth.guard.js';
+import { TenantAuthGuard, REQUEST_AUTHENTICATOR } from './presentation/guards/tenant-auth.guard.js';
+import { createRequestAuthenticator, resolveServiceJwtSecret, RequestAuthenticator } from '@onebridge/shared';
 
 export interface CardsModuleOptions {
   envConfig?: CardsEnvConfig;
@@ -49,6 +50,8 @@ export interface CardsModuleOptions {
   rateLimiter?: RateLimiter;
   turnstileValidator?: TurnstileValidator;
   leadNotifier?: LeadNotifier;
+  /** Overrides the token-verifying authenticator (tests). */
+  requestAuthenticator?: RequestAuthenticator;
 }
 
 @Global()
@@ -299,6 +302,19 @@ export class CardsModule implements OnModuleInit {
       ],
     };
 
+    // D-SERVICE-AUTH: verifies identity access tokens and resolves the caller's role.
+    const requestAuthenticatorProvider = {
+      provide: REQUEST_AUTHENTICATOR,
+      useValue:
+        options.requestAuthenticator ||
+        createRequestAuthenticator({
+          nodeEnv: config.nodeEnv,
+          jwtSecret: config.jwtSecret || resolveServiceJwtSecret(config.nodeEnv, undefined),
+          identityApiUrl: config.identityApiUrl || 'http://localhost:4001',
+          internalServiceKey: config.internalServiceKey || 'test-internal-service-key-at-least-32-chars-12345',
+        }),
+    };
+
     return {
       module: CardsModule,
       controllers: [CardsController, ShortLinkController, AnalyticsStubController, PublicCardsController],
@@ -321,6 +337,7 @@ export class CardsModule implements OnModuleInit {
         cardsServiceProvider,
         sharebackServiceProvider,
         readModelSyncProvider,
+        requestAuthenticatorProvider,
         TenantAuthGuard,
       ],
       exports: [

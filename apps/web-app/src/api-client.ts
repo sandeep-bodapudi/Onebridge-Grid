@@ -954,6 +954,36 @@ export const apiClient = {
     return `${CARDS_API_URL}/cards/${cardId}/qr/${qrId}.${format}${qs ? `?${qs}` : ''}`;
   },
 
+  /**
+   * Downloads a protected file (QR asset, standee) with the in-memory access
+   * token and saves it. A plain link or window.open cannot send the token,
+   * and the cards service requires it (D-SERVICE-AUTH).
+   */
+  async downloadProtectedFile(url: string, filename: string, tenantId?: string): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    const activeTenant = tenantId || inMemoryActiveTenantId;
+    if (activeTenant) headers['X-Tenant-Id'] = activeTenant;
+
+    const res = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Could not download the file. Try again.');
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  },
+
   getStandeeUrl(tenantId: string, branchId?: string, template: 'a4' | 'a5' = 'a4'): string {
     const params = new URLSearchParams({ template });
     const qs = params.toString();

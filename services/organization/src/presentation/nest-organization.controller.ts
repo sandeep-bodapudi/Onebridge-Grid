@@ -45,6 +45,8 @@ export interface RequestLike {
     personId?: string;
     role?: Role;
     tenantId?: string;
+    /** 'token' when the guard verified an access token (D-SERVICE-AUTH). */
+    via?: 'token' | 'test-headers';
   };
   headers?: Record<string, string | string[] | undefined>;
 }
@@ -139,10 +141,12 @@ export class NestOrganizationController {
   ) {
     const effectiveCorrelationId = correlationId || (req?.headers?.['x-correlation-id'] as string) || 'unknown';
 
+    // With a verified token the creator is always the signed-in person; a
+    // body-supplied creatorPersonId is honoured only in header-trusting tests.
     const creatorPersonId =
-      body.creatorPersonId ||
-      (req?.headers?.['x-user-id'] as string) ||
-      req?.user?.personId;
+      req?.user?.via === 'token'
+        ? req.user.personId
+        : body.creatorPersonId || (req?.headers?.['x-user-id'] as string) || req?.user?.personId;
 
     if (!creatorPersonId || !creatorPersonId.trim()) {
       throw new BadRequestException({

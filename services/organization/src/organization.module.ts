@@ -9,7 +9,8 @@ import {
   IdentityInternalClient,
 } from './infrastructure/identity-internal.client.js';
 import { NestOrganizationController } from './presentation/nest-organization.controller.js';
-import { TenantAuthGuard } from './presentation/guards/tenant-auth.guard.js';
+import { TenantAuthGuard, REQUEST_AUTHENTICATOR } from './presentation/guards/tenant-auth.guard.js';
+import { createRequestAuthenticator, resolveServiceJwtSecret, RequestAuthenticator } from '@onebridge/shared';
 
 import { MongoCounterRepository } from './infrastructure/mongo-counter.repository.js';
 import { CounterService } from './application/counter.service.js';
@@ -36,6 +37,8 @@ export interface OrganizationModuleOptions {
   connectionHandle?: MongoConnectionHandle;
   identityClient?: IdentityInternalClient;
   eventBus?: EventBusLike;
+  /** Overrides the token-verifying authenticator (tests). */
+  requestAuthenticator?: RequestAuthenticator;
 }
 
 @Global()
@@ -294,6 +297,19 @@ export class OrganizationModule implements OnModuleInit {
       inject: [MongoAuditRepository, MongoOrganizationRepository, 'EVENT_BUS'],
     };
 
+    // D-SERVICE-AUTH: verifies identity access tokens and resolves the caller's role.
+    const requestAuthenticatorProvider = {
+      provide: REQUEST_AUTHENTICATOR,
+      useValue:
+        options.requestAuthenticator ||
+        createRequestAuthenticator({
+          nodeEnv: config.nodeEnv,
+          jwtSecret: config.jwtSecret || resolveServiceJwtSecret(config.nodeEnv, undefined),
+          identityApiUrl: config.identityApiUrl || 'http://localhost:4001',
+          internalServiceKey: config.internalServiceKey || 'test-internal-service-key-at-least-32-chars-12345',
+        }),
+    };
+
     return {
       module: OrganizationModule,
       controllers: [
@@ -321,6 +337,7 @@ export class OrganizationModule implements OnModuleInit {
         mediaStorageServiceProvider,
         brandKitServiceProvider,
         auditLogServiceProvider,
+        requestAuthenticatorProvider,
         TenantAuthGuard,
       ],
       exports: [

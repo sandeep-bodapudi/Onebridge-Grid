@@ -16,3 +16,4 @@ export * from './bot-detector.js';
 export * from './lead-encryption.js';
 export * from './rate-limiter.js';
 export * from './key-vault.js';
+export * from './request-auth.js';

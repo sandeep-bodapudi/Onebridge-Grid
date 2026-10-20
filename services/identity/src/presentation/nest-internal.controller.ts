@@ -1,5 +1,9 @@
 import {
   Controller,
+  Get,
+  Query,
+  NotFoundException,
+  BadRequestException,
   Post,
   Body,
   Headers,
@@ -22,6 +26,36 @@ export class NestInternalController {
     string,
     { value: { requestBody: unknown; response: MembershipProps }; expiresAt: number }
   >();
+
+  /**
+   * Caller's role in a company, used by organization and cards to authorise
+   * requests after verifying the access token themselves (D-SERVICE-AUTH).
+   * Service-key protected; never reachable with a user token.
+   */
+  @Get('memberships/role')
+  async getMembershipRole(
+    @Query('personId') personId?: string,
+    @Query('tenantId') tenantId?: string
+  ): Promise<{ role: Role; scope?: MembershipProps['scope'] }> {
+    if (!personId || !tenantId) {
+      throw new BadRequestException({
+        type: 'https://tools.ietf.org/html/rfc7807',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'personId and tenantId query parameters are required',
+      });
+    }
+    const result = await this.rbacService.getMembershipRole(personId, tenantId);
+    if (!result) {
+      throw new NotFoundException({
+        type: 'https://tools.ietf.org/html/rfc7807',
+        title: 'Not Found',
+        status: 404,
+        detail: 'No membership for this person in this company',
+      });
+    }
+    return result;
+  }
 
   @Post('memberships')
   @HttpCode(HttpStatus.CREATED)

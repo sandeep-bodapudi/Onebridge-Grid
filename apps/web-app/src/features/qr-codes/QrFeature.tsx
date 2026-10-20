@@ -114,9 +114,10 @@ export const QrFeature: React.FC<QrFeatureProps> = ({
     template?: 'a4' | 'a5'
   ) => {
     const downloadUrl = apiClient.getQrAssetUrl(cardId, qrId, format, size, template, tenantId);
-    if (typeof window !== 'undefined') {
-      window.open(downloadUrl, '_blank');
-    }
+    const filename = `${cardId}-${qrId}${template ? `-${template}` : ''}.${format}`;
+    apiClient.downloadProtectedFile(downloadUrl, filename, tenantId).catch((err: unknown) => {
+      setError(err instanceof Error ? err.message : 'Could not download the file. Try again.');
+    });
   };
 
   return (

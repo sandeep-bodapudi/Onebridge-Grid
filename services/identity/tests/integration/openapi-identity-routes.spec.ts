@@ -22,6 +22,7 @@ describe('OpenAPI Route Parity & Status Verification (Condition 10)', () => {
     { path: '/auth/mfa/verify:', method: 'post:', expectedStatuses: ["'200':"] },
     { path: '/me:', method: 'get:', expectedStatuses: ["'200':", "'401':", "'403':"] },
     { path: '/internal/memberships:', method: 'post:', expectedStatuses: ["'201':", "'422':"] },
+    { path: '/internal/memberships/role:', method: 'get:', expectedStatuses: ["'200':", "'400':", "'401':", "'404':"] },
   ];
 
   it('should verify every identity route exists in openapi.yaml with matching methods and statuses', () => {

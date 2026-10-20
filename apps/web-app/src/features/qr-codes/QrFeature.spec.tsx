@@ -135,7 +135,8 @@ describe('QrFeature Component', () => {
     expect(screen.getByText('Monthly Newsletter')).toBeTruthy();
   });
 
-  it('triggers asset download URL generation via window.open', async () => {
+  it('downloads the asset with the access token (not a bare window.open link)', async () => {
+    const downloadSpy = vi.spyOn(apiClient, 'downloadProtectedFile').mockResolvedValue(undefined);
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
     vi.spyOn(apiClient, 'listCardQrs').mockResolvedValue([
       {
@@ -168,9 +169,11 @@ describe('QrFeature Component', () => {
     const modalDownloadBtn = screen.getByRole('button', { name: /Download file/i });
     fireEvent.click(modalDownloadBtn);
 
-    expect(openSpy).toHaveBeenCalledWith(
+    expect(downloadSpy).toHaveBeenCalledWith(
       expect.stringContaining(`/cards/${cardId}/qr/qr_desk.png`),
-      '_blank'
+      expect.stringMatching(/\.png$/),
+      tenantId
     );
+    expect(openSpy).not.toHaveBeenCalled();
   });
 });
