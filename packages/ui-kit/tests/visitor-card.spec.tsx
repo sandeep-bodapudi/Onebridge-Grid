@@ -388,6 +388,22 @@ describe('F12: Visitor Card UI Component', () => {
       expect(results.violations).toEqual([]);
     });
 
+    it.each([
+      'classic-charcoal',
+      'bridge-orange',
+      'arch-minimal',
+      'keystone-dark',
+      'paper-light',
+      'enterprise-blue',
+      'grid-mono',
+      'sand-warm',
+    ])('renders template %s with its own look and no axe violations', async (templateId) => {
+      const { container, getByTestId } = render(<VisitorCard data={{ ...publishedCardData, templateId }} />);
+      expect(getByTestId('card-frame').getAttribute('data-template')).toBe(templateId);
+      const results = await axe(container);
+      expect(results.violations).toEqual([]);
+    });
+
     it('satisfies axe accessibility rules on inactive and unactivated states', async () => {
       const { container: unactivatedContainer } = render(<VisitorCard state="unactivated" />);
       const unactivatedResults = await axe(unactivatedContainer);

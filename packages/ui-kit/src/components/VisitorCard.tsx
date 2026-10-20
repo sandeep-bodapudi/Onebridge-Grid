@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { KeystoneBadge } from './KeystoneBadge';
+import { getTemplateStyle } from './visitor-card-templates';
 
 export interface PublicCardPerson {
   name: string;
@@ -285,7 +286,8 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
   const resolvedCompanyName = companyName || data?.company?.name || 'OneBridge';
   const effectiveOffboardedDetails = propOffboardedDetails || data?.offboardedDetails;
 
-  const isDark = theme === 'dark';
+  // keystone-dark is a dark card in every system theme: use the full dark theme.
+  const isDark = theme === 'dark' || data?.templateId === 'keystone-dark';
   const containerThemeClass = isDark
     ? 'theme-dark bg-charcoal-deep text-sand'
     : 'bg-sand text-charcoal dark:bg-charcoal-deep dark:text-sand';
@@ -398,6 +400,7 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
   if (!data) return null;
 
   const bandColour = data.company?.brandColours?.band || '#1B2A4A';
+  const templateStyle = getTemplateStyle(data.templateId, bandColour, data.company?.brandColours?.text);
   const person = data.person || { name: 'Cardholder', designation: '' };
   const company = data.company;
   const branch = data.branch;
@@ -413,7 +416,11 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
       )}
 
       {/* Main Card Frame */}
-      <div className={`w-full max-w-md ${cardFrameClass} border rounded-22 overflow-hidden shadow-sm relative`}>
+      <div
+        data-testid="card-frame"
+        data-template={data.templateId}
+        className={`w-full max-w-md ${cardFrameClass} border rounded-22 overflow-hidden shadow-sm relative ${templateStyle.frameClass}`}
+      >
         {/* Top bar with language toggle */}
         <div className="absolute top-3 right-3 z-20">
           <button
@@ -429,8 +436,8 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
         {/* Arch header (Reference Screen 1) */}
         <div
           data-testid="arch-header"
-          className="relative pt-8 pb-12 px-6 flex flex-col items-center justify-center"
-          style={{ backgroundColor: bandColour }}
+          className={`relative pt-8 pb-12 px-14 flex flex-col items-center justify-center ${templateStyle.headerClass}`}
+          style={templateStyle.headerStyle}
         >
           {/* Keystone Badge at the Crown */}
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10">
@@ -445,7 +452,12 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
               className="max-h-12 max-w-[140px] object-contain mb-2 filter drop-shadow-sm"
             />
           ) : (
-            <div className="text-white font-extrabold text-lg tracking-wide uppercase drop-shadow-sm mb-2">
+            <div
+              data-testid="company-name"
+              className={`${templateStyle.companyNameClass} max-w-full line-clamp-2 break-words text-center mb-2`}
+              style={templateStyle.companyNameStyle}
+              title={company?.name}
+            >
               {company?.name}
             </div>
           )}
@@ -465,6 +477,10 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
             )}
           </div>
         </div>
+
+        {templateStyle.stripeColour ? (
+          <div aria-hidden="true" className="h-4" style={{ backgroundColor: templateStyle.stripeColour }} />
+        ) : null}
 
         {/* Card Body */}
         <div className="pt-16 px-6 pb-6 text-center">
