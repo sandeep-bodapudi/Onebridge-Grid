@@ -29,6 +29,8 @@ export * from './ConfirmDialog';
 export * from './SpanLine';
 export * from './KeystoneTag';
 export * from './StatTile';
+export * from './TrendBars';
+export * from './CompanyProfilePage';
 export * from './QrPreview';
 export * from './PhoneFramePreview';
 export * from './BusinessIdDisplay';

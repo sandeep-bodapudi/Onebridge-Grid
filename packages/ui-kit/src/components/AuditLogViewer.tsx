@@ -235,7 +235,7 @@ export function AuditLogViewer({
     <div className={cn('space-y-6 text-charcoal dark:text-warm-paper', className)} data-testid="audit-log-viewer">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold">{labels.title}</h2>
+          <h2 className="text-2xl md:text-[28px] md:leading-9 font-bold tracking-tight">{labels.title}</h2>
           <p className="text-sm text-charcoal/70 dark:text-warm-paper/70">{labels.subtitle}</p>
         </div>
         <Button

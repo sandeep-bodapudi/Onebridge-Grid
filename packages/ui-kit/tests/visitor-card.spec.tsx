@@ -8,7 +8,7 @@ import { VisitorCard, VisitorCardProps } from '../src/components/VisitorCard';
 
 /** Share-back lives in a bottom sheet (D-UI-REDESIGN); open it before using the form. */
 function openShareSheet() {
-  fireEvent.click(screen.getByRole('button', { name: /share your details back/i }));
+  fireEvent.click(screen.getByRole('button', { name: /share your details with/i }));
 }
 
 describe('F12: Visitor Card UI Component', () => {
@@ -166,7 +166,7 @@ describe('F12: Visitor Card UI Component', () => {
 
       // Switched to Hindi
       expect(screen.getByRole('link', { name: /संपर्क सहेजें/i })).toBeDefined();
-      expect(screen.getByText(/अपना विवरण साझा करें/i)).toBeDefined();
+      expect(screen.getByText(/अपना विवरण भेजें/i)).toBeDefined();
 
       // Toggle back
       fireEvent.click(toggle);

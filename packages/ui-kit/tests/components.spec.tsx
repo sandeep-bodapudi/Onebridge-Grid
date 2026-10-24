@@ -247,7 +247,7 @@ describe('UI Kit Components', () => {
   });
 
   it('SeatsManagement renders vacant and active seats with bindings, and satisfies axe accessibility', async () => {
-    const { container, getByText, getByTestId } = render(
+    const { container, getAllByText, getByTestId } = render(
       <SeatsManagement
         seats={[
           {
@@ -285,8 +285,9 @@ describe('UI Kit Components', () => {
 
     expect(getByTestId('seat-card-OB-7KQ2MX-E0001')).toBeTruthy();
     expect(getByTestId('seat-card-OB-7KQ2MX-E0002')).toBeTruthy();
-    expect(getByText('Vacant AE Seat')).toBeTruthy();
-    expect(getByText('Active Director')).toBeTruthy();
+    // The selected person also appears in the detail panel beside the table on wide screens.
+    expect(getAllByText('Vacant AE Seat').length).toBeGreaterThan(0);
+    expect(getAllByText('Active Director').length).toBeGreaterThan(0);
     // People are shown by name, never by person ID.
     expect(container.textContent).not.toContain('person_vikram');
 
@@ -310,7 +311,7 @@ describe('UI Kit Components', () => {
 
   it('SeatsManagement shows names, real card links and asks before offboarding', async () => {
     const onArchiveSeat = vi.fn();
-    const { getByText, getByRole, queryByRole } = render(
+    const { getByText, getAllByText, getByRole, queryByRole } = render(
       <SeatsManagement
         plan="business"
         onArchiveSeat={onArchiveSeat}
@@ -330,7 +331,7 @@ describe('UI Kit Components', () => {
         ]}
       />
     );
-    expect(getByText('Rohit Deshmukh')).toBeTruthy();
+    expect(getAllByText('Rohit Deshmukh').length).toBeGreaterThan(0);
     fireEvent.click(getByRole('button', { name: /manage rohit deshmukh/i }));
     expect(getByRole('link', { name: /open card/i }).getAttribute('href')).toBe('https://cards.example/c/acme/ob-7kq2mx-e0002');
     fireEvent.click(getByRole('button', { name: 'Offboard Rohit Deshmukh' }));

@@ -426,9 +426,10 @@ describe('Span Design Language Components (Phase D1)', () => {
         </AppShell>
       );
 
-      expect(getByText('Good morning, Sandeep')).toBeTruthy();
+      // You at the bottom of the rail; the company and Business ID at the top (pages render their own titles)
+      expect(getByText('Sandeep')).toBeTruthy();
       expect(getAllByText('Acme Technologies')).toHaveLength(2); // desktop rail & mobile top
-      expect(getAllByText('OB-888999')).toHaveLength(2);
+      expect(getAllByText('OB-888999')).toHaveLength(1);
       expect(getByText('Main workspace content')).toBeTruthy();
     });
 

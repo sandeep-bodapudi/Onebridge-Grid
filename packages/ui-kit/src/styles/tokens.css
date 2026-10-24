@@ -69,12 +69,17 @@
 
   /* Dark mode: ensure text and surfaces pass WCAG AA contrast (fixing sign-in invisible heading) */
   .dark {
+    /* Charcoal-led dashboard (D-UI-PREMIUM): panels sit one step above the Charcoal Deep canvas. */
+    --color-charcoal: 39 36 37;            /* #272425 panel */
     --color-deep-orange: 255 159 51;       /* #FF9F33: readable on dark surfaces */
     --color-success: 52 168 83;            /* #34A853 */
     --color-warning: 251 188 4;            /* #FBBC04 */
     --color-error: 234 67 53;              /* #EA4335 */
     --color-info: 66 133 244;              /* #4285F4 */
     --color-sand-border: 58 54 56;         /* #3A3638 */
+  }
+  .dark body {
+    background-color: rgb(var(--color-charcoal-deep));
   }
 
   @media (prefers-color-scheme: dark) {

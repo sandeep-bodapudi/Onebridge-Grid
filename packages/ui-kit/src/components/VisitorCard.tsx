@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   Ban,
   ExternalLink,
+  Globe,
   Lock,
   Mail,
   MapPin,
@@ -17,7 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { KeystoneTag } from './KeystoneTag';
-import { BusinessIdDisplay } from './BusinessIdDisplay';
+import { avatarColour } from './AppShell';
 import { getTemplateStyle } from './visitor-card-templates';
 
 export interface PublicCardPerson {
@@ -120,8 +121,9 @@ const copy = {
     directions: 'Directions',
     verifiedChip: 'Verified business',
     sharebackTitle: 'Share your details',
-    sharebackSubtitle: 'Leave your contact details with this cardholder. No app or login needed.',
+    sharebackSubtitle: 'Get a call back. No app or login needed.',
     sharebackTrigger: 'Share your details back',
+    website: 'Website',
     namePlaceholder: 'Your name',
     phonePlaceholder: 'Mobile number',
     emailPlaceholder: 'Email address (optional)',
@@ -172,6 +174,7 @@ const copy = {
     sharebackTitle: 'अपना विवरण साझा करें',
     sharebackSubtitle: 'इस कार्डधारक के साथ अपना संपर्क विवरण साझा करें। किसी ऐप की आवश्यकता नहीं है।',
     sharebackTrigger: 'अपना विवरण भेजें',
+    website: 'वेबसाइट',
     namePlaceholder: 'आपका नाम',
     phonePlaceholder: 'मोबाइल नंबर',
     emailPlaceholder: 'ईमेल पता (वैकल्पिक)',
@@ -235,6 +238,7 @@ const ICONS = {
   call: <Phone className="w-5 h-5" aria-hidden="true" />,
   email: <Mail className="w-5 h-5" aria-hidden="true" />,
   directions: <MapPin className="w-5 h-5" aria-hidden="true" />,
+  website: <Globe className="w-5 h-5" aria-hidden="true" />,
 };
 
 const StatePage: React.FC<{
@@ -483,6 +487,9 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
   const person = data.person || { name: 'Cardholder', designation: '' };
   const company = data.company;
   const branch = data.branch;
+  const linkItems = (data.sections.find((x) => (x.type === 'links' || x.type === 'social_links') && Array.isArray(x.content?.items))?.content?.items ??
+    []) as Array<{ url?: string }>;
+  const websiteUrl = linkItems.find((l) => typeof l.url === 'string' && /^https?:\/\//.test(l.url))?.url;
   const initials = person.name
     .split(/\s+/)
     .filter(Boolean)
@@ -495,10 +502,12 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
     data.actions.callUrl ? { key: 'call' as const, href: data.actions.callUrl, label: t.call, external: false } : null,
     data.actions.emailUrl ? { key: 'email' as const, href: data.actions.emailUrl, label: t.email, external: false } : null,
     data.actions.directionsUrl ? { key: 'directions' as const, href: data.actions.directionsUrl, label: t.directions, external: true } : null,
-  ].filter(Boolean) as Array<{ key: 'call' | 'email' | 'directions'; href: string; label: string; external: boolean }>;
+    websiteUrl ? { key: 'website' as const, href: websiteUrl, label: t.website, external: true } : null,
+  ].filter(Boolean) as Array<{ key: 'call' | 'email' | 'directions' | 'website'; href: string; label: string; external: boolean }>;
 
-  const sectionTitle = 'text-sm font-bold mb-2';
-  const sectionBox = 'border-t border-sand-border dark:border-sand-border/20 pt-5';
+  const sectionTitle = 'text-[13px] font-extrabold uppercase tracking-[0.04em] text-charcoal/60 dark:text-sand/60 mb-2.5';
+  const sectionBox = '';
+  const firstName = person.name.split(/\s+/)[0] || person.name;
 
   const PLACE_TYPES = ['facility', 'branch', 'company_info', 'branch_map'];
 
@@ -521,13 +530,13 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
             {items.map((item, i) => (
               <li
                 key={i}
-                className="flex items-start justify-between gap-3 px-3 py-3 rounded-panel border border-sand-border dark:border-sand-border/20 bg-warm-paper dark:bg-charcoal"
+                className="flex items-start justify-between gap-3 px-3.5 py-3 rounded-xl border border-[#ECE4D6] dark:border-sand-border/20 bg-white dark:bg-charcoal"
               >
                 <div className="min-w-0">
                   <div className="text-sm font-semibold">{item.name}</div>
                   {item.description ? <div className="text-sm text-charcoal/70 dark:text-sand/70">{item.description}</div> : null}
                 </div>
-                {item.price ? <span className="text-sm font-bold text-deep-orange shrink-0">{item.price}</span> : null}
+                {item.price ? <span className="text-sm font-extrabold shrink-0">{item.price}</span> : null}
               </li>
             ))}
           </ul>
@@ -589,57 +598,58 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
           </div>
         ) : null}
 
-        <header data-testid="card-header" className={`relative px-5 pt-5 pb-0 ${style.headerClass}`} style={style.headerStyle}>
-          <div className="flex items-center justify-between gap-3 min-h-[44px]">
+        <header data-testid="card-header" className={`relative px-5 pt-5 pb-6 ${style.headerClass}`} style={style.headerStyle}>
+          <div className={`flex items-center justify-between gap-3 min-h-[44px] ${style.textClass}`} style={style.textStyle}>
             {company?.logoUrl ? (
               <img src={company.logoUrl} alt={`${company.name} logo`} className="max-h-8 max-w-[140px] object-contain" />
             ) : (
-              <span className={style.companyNameClass} style={style.companyNameStyle}>
-                {company?.name}
-              </span>
+              <span className="text-xs font-bold tracking-[0.08em] uppercase opacity-90">{company?.name}</span>
             )}
             <button
               data-testid="language-toggle"
               type="button"
               onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
-              className="min-h-[44px] min-w-[44px] px-3 rounded-control bg-warm-paper/90 text-charcoal text-sm font-semibold border border-sand-border/60 hover:bg-warm-paper"
+              className="min-h-[44px] min-w-[44px] px-3 rounded-lg bg-black/15 text-current text-xs font-bold hover:bg-black/25"
               aria-label={lang === 'en' ? t.switchToHindi : t.switchToEnglish}
             >
               {lang === 'en' ? 'हिन्दी' : 'EN'}
             </button>
           </div>
 
-          <div className="pt-6 pb-5 flex items-end gap-4">
-            <div className="w-20 h-20 shrink-0 rounded-panel overflow-hidden bg-warm-paper dark:bg-charcoal border border-charcoal/15 dark:border-white/20 flex items-center justify-center">
-              {person.photoUrl ? (
-                <img src={person.photoUrl} alt={person.name} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-2xl font-bold text-charcoal dark:text-sand" aria-hidden="true">
-                  {initials}
+          <div
+            className="mt-5 w-[84px] h-[84px] rounded-[22px] overflow-hidden flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.25)]"
+            style={{ background: person.photoUrl ? undefined : avatarColour(person.name) }}
+          >
+            {person.photoUrl ? (
+              <img src={person.photoUrl} alt={person.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[28px] font-extrabold text-[#241A10]" aria-hidden="true">
+                {initials}
+              </span>
+            )}
+          </div>
+
+          <div className={`mt-4 ${style.textClass}`} style={style.textStyle}>
+            <h1 className="text-[30px] leading-[1.05] font-bold tracking-[-0.03em] break-words">{person.name}</h1>
+            {person.designation ? <p className="text-[15px] mt-1 opacity-90">{person.designation}</p> : null}
+            <div className="flex flex-wrap items-center gap-2 mt-3 text-[13px] font-semibold">
+              {data.verifiedBadge ? (
+                <span data-testid="verified-tag" className="inline-flex">
+                  <KeystoneTag label={lang === 'hi' ? 'सत्यापित' : 'Verified'} aria-label={t.verifiedChip} role="img" className="bg-bridge-orange text-[#241A10] dark:bg-bridge-orange dark:border-0 text-[11px] px-2 py-0.5 [&_svg]:fill-[#241A10]" />
                 </span>
-              )}
+              ) : null}
+              <span className="opacity-90">
+                {company?.name}
+                {branch?.name ? ` · ${branch.name}` : ''}
+              </span>
             </div>
-            {data.verifiedBadge ? (
-              <div data-testid="verified-tag" className="ml-auto mb-1">
-                <KeystoneTag label={lang === 'hi' ? 'सत्यापित' : 'Verified'} aria-label={t.verifiedChip} role="img" />
-              </div>
-            ) : null}
           </div>
-
-          <div className={`pb-5 ${style.textClass}`} style={style.textStyle}>
-            <h1 className="text-2xl sm:text-[32px] sm:leading-10 font-bold break-words">{person.name}</h1>
-            {person.designation ? <p className="text-base mt-1 opacity-90">{person.designation}</p> : null}
-            <p className="text-sm mt-1 opacity-80">
-              {company?.name}
-              {branch?.name ? ` · ${branch.name}` : ''}
-            </p>
-          </div>
-
-          <div className="flex items-center pb-0 -mx-5" aria-hidden="true" data-span-line="true">
-            <span className={`w-1.5 h-1.5 ${style.lineClass}`} />
-            <span className={`flex-1 h-[1.5px] ${style.lineClass} opacity-80`} />
-            <span className={`w-1.5 h-1.5 ${style.lineClass}`} />
-          </div>
+          {/* The span deck: a solid line along the base of the band */}
+          <span
+            aria-hidden="true"
+            data-span-line="true"
+            className={`absolute inset-x-0 bottom-0 h-[5px] ${data.templateId === 'bridge-orange' ? 'bg-charcoal' : 'bg-bridge-orange'}`}
+          />
         </header>
 
         {style.stripeColour ? <div aria-hidden="true" className="h-1" style={{ backgroundColor: style.stripeColour }} /> : null}
@@ -647,17 +657,17 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
         {tiles.length > 0 ? (
           <nav
             aria-label="Quick contact actions"
-            className="grid gap-px bg-sand-border dark:bg-sand-border/20 border-b border-sand-border dark:border-sand-border/20"
+            className="grid gap-2 p-4 bg-white dark:bg-charcoal-deep"
             style={{ gridTemplateColumns: `repeat(${tiles.length}, minmax(0, 1fr))` }}
           >
             {tiles.map((tile) => (
               <a
                 key={tile.key}
                 href={tile.href}
-                onClick={() => onCtaClick?.(tile.key)}
+                onClick={() => (tile.key === 'website' ? undefined : onCtaClick?.(tile.key))}
                 target={tile.external ? '_blank' : undefined}
                 rel={tile.external ? 'noopener noreferrer' : undefined}
-                className="min-h-[64px] flex flex-col items-center justify-center gap-1 bg-warm-paper dark:bg-charcoal-deep text-sm font-semibold hover:bg-sand/50 dark:hover:bg-charcoal transition-colors"
+                className="min-h-[64px] flex flex-col items-center justify-center gap-1.5 rounded-xl bg-[#F4EFE6] dark:bg-charcoal text-xs font-bold hover:bg-[#ECE4D6] dark:hover:bg-white/10 transition-colors"
               >
                 {ICONS[tile.key]}
                 {tile.label}
@@ -666,7 +676,7 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
           </nav>
         ) : null}
 
-        <div className="px-5 pt-5 pb-32 space-y-5">
+        <div className="px-[18px] pt-2 pb-32 space-y-[18px]">
           {person.bio ? (
             <section>
               <h2 className={sectionTitle}>{t.about}</h2>
@@ -674,11 +684,9 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
             </section>
           ) : null}
 
-          {data.sections?.map(renderSection)}
+          {data.sections?.filter((x) => !PLACE_TYPES.includes(x.type)).map(renderSection)}
 
-          <section data-testid="shareback-panel" className={sectionBox}>
-            <h2 className="text-base font-bold">{t.sharebackTitle}</h2>
-            <p className="text-sm text-charcoal/75 dark:text-sand/75 mt-1 mb-3">{t.sharebackSubtitle}</p>
+          <section data-testid="shareback-panel" aria-label={t.sharebackTitle}>
             <button
               ref={triggerRef}
               type="button"
@@ -688,28 +696,42 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
                 setSheetOpen(true);
               }}
               aria-haspopup="dialog"
-              className="w-full min-h-[48px] inline-flex items-center justify-center gap-2 rounded-control border border-charcoal dark:border-sand text-sm font-bold hover:bg-sand/50 dark:hover:bg-charcoal"
+              className="w-full flex items-center gap-3 p-3.5 rounded-[14px] bg-[#2A2627] text-warm-paper text-left hover:bg-[#1E1E1E] transition-colors"
             >
-              <Send className="w-4 h-4" aria-hidden="true" />
-              {t.sharebackTrigger}
+              <span className="w-[38px] h-[38px] rounded-[10px] bg-bridge-orange inline-flex items-center justify-center shrink-0">
+                <Send className="w-[18px] h-[18px] text-[#241A10]" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-bold">{lang === 'en' ? `Share your details with ${firstName}` : t.sharebackTrigger}</span>
+                <span className="block text-xs opacity-70">{t.sharebackSubtitle}</span>
+              </span>
             </button>
           </section>
 
-          <footer className="pt-6 flex flex-col items-center gap-2 text-center">
-            <BusinessIdDisplay businessId={company?.businessId} variant="badge" />
-            <p className="text-xs text-charcoal/60 dark:text-sand/60">{t.madeWith}</p>
+          {data.sections?.filter((x) => PLACE_TYPES.includes(x.type)).map(renderSection)}
+
+          <footer className="pt-4 flex justify-center">
+            <span className="font-mono text-[11px] text-charcoal/60 dark:text-sand/60 border border-sand-border dark:border-sand-border/30 rounded-md px-2 py-1">
+              {company?.businessId ? (
+                <>
+                  <span>{company.businessId}</span>
+                  {' · '}
+                </>
+              ) : null}
+              {t.madeWith}
+            </span>
           </footer>
         </div>
 
         <div
           data-testid="visitor-action-bar"
-          className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[440px] z-30 flex gap-2 px-4 pt-3 bg-warm-paper/95 dark:bg-charcoal-deep/95 backdrop-blur-sm border-t border-sand-border dark:border-sand-border/20"
+          className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[440px] z-30 flex gap-2 px-3.5 pt-6 bg-gradient-to-t from-warm-paper from-70% to-transparent dark:from-charcoal-deep"
           style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
         >
           <a
             href={data.actions.saveContactUrl}
             onClick={() => onSaveContact?.({ cardId: data.cardId, slug: data.slug })}
-            className="flex-1 min-h-[56px] bg-bridge-orange text-charcoal font-bold text-base rounded-control flex items-center justify-center gap-2 hover:bg-[#E5790C]"
+            className="flex-1 min-h-[52px] bg-bridge-orange text-charcoal font-extrabold text-[15px] rounded-[14px] flex items-center justify-center gap-2 hover:bg-[#E5790C] shadow-[0_8px_24px_rgba(246,135,19,0.35)]"
           >
             <UserPlus className="w-5 h-5" aria-hidden="true" />
             {t.saveContact}
@@ -720,10 +742,10 @@ export const VisitorCard: React.FC<VisitorCardProps> = ({
               onClick={() => onCtaClick?.('whatsapp')}
               target="_blank"
               rel="noopener noreferrer"
-              className="min-h-[56px] px-4 rounded-control border border-sand-border dark:border-sand-border/30 bg-warm-paper dark:bg-charcoal font-bold text-sm flex items-center justify-center gap-2 hover:bg-sand/50"
+              aria-label={t.whatsapp}
+              className="w-[52px] min-h-[52px] rounded-[14px] bg-[#2A2627] text-warm-paper flex items-center justify-center hover:bg-[#1E1E1E] shrink-0"
             >
               <MessageCircle className="w-5 h-5" aria-hidden="true" />
-              {t.whatsapp}
             </a>
           ) : null}
         </div>

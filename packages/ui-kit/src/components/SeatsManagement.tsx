@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
-import { AlertTriangle, ExternalLink, Lock, Plus, Search, UserPlus, Users, WifiOff } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, ExternalLink, Lock, MoreHorizontal, Pencil, Plus, Search, UserPlus, Users, WifiOff } from 'lucide-react';
+import { Avatar } from './AppShell';
 import { cn } from './ActionButton';
 import { Button } from './Button';
 import { Input } from './Input';
@@ -33,6 +34,8 @@ export interface SeatItem {
   cardStatus?: 'draft' | 'pending_approval' | 'published' | 'inactive';
   /** Real visitor page URL of the seat's card. */
   cardPublicUrl?: string;
+  /** The card's results over the last 14 days. */
+  stats?: { views: number; saves: number; leads: number; daily: number[] };
   createdAt: string;
   updatedAt: string;
 }
@@ -82,7 +85,7 @@ export interface SeatsManagementLabels {
 export const defaultSeatsLabelsEn: SeatsManagementLabels = {
   title: 'People',
   subtitle: 'Each card belongs to a company seat, so its link, QR codes and leads stay when people change.',
-  addSeat: 'Add seat',
+  addSeat: 'Add person',
   addVacantSeat: 'Create vacant seat',
   emptyTitle: 'No seats yet',
   emptyDesc: 'Add a seat for each person who needs a card. The seat keeps the card, QR codes and leads even when people change.',
@@ -160,13 +163,8 @@ export interface SeatsManagementProps {
   className?: string;
 }
 
-type Filter = 'all' | SeatItem['status'];
+type Filter = 'all' | 'live' | 'draft' | 'paused';
 
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '—';
-  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
-}
 
 const PHONE_PATTERN = /^(\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}$/;
 
@@ -196,6 +194,18 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
   const [draftErrors, setDraftErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [managed, setManaged] = useState<SeatItem | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [branchFilter, setBranchFilter] = useState('');
+  // Wide screens show the selected person beside the table; smaller ones open a panel.
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const update = () => setWide(mq.matches);
+    update();
+    mq.addEventListener?.('change', update);
+    return () => mq.removeEventListener?.('change', update);
+  }, []);
   const [confirmSeat, setConfirmSeat] = useState<SeatItem | null>(null);
 
   const liveSeats = seats.filter((s) => s.status !== 'offboarded');
@@ -209,34 +219,32 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
     inactive: labels.statusInactive,
     offboarded: labels.statusOffboarded,
   };
-  const statusChip = (status: SeatItem['status']) => {
-    const variant = status === 'active' ? 'success' : status === 'vacant' || status === 'invited' ? 'info' : status === 'inactive' ? 'warning' : 'archived';
-    return <StatusChip status={variant}>{statusLabel[status]}</StatusChip>;
-  };
   const cardChip = (seat: SeatItem) => {
     if (!seat.cardStatus) return <span className="text-sm text-charcoal/50 dark:text-warm-paper/50">—</span>;
-    if (seat.cardStatus === 'published') return <StatusChip status="published">Published</StatusChip>;
+    if (seat.cardStatus === 'published') return <StatusChip status="published">Live</StatusChip>;
     if (seat.cardStatus === 'pending_approval') return <StatusChip status="info">Waiting for approval</StatusChip>;
     if (seat.cardStatus === 'inactive') return <StatusChip status="archived">Inactive</StatusChip>;
     return <StatusChip status="draft">Draft</StatusChip>;
   };
 
+  const filterOf = (s: SeatItem): Filter =>
+    s.status === 'inactive' || s.status === 'offboarded' ? 'paused' : s.cardStatus === 'published' ? 'live' : 'draft';
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: seats.length };
-    for (const s of seats) c[s.status] = (c[s.status] || 0) + 1;
+    const c: Record<string, number> = { all: seats.length, live: 0, draft: 0, paused: 0 };
+    for (const s of seats) c[filterOf(s)]++;
     return c;
   }, [seats]);
 
   const filterOptions: Array<{ value: Filter; label: string }> = [
     { value: 'all', label: 'All' },
-    { value: 'active', label: labels.statusActive },
-    { value: 'vacant', label: customLabels?.statusVacant ?? 'Not signed in' },
-    { value: 'inactive', label: labels.statusInactive },
-    { value: 'offboarded', label: labels.statusOffboarded },
+    { value: 'live', label: 'Live' },
+    { value: 'draft', label: 'Draft' },
+    { value: 'paused', label: 'Paused' },
   ];
 
   const visible = seats.filter((s) => {
-    if (filter !== 'all' && s.status !== filter) return false;
+    if (filter !== 'all' && filterOf(s) !== filter) return false;
+    if (branchFilter && s.branchId !== branchFilter) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return [s.displayName, s.title, branches.find((b) => b.id === s.branchId)?.name]
@@ -245,6 +253,7 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
   });
 
   const nameOf = (seat: SeatItem) => seat.displayName?.trim() || labels.noPersonAssigned;
+  const managedSeat = managed ? seats.find((s) => s.id === managed.id) ?? managed : null;
   const branchOf = (seat: SeatItem) => branches.find((b) => b.id === seat.branchId)?.name;
 
   const validateDraft = (d: NewSeatInput) => {
@@ -290,7 +299,7 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
   if (isLoading) {
     return (
       <div data-testid="seats-loading" className={cn('space-y-4', className)} aria-busy="true">
-        <Skeleton width="40%" height={28} />
+        <Skeleton width="40%" height={32} />
         <Skeleton height={44} />
         {[0, 1, 2, 3].map((i) => (
           <Skeleton key={i} height={64} />
@@ -299,21 +308,124 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
     );
   }
 
+  const selected = seats.find((s) => s.id === selectedId) ?? visible[0] ?? null;
+  const live = seats.filter((s) => s.cardStatus === 'published').length;
+
+  const Sparkline: React.FC<{ data?: number[] }> = ({ data }) => {
+    const values = data && data.length ? data : new Array(14).fill(0);
+    const max = Math.max(4, ...values);
+    const pts = values.map((v, i) => `${((i * 64) / (values.length - 1)).toFixed(1)},${(22 - (v / max) * 20).toFixed(1)}`).join(' ');
+    const any = values.some((v) => v > 0);
+    return (
+      <svg width="64" height="24" viewBox="0 0 64 24" aria-hidden="true" className="shrink-0">
+        <polyline points={pts} fill="none" stroke={any ? '#F68713' : 'rgba(250,247,242,0.2)'} strokeWidth="2" strokeLinejoin="round" />
+      </svg>
+    );
+  };
+
+  const cardPill = (seat: SeatItem) => {
+    if (seat.status === 'inactive') return <StatusChip status="warning">Paused</StatusChip>;
+    if (seat.status === 'offboarded') return <StatusChip status="archived">{labels.statusOffboarded}</StatusChip>;
+    return cardChip(seat);
+  };
+
+  const detail = (seat: SeatItem) => (
+    <div className="space-y-5" data-testid="manage-seat-panel">
+      <div className="flex items-center gap-3.5">
+        <Avatar name={seat.displayName || ''} size="xl" />
+        <div className="min-w-0">
+          <h3 className="text-xl font-bold tracking-tight">{nameOf(seat)}</h3>
+          <p className="text-sm text-charcoal/70 dark:text-warm-paper/60">{seat.title}</p>
+        </div>
+      </div>
+      <div className="text-xs text-charcoal/55 dark:text-warm-paper/45 -mb-3">Last 14 days</div>
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          ['Views', seat.stats?.views ?? 0],
+          ['Saves', seat.stats?.saves ?? 0],
+          ['Leads', seat.stats?.leads ?? 0],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-[10px] border border-sand-border dark:border-white/[0.08] bg-sand/30 dark:bg-charcoal-deep px-3 py-2.5">
+            <div className="text-xl font-bold tabular-nums tracking-tight">{value}</div>
+            <div className="text-xs text-charcoal/60 dark:text-warm-paper/55">{label}</div>
+          </div>
+        ))}
+      </div>
+      <dl className="grid grid-cols-[96px_1fr] gap-x-3 gap-y-2.5 text-sm">
+        <dt className="text-charcoal/60 dark:text-warm-paper/45">Branch</dt>
+        <dd>{branchOf(seat) || '—'}</dd>
+        <dt className="text-charcoal/60 dark:text-warm-paper/45">Card</dt>
+        <dd className="flex flex-wrap items-center gap-2">
+          {cardPill(seat)}
+          {seat.cardPublicUrl && seat.cardStatus === 'published' ? (
+            <a href={seat.cardPublicUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-semibold underline underline-offset-2">
+              Open card <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+            </a>
+          ) : null}
+        </dd>
+        <dt className="text-charcoal/60 dark:text-warm-paper/45">Sign-in</dt>
+        <dd>{statusLabel[seat.status]}</dd>
+        <dt className="text-charcoal/60 dark:text-warm-paper/45">{labels.seatIdLabel}</dt>
+        <dd className="font-mono text-xs break-all pt-0.5">{seat.id}</dd>
+      </dl>
+
+      {seat.isReadOnly ? (
+        <p className="text-sm px-3 py-3 rounded-[10px] bg-warning/10 border border-warning/40">
+          This seat is read-only because the company is over its plan limit. Upgrade to edit it.
+        </p>
+      ) : seat.status !== 'offboarded' ? (
+        <div className="space-y-2">
+          {onEditCard ? (
+            <Button variant="primary" isFullWidth onClick={() => onEditCard(seat.id)}>
+              Edit card in studio
+            </Button>
+          ) : null}
+          {onUpdateStatus ? (
+            <Button
+              variant="secondary"
+              isFullWidth
+              aria-label={`Change status for seat ${seat.id}`}
+              onClick={async () => {
+                const status: SeatItem['status'] = seat.status === 'inactive' ? (seat.personId ? 'active' : 'vacant') : 'inactive';
+                await onUpdateStatus(seat.id, status);
+              }}
+            >
+              {seat.status === 'inactive' ? 'Reactivate card' : 'Pause card'}
+            </Button>
+          ) : null}
+          <p className="flex items-start gap-2 text-[13px] text-charcoal/70 dark:text-warm-paper/55 pt-1">
+            <UserPlus className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+            <span>
+              <span className="font-semibold">{labels.assignPersonTitle}</span> is coming soon. {labels.assignPersonDesc}
+            </span>
+          </p>
+          {onArchiveSeat ? (
+            <Button
+              variant="ghost"
+              isFullWidth
+              onClick={() => setConfirmSeat(seat)}
+              data-testid="offboard-seat-button"
+              className="text-error dark:text-[#F2A29A] border border-error/30 dark:border-[#F2A29A]/30 hover:bg-error/10"
+            >
+              Offboard {seat.displayName || 'this seat'}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className={cn('space-y-6 text-charcoal dark:text-warm-paper', className)}>
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-lg font-bold">{labels.title}</h2>
-          <p className="text-sm text-charcoal/70 dark:text-warm-paper/70 max-w-2xl">{labels.subtitle}</p>
+          <h2 className="text-2xl md:text-[28px] md:leading-9 font-bold tracking-tight">{labels.title}</h2>
+          <p className="text-sm text-charcoal/70 dark:text-warm-paper/60 mt-1">
+            {seats.length > 0 ? `${liveSeats.length} ${liveSeats.length === 1 ? 'seat' : 'seats'} · ${live} ${live === 1 ? 'card' : 'cards'} live` : labels.subtitle}
+          </p>
         </div>
         {onCreateSeat ? (
-          <Button
-            variant="primary"
-            onClick={() => setAddOpen(true)}
-            disabled={atLimit}
-            data-testid="add-seat-button"
-            className="gap-2 self-start sm:self-auto"
-          >
+          <Button variant="primary" onClick={() => setAddOpen(true)} disabled={atLimit} data-testid="add-seat-button" className="gap-2 self-start sm:self-auto">
             <Plus className="w-4 h-4" aria-hidden="true" />
             {labels.addSeat}
           </Button>
@@ -321,14 +433,14 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
       </div>
 
       {isOffline ? (
-        <div role="status" aria-live="polite" className="flex items-center gap-3 px-4 py-3 rounded-panel border border-warning/40 bg-warning/10 text-sm">
+        <div role="status" aria-live="polite" className="flex items-center gap-3 px-4 py-3 rounded-[10px] border border-warning/40 bg-warning/10 text-sm">
           <WifiOff className="w-4 h-4 shrink-0" aria-hidden="true" />
           {labels.offlineBanner}
         </div>
       ) : null}
 
       {error ? (
-        <div role="alert" className="flex items-center gap-3 px-4 py-3 rounded-panel border border-error/40 bg-error/10 text-sm">
+        <div role="alert" className="flex items-center gap-3 px-4 py-3 rounded-[10px] border border-error/40 bg-error/10 text-sm">
           <AlertTriangle className="w-4 h-4 text-error shrink-0" aria-hidden="true" />
           {error}
         </div>
@@ -339,16 +451,14 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
           role="region"
           aria-label="Plan limit warning"
           data-testid="over-limit-banner"
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-4 rounded-panel border border-warning/40 bg-warning/10"
+          className="flex items-start gap-3 px-4 py-4 rounded-[10px] border border-warning/40 bg-warning/10"
         >
-          <div className="flex items-start gap-3">
-            <Lock className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <div className="text-sm font-bold">
-                {labels.overLimitWarningTitle} ({total} of {maxSeats})
-              </div>
-              <p className="text-sm text-charcoal/80 dark:text-warm-paper/80">{labels.overLimitWarningDesc}</p>
+          <Lock className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
+          <div>
+            <div className="text-sm font-bold">
+              {labels.overLimitWarningTitle} ({total} of {maxSeats})
             </div>
+            <p className="text-sm opacity-80">{labels.overLimitWarningDesc}</p>
           </div>
         </div>
       ) : null}
@@ -366,20 +476,13 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
         <>
           <div className="flex flex-col lg:flex-row lg:items-center gap-3">
             <div className="relative lg:w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-charcoal/50 dark:text-warm-paper/50" aria-hidden="true" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50" aria-hidden="true" />
               <label htmlFor="seats-search" className="sr-only">
                 Search people
               </label>
-              <Input
-                id="seats-search"
-                type="search"
-                placeholder="Search by name, title or branch"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-9"
-              />
+              <Input id="seats-search" type="search" placeholder="Search by name, role or branch" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
             </div>
-            <div role="group" aria-label="Filter by status" className="flex gap-1 overflow-x-auto pb-1 lg:pb-0">
+            <div role="group" aria-label="Filter by card" className="flex flex-wrap gap-0.5 p-[3px] rounded-[10px] bg-sand/40 dark:bg-charcoal border border-sand-border dark:border-white/[0.08] self-start">
               {filterOptions.map((opt) => (
                 <button
                   key={opt.value}
@@ -387,81 +490,130 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
                   onClick={() => setFilter(opt.value)}
                   aria-pressed={filter === opt.value}
                   className={cn(
-                    'shrink-0 min-h-[44px] px-3 rounded-control text-sm font-semibold transition-colors',
-                    filter === opt.value
-                      ? 'bg-charcoal text-warm-paper dark:bg-warm-paper dark:text-charcoal'
-                      : 'text-charcoal/70 hover:bg-sand dark:text-warm-paper/70 dark:hover:bg-charcoal'
+                    'min-h-[38px] px-3 rounded-lg text-[13px] font-bold transition-colors',
+                    filter === opt.value ? 'bg-warm-paper text-charcoal shadow-sm dark:bg-[#393536] dark:text-warm-paper' : 'opacity-60 hover:opacity-100'
                   )}
                 >
                   {opt.label}
-                  <span className="ml-1.5 tabular-nums opacity-70">{counts[opt.value] || 0}</span>
+                  <span className="ml-1.5 tabular-nums font-semibold opacity-60">{counts[opt.value] || 0}</span>
                 </button>
               ))}
             </div>
+            {branches.length > 1 ? (
+              <div className="lg:ml-auto lg:w-56">
+                <label htmlFor="seats-branch" className="sr-only">
+                  Branch
+                </label>
+                <Select
+                  id="seats-branch"
+                  value={branchFilter}
+                  onChange={(e) => setBranchFilter(e.target.value)}
+                  options={[{ value: '', label: 'All branches' }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
+                />
+              </div>
+            ) : null}
           </div>
 
-          <div className="rounded-panel border border-sand-border dark:border-sand-border/30 overflow-hidden">
-            <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_140px_120px_96px] gap-4 px-4 py-3 bg-sand/40 dark:bg-charcoal-deep/50 text-xs font-semibold text-charcoal/70 dark:text-warm-paper/70">
-              <span>{labels.personAssignedLabel}</span>
-              <span>Branch</span>
-              <span>{labels.cardBindingTitle}</span>
-              <span>Status</span>
-              <span className="sr-only">Actions</span>
+          <div className={cn('grid gap-4 items-start', wide && 'lg:grid-cols-[minmax(0,1fr)_340px]')}>
+            <div className="rounded-[14px] border border-sand-border dark:border-white/[0.08] bg-warm-paper dark:bg-charcoal overflow-hidden">
+              {visible.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm opacity-70">No one matches this search.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="hidden md:table-header-group">
+                    <tr className="text-left text-xs font-bold uppercase tracking-[0.06em] text-charcoal/50 dark:text-warm-paper/45">
+                      <th scope="col" className="px-5 py-3.5 font-bold">{labels.personAssignedLabel}</th>
+                      <th scope="col" className="px-4 py-3.5 font-bold hidden xl:table-cell">Branch</th>
+                      <th scope="col" className="px-4 py-3.5 font-bold">{labels.cardBindingTitle}</th>
+                      <th scope="col" className="px-4 py-3.5 font-bold text-right">Views</th>
+                      <th scope="col" className="px-4 py-3.5 font-bold text-right">Leads</th>
+                      <th scope="col" className="px-4 py-3.5"><span className="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((seat) => {
+                      const isSel = selected?.id === seat.id;
+                      return (
+                        <tr
+                          key={seat.id}
+                          data-testid={`seat-card-${seat.id}`}
+                          onClick={() => {
+                            setSelectedId(seat.id);
+                            if (typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(min-width: 1024px)').matches) setManaged(seat);
+                          }}
+                          className={cn(
+                            'border-t border-sand-border dark:border-white/[0.08] cursor-pointer transition-colors',
+                            isSel ? 'bg-bridge-orange/[0.07] shadow-[inset_3px_0_0_#F68713]' : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.03]',
+                            seat.isReadOnly && 'opacity-80'
+                          )}
+                        >
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <Avatar name={seat.displayName || ''} />
+                              <div className="min-w-0">
+                                <div className={cn('font-bold', !seat.displayName && 'opacity-60 font-semibold')}>{nameOf(seat)}</div>
+                                <div className="text-[13px] text-charcoal/65 dark:text-warm-paper/55">{seat.title}</div>
+                                <div className="md:hidden mt-1.5 flex flex-wrap items-center gap-2">
+                                  {cardPill(seat)}
+                                  <span className="text-xs opacity-60 tabular-nums">{seat.stats?.views ?? 0} views · {seat.stats?.leads ?? 0} leads</span>
+                                </div>
+                              </div>
+                              {seat.isReadOnly ? (
+                                <span data-testid={`readonly-badge-${seat.id}`} className="shrink-0">
+                                  <StatusChip status="warning">{labels.readOnlyBadge}</StatusChip>
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 hidden xl:table-cell text-charcoal/65 dark:text-warm-paper/55">{branchOf(seat) || '—'}</td>
+                          <td className="px-4 py-3.5 hidden md:table-cell">{cardPill(seat)}</td>
+                          <td className="px-4 py-3.5 hidden md:table-cell">
+                            <div className="flex items-center justify-end gap-2.5">
+                              <Sparkline data={seat.stats?.daily} />
+                              <span className="font-bold tabular-nums w-7 text-right">{seat.stats?.views ?? 0}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 hidden md:table-cell text-right font-bold tabular-nums">{seat.stats?.leads ?? 0}</td>
+                          <td className="px-4 py-3.5 text-right">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedId(seat.id);
+                                setManaged(seat);
+                              }}
+                              aria-label={`Manage ${nameOf(seat)}, ${seat.title}`}
+                              className="w-9 h-9 inline-flex items-center justify-center rounded-[9px] border border-sand-border dark:border-white/10 opacity-70 hover:opacity-100 lg:hidden"
+                            >
+                              <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
+                            </button>
+                            {onEditCard && !seat.isReadOnly && seat.status !== 'offboarded' ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditCard(seat.id);
+                                }}
+                                aria-label={`Edit card for ${nameOf(seat)}`}
+                                className="w-9 h-9 hidden lg:inline-flex items-center justify-center rounded-[9px] border border-sand-border dark:border-white/10 opacity-70 hover:opacity-100"
+                              >
+                                <Pencil className="w-4 h-4" aria-hidden="true" />
+                              </button>
+                            ) : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
             </div>
-            {visible.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-charcoal/70 dark:text-warm-paper/70">
-                No one matches this search.
-              </p>
-            ) : (
-              <ul className="divide-y divide-sand-border dark:divide-sand-border/30">
-                {visible.map((seat) => (
-                  <li
-                    key={seat.id}
-                    data-testid={`seat-card-${seat.id}`}
-                    className={cn(
-                      'grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_140px_120px_96px] items-center gap-x-4 gap-y-2 px-4 py-3 bg-warm-paper dark:bg-charcoal',
-                      seat.isReadOnly && 'bg-sand/30 dark:bg-charcoal-deep/40'
-                    )}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          'w-10 h-10 shrink-0 rounded-control flex items-center justify-center text-sm font-bold',
-                          seat.displayName ? 'bg-charcoal text-warm-paper dark:bg-warm-paper dark:text-charcoal' : 'bg-sand text-charcoal/50 dark:bg-charcoal-deep dark:text-warm-paper/50'
-                        )}
-                      >
-                        {seat.displayName ? initialsOf(seat.displayName) : '—'}
-                      </span>
-                      <div className="min-w-0">
-                        <div className={cn('text-sm font-bold truncate', !seat.displayName && 'text-charcoal/60 dark:text-warm-paper/60 font-semibold')}>
-                          {nameOf(seat)}
-                        </div>
-                        <div className="text-sm text-charcoal/70 dark:text-warm-paper/70 truncate">{seat.title}</div>
-                      </div>
-                      {seat.isReadOnly ? (
-                        <span data-testid={`readonly-badge-${seat.id}`} className="shrink-0">
-                          <StatusChip status="warning">{labels.readOnlyBadge}</StatusChip>
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="hidden md:block text-sm text-charcoal/80 dark:text-warm-paper/80 truncate">{branchOf(seat) || '—'}</div>
-                    <div className="hidden md:block">{cardChip(seat)}</div>
-                    <div className="hidden md:block">{statusChip(seat.status)}</div>
-                    <div className="flex justify-end">
-                      <Button variant="ghost" onClick={() => setManaged(seat)} aria-label={`Manage ${nameOf(seat)}, ${seat.title}`}>
-                        Manage
-                      </Button>
-                    </div>
-                    <div className="md:hidden col-span-2 flex flex-wrap items-center gap-2">
-                      {statusChip(seat.status)}
-                      {cardChip(seat)}
-                      {branchOf(seat) ? <span className="text-xs text-charcoal/60 dark:text-warm-paper/60">{branchOf(seat)}</span> : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+
+            {selected && wide ? (
+              <aside aria-label={`Details for ${nameOf(selected)}`} className="sticky top-0 rounded-[14px] border border-sand-border dark:border-white/[0.08] bg-warm-paper dark:bg-charcoal p-5">
+                {detail(selected)}
+              </aside>
+            ) : null}
           </div>
         </>
       )}
@@ -567,89 +719,12 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
         </form>
       </SlideOverPanel>
 
-      {/* Manage seat */}
-      <SlideOverPanel isOpen={Boolean(managed)} onClose={() => setManaged(null)} title={managed ? nameOf(managed) : ''}>
-        {managed ? (
-          <div className="space-y-6" data-testid="manage-seat-panel">
-            <dl className="grid grid-cols-[110px_1fr] gap-x-4 gap-y-3 text-sm">
-              <dt className="text-charcoal/60 dark:text-warm-paper/60">Job title</dt>
-              <dd className="font-semibold">{managed.title}</dd>
-              <dt className="text-charcoal/60 dark:text-warm-paper/60">Branch</dt>
-              <dd>{branchOf(managed) || '—'}</dd>
-              <dt className="text-charcoal/60 dark:text-warm-paper/60">Status</dt>
-              <dd>{statusChip(managed.status)}</dd>
-              <dt className="text-charcoal/60 dark:text-warm-paper/60">{labels.cardBindingTitle}</dt>
-              <dd className="flex flex-wrap items-center gap-2">
-                {cardChip(managed)}
-                {managed.cardPublicUrl && managed.cardStatus === 'published' ? (
-                  <a
-                    href={managed.cardPublicUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 min-h-[44px] text-sm font-semibold text-deep-orange underline underline-offset-2"
-                  >
-                    Open card <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-                  </a>
-                ) : null}
-              </dd>
-              <dt className="text-charcoal/60 dark:text-warm-paper/60">{labels.seatIdLabel}</dt>
-              <dd className="font-mono text-xs break-all">{managed.id}</dd>
-            </dl>
-
-            {managed.isReadOnly ? (
-              <p className="text-sm px-3 py-3 rounded-panel bg-warning/10 border border-warning/40">
-                This seat is read-only because the company is over its plan limit. Upgrade to edit it.
-              </p>
-            ) : managed.status !== 'offboarded' ? (
-              <div className="space-y-4">
-                {onEditCard ? (
-                  <Button variant="secondary" isFullWidth onClick={() => { onEditCard(managed.id); setManaged(null); }}>
-                    Edit card details
-                  </Button>
-                ) : null}
-                {onUpdateStatus ? (
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-bold">{managed.status === 'inactive' ? 'Seat is paused' : 'Pause this seat'}</h3>
-                    <p className="text-sm text-charcoal/70 dark:text-warm-paper/70">
-                      {managed.status === 'inactive'
-                        ? 'Visitors see a neutral "card inactive" page. Reactivate to show the card again.'
-                        : 'Use this for someone on long leave. Visitors see a neutral "card inactive" page until you reactivate it.'}
-                    </p>
-                    <Button
-                      variant="secondary"
-                      aria-label={`Change status for seat ${managed.id}`}
-                      onClick={async () => {
-                        const status: SeatItem['status'] = managed.status === 'inactive' ? (managed.personId ? 'active' : 'vacant') : 'inactive';
-                        await onUpdateStatus(managed.id, status);
-                        setManaged({ ...managed, status });
-                      }}
-                    >
-                      {managed.status === 'inactive' ? 'Reactivate seat' : 'Pause seat'}
-                    </Button>
-                  </div>
-                ) : null}
-                <div className="flex items-start gap-3 px-3 py-3 rounded-panel border border-dashed border-sand-border dark:border-sand-border/30 text-sm">
-                  <UserPlus className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
-                  <span>
-                    <span className="font-semibold">{labels.assignPersonTitle}</span> is coming soon. {labels.assignPersonDesc}
-                  </span>
-                </div>
-                {onArchiveSeat ? (
-                  <div className="pt-4 border-t border-sand-border dark:border-sand-border/30 space-y-2">
-                    <h3 className="text-sm font-bold">Offboard</h3>
-                    <p className="text-sm text-charcoal/70 dark:text-warm-paper/70">
-                      Use this when someone leaves. Their card shows a &quot;has moved on&quot; page; the seat keeps its link, QR codes and leads.
-                    </p>
-                    <Button variant="destructive" onClick={() => setConfirmSeat(managed)} data-testid="offboard-seat-button">
-                      Offboard {managed.displayName || 'this seat'}
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </SlideOverPanel>
+      {/* Manage seat (phones and tablets; wide screens show the detail beside the table) */}
+      {!wide ? (
+        <SlideOverPanel isOpen={Boolean(managedSeat)} onClose={() => setManaged(null)} title={managedSeat ? nameOf(managedSeat) : ''}>
+          {managedSeat ? detail(managedSeat) : null}
+        </SlideOverPanel>
+      ) : null}
 
       <ConfirmDialog
         isOpen={Boolean(confirmSeat)}

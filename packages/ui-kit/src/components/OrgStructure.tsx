@@ -349,7 +349,7 @@ export const OrgStructure: React.FC<OrgStructureProps> = ({
   return (
     <div data-testid="org-structure-container" className={cn('space-y-8 text-charcoal dark:text-warm-paper', className)}>
       <div>
-        <h2 className="text-lg font-bold">{t.title}</h2>
+        <h2 className="text-2xl md:text-[28px] md:leading-9 font-bold tracking-tight">{t.title}</h2>
         <p className="text-sm text-charcoal/70 dark:text-warm-paper/70 max-w-2xl">{t.subtitle}</p>
       </div>
 

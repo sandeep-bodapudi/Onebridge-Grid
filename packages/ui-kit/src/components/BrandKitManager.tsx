@@ -429,7 +429,7 @@ export const BrandKitManager: React.FC<BrandKitManagerProps> = ({
   return (
     <div className={cn('text-charcoal dark:text-warm-paper', className)}>
       <div className="mb-6">
-        <h2 className="text-lg font-bold">{labels.title}</h2>
+        <h2 className="text-2xl md:text-[28px] md:leading-9 font-bold tracking-tight">{labels.title}</h2>
         <p className="text-sm text-charcoal/70 dark:text-warm-paper/70 max-w-2xl">{labels.subtitle}</p>
       </div>
 
@@ -637,7 +637,8 @@ export const BrandKitManager: React.FC<BrandKitManagerProps> = ({
         <aside className="lg:sticky lg:top-0 space-y-3" aria-label={labels.previewTitle}>
           <h3 className="text-sm font-bold text-charcoal/70 dark:text-warm-paper/70">{labels.previewTitle}</h3>
           <div className="rounded-sheet border border-sand-border dark:border-sand-border/30 bg-warm-paper dark:bg-charcoal overflow-hidden shadow-overlay max-w-[340px]">
-            <div data-testid="preview-header-band" className="px-5 pt-5 pb-4" style={{ backgroundColor: brandKit.brandColours.band }}>
+            <div data-testid="preview-header-band" className="relative px-5 pt-5 pb-6" style={{ backgroundColor: brandKit.brandColours.band }}>
+              <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[5px] bg-bridge-orange" />
               <div className="flex items-center justify-between mb-5">
                 {brandKit.logo ? (
                   <img src={brandKit.logo} alt="" className="max-h-7 max-w-[120px] object-contain" />
@@ -650,7 +651,7 @@ export const BrandKitManager: React.FC<BrandKitManagerProps> = ({
               <div className="flex items-center gap-3">
                 <span
                   aria-hidden="true"
-                  className="w-14 h-14 rounded-panel flex items-center justify-center text-lg font-bold shrink-0"
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold shrink-0"
                   style={{ backgroundColor: brandKit.brandColours.text, color: brandKit.brandColours.band }}
                 >
                   {previewName.charAt(0)}
@@ -664,22 +665,17 @@ export const BrandKitManager: React.FC<BrandKitManagerProps> = ({
                   </div>
                 </div>
               </div>
-              <div className="flex items-center mt-4" aria-hidden="true">
-                <span className="w-1.5 h-1.5" style={{ backgroundColor: brandKit.brandColours.text }} />
-                <span className="flex-1 h-[1.5px]" style={{ backgroundColor: brandKit.brandColours.text, opacity: 0.8 }} />
-                <span className="w-1.5 h-1.5" style={{ backgroundColor: brandKit.brandColours.text }} />
-              </div>
             </div>
-            <div className="grid grid-cols-3 gap-px bg-sand-border dark:bg-sand-border/30 border-b border-sand-border dark:border-sand-border/30" aria-hidden="true">
+            <div className="grid grid-cols-3 gap-2 p-3 bg-white" aria-hidden="true">
               {['Call', 'Email', 'Directions'].map((label) => (
-                <div key={label} className="py-3 text-center text-xs font-semibold bg-warm-paper dark:bg-charcoal">
+                <div key={label} className="py-3 text-center text-xs font-bold rounded-xl bg-[#F4EFE6] text-charcoal">
                   <span className="block w-4 h-[3px] mx-auto mb-1.5" style={{ backgroundColor: brandKit.brandColours.accent }} />
                   {label}
                 </div>
               ))}
             </div>
-            <div className="p-4">
-              <div className="h-11 rounded-control bg-bridge-orange text-charcoal text-sm font-bold flex items-center justify-center" aria-hidden="true">
+            <div className="p-3 pt-1 bg-white">
+              <div className="h-11 rounded-[14px] bg-bridge-orange text-[#241A10] text-sm font-extrabold flex items-center justify-center" aria-hidden="true">
                 Save contact
               </div>
             </div>
