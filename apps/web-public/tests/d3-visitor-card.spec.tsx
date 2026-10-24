@@ -76,13 +76,13 @@ describe('Phase D3: Visitor Card Component & States (Span Design System)', () =>
     },
   };
 
-  it('renders header with 32px name, role, company, Business ID plate, and keystone verified tag', () => {
+  it('renders header with a large name, role, company, Business ID plate, and keystone verified tag', () => {
     const { container } = render(<VisitorCard data={sampleCardData} />);
 
-    // Name at 32px
+    // Large name (30px, D-UI-PREMIUM)
     const heading = screen.getByRole('heading', { level: 1 });
     expect(heading.textContent).toBe('Rajesh Shinde');
-    expect(heading.className).toContain('text-[32px]');
+    expect(heading.className).toContain('text-[30px]');
 
     // Role and company
     expect(screen.getByText('Founder & Managing Director')).toBeDefined();
@@ -98,7 +98,7 @@ describe('Phase D3: Visitor Card Component & States (Span Design System)', () =>
     const avatarImg = screen.getByAltText('Rajesh Shinde');
     expect(avatarImg).toBeDefined();
     const avatarWrap = avatarImg.parentElement;
-    expect(avatarWrap?.className).toContain('rounded-panel'); // 10px panel radius
+    expect(avatarWrap?.className).toContain('rounded-[22px]'); // rounded square, never a circle
     expect(avatarWrap?.className).not.toContain('rounded-full');
     expect(avatarWrap?.className).not.toContain('rounded-arch');
 
@@ -138,7 +138,7 @@ describe('Phase D3: Visitor Card Component & States (Span Design System)', () =>
     expect(saveBtn).toBeDefined();
     expect(saveBtn.className).toContain('bg-bridge-orange');
     expect(saveBtn.className).toContain('text-charcoal');
-    expect(saveBtn.className).toContain('rounded-control');
+    expect(saveBtn.className).toContain('rounded-[14px]');
 
     fireEvent.click(saveBtn);
     expect(onSaveContact).toHaveBeenCalledWith({
@@ -174,7 +174,7 @@ describe('Phase D3: Visitor Card Component & States (Span Design System)', () =>
     render(<VisitorCard data={sampleCardData} onSharebackSubmit={onSharebackSubmit} />);
 
     // The form opens in a bottom sheet
-    fireEvent.click(screen.getByRole('button', { name: /share your details back/i }));
+    fireEvent.click(screen.getByRole('button', { name: /share your details with/i }));
 
     // Form fields
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Anand Mahindra' } });

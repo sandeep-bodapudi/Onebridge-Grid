@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Inbox, Phone, Mail, Search } from 'lucide-react';
-import { EmptyState, Input, Skeleton, formatRelativeTime } from '@onebridge/ui-kit';
+import { Avatar, EmptyState, Input, PageHeader, Skeleton, formatRelativeTime } from '@onebridge/ui-kit';
 import type { LeadSummary } from '@onebridge/api-contracts';
 import { apiClient } from '../../api-client';
 
@@ -46,23 +46,22 @@ export const LeadsFeature: React.FC<LeadsFeatureProps> = ({ tenantId, className 
 
   return (
     <div className={className} data-testid="leads-feature">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-lg font-bold">Leads</h2>
-          <p className="text-sm text-charcoal/70 dark:text-warm-paper/70 max-w-2xl">
-            People who shared their details from a card. Each lead stays with the card&apos;s seat, even if the person moves on.
-          </p>
-        </div>
-        {leads.length > 0 ? (
-          <div className="relative sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-charcoal/50 dark:text-warm-paper/50" aria-hidden="true" />
-            <label htmlFor="leads-search" className="sr-only">
-              Search leads
-            </label>
-            <Input id="leads-search" type="search" placeholder="Search leads" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
-          </div>
-        ) : null}
-      </div>
+      <PageHeader
+        className="mb-6"
+        title="Leads"
+        subtitle="People who shared their details from a card. Each lead stays with the card's seat, even if the person moves on."
+        actions={
+          leads.length > 0 ? (
+            <div className="relative sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50" aria-hidden="true" />
+              <label htmlFor="leads-search" className="sr-only">
+                Search leads
+              </label>
+              <Input id="leads-search" type="search" placeholder="Search leads" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9 rounded-[10px]" />
+            </div>
+          ) : null
+        }
+      />
 
       {error ? (
         <div role="alert" className="px-4 py-3 rounded-panel border border-error/40 bg-error/10 text-sm">
@@ -81,38 +80,50 @@ export const LeadsFeature: React.FC<LeadsFeatureProps> = ({ tenantId, className 
           description="When a visitor taps Share your details on a card, they appear here."
         />
       ) : (
-        <ul className="rounded-panel border border-sand-border dark:border-sand-border/30 divide-y divide-sand-border dark:divide-sand-border/30 overflow-hidden">
-          {visible.map((lead) => (
-            <li key={lead.id} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center px-4 py-3 bg-warm-paper dark:bg-charcoal">
+        <ul className="rounded-[14px] border border-white/[0.08] bg-charcoal overflow-hidden">
+          {visible.map((lead, idx) => (
+            <li
+              key={lead.id}
+              className={`grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-4 gap-y-1 items-center px-5 py-4 ${idx > 0 ? 'border-t border-white/[0.08]' : ''}`}
+            >
+              <Avatar name={lead.name} />
               <div className="min-w-0">
-                <div className="text-sm font-bold truncate">{lead.name}</div>
-                <div className="text-sm text-charcoal/70 dark:text-warm-paper/70 truncate">
-                  {lead.company || 'No company given'}
-                  {lead.note ? ` · “${lead.note}”` : ''}
+                <div className="text-sm font-bold">{lead.name}</div>
+                <div className="text-[13px] text-warm-paper/60">
+                  {[lead.company, lead.ownerName ? `via ${lead.ownerName}` : null, lead.sourceTag ? lead.sourceTag.replace(/_/g, ' ') : null].filter(Boolean).join(' · ')}
+                </div>
+                {lead.note ? <div className="text-[13px] text-warm-paper/80 mt-1">“{lead.note}”</div> : null}
+                <div className="flex flex-wrap gap-x-4 text-[13px] mt-1 sm:hidden">
+                  <span className="tabular-nums">{lead.phone}</span>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1.5 min-h-[44px] font-semibold underline underline-offset-2">
-                  <Phone className="w-4 h-4" aria-hidden="true" />
-                  {lead.phone}
-                </a>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:block text-right">
+                  <div className="text-sm font-semibold tabular-nums select-all">{lead.phone}</div>
+                  <time dateTime={lead.createdAt} className="text-xs text-warm-paper/45">
+                    {formatRelativeTime(lead.createdAt)}
+                  </time>
+                </div>
                 {lead.email ? (
-                  <a href={`mailto:${lead.email}`} className="inline-flex items-center gap-1.5 min-h-[44px] underline underline-offset-2 truncate">
+                  <a
+                    href={`mailto:${lead.email}`}
+                    aria-label={`Email ${lead.name}`}
+                    className="w-10 h-10 rounded-[10px] border border-white/15 inline-flex items-center justify-center hover:bg-white/5"
+                  >
                     <Mail className="w-4 h-4" aria-hidden="true" />
-                    {lead.email}
                   </a>
                 ) : null}
-              </div>
-              <div className="text-xs text-charcoal/60 dark:text-warm-paper/60 sm:text-right">
-                <div>For {lead.ownerName || 'a card'}</div>
-                <div>
-                  <time dateTime={lead.createdAt}>{formatRelativeTime(lead.createdAt)}</time>
-                  {lead.sourceTag ? ` · ${lead.sourceTag.replace(/_/g, ' ')}` : ''}
-                </div>
+                <a
+                  href={`tel:${lead.phone}`}
+                  aria-label={`Call ${lead.name}`}
+                  className="w-10 h-10 rounded-[10px] bg-bridge-orange text-[#241A10] inline-flex items-center justify-center hover:brightness-105"
+                >
+                  <Phone className="w-4 h-4" aria-hidden="true" />
+                </a>
               </div>
             </li>
           ))}
-          {visible.length === 0 ? <li className="px-4 py-6 text-sm text-center text-charcoal/70 dark:text-warm-paper/70">No leads match this search.</li> : null}
+          {visible.length === 0 ? <li className="px-5 py-8 text-sm text-center text-warm-paper/60">No leads match this search.</li> : null}
         </ul>
       )}
     </div>

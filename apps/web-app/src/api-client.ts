@@ -1,4 +1,5 @@
 import type {
+  CompanyProfileSettings,
   Organization,
   CreateOrganizationRequest,
   UpdateOrganizationRequest,
@@ -1039,6 +1040,26 @@ export const apiClient = {
   async listLeads(tenantId?: string): Promise<LeadSummary[]> {
     const data = await this.cardsRequest<{ items: LeadSummary[] }>('/leads', { method: 'GET' }, tenantId, 'Could not load leads');
     return data.items || [];
+  },
+
+  /** F26: public company page settings (catalogue, portfolio, documents, people, routing, SEO). */
+  async getCompanyProfile(tenantId?: string): Promise<CompanyProfileSettings> {
+    return this.cardsRequest<CompanyProfileSettings>('/company-profile', { method: 'GET' }, tenantId, 'Could not load the company page');
+  },
+
+  async updateCompanyProfile(settings: CompanyProfileSettings, tenantId?: string): Promise<CompanyProfileSettings> {
+    const { limits: _limits, ...body } = settings;
+    return this.cardsRequest<CompanyProfileSettings>(
+      '/company-profile',
+      { method: 'PUT', body: JSON.stringify(body) },
+      tenantId,
+      'Could not save the company page'
+    );
+  },
+
+  /** Public company page (apps/web-public). */
+  publicCompanyUrl(companySlug: string): string {
+    return `${WEB_PUBLIC_URL}/${companySlug}`;
   },
 
   /** True when the hosted prototype shows the read-only leads list. */

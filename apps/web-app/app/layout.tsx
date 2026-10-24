@@ -4,7 +4,7 @@ import { fontManrope, fontNoto } from './fonts';
 
 export const metadata = {
   title: 'OneBridge Grid',
-  description: 'Digital Business Identity Platform',
+  description: 'Company-owned digital business cards',
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${fontManrope.variable} ${fontNoto.variable}`}>
+    <html lang="en" className={`dark ${fontManrope.variable} ${fontNoto.variable}`} style={{ colorScheme: 'dark' }}>
       <body className="min-h-screen bg-warm-paper text-charcoal font-body antialiased dark:bg-charcoal-deep dark:text-warm-paper">
         {children}
       </body>

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, CreditCard, FileClock, Inbox, LayoutGrid, Palette, Users } from 'lucide-react';
+import { Building2, CreditCard, FileClock, Globe, Inbox, LayoutGrid, Palette, Users } from 'lucide-react';
 import { AppShell, Button, SpanMark, type NavItem } from '@onebridge/ui-kit';
 import type { BrandKit, Organization } from '@onebridge/api-contracts';
 import { apiClient } from '../../src/api-client';
@@ -14,6 +14,7 @@ import { CardsFeature } from '../../src/features/cards';
 import { QrFeature } from '../../src/features/qr-codes';
 import { OverviewFeature } from '../../src/features/overview';
 import { LeadsFeature } from '../../src/features/leads';
+import { CompanyPageFeature } from '../../src/features/company-page';
 import { OnboardingFlow, enOnboardingLabels, type OnboardingFormData } from '../../src/features/onboarding';
 
 export interface UserProfile {
@@ -32,13 +33,14 @@ export interface UserProfile {
   };
 }
 
-type Section = 'overview' | 'cards' | 'seats' | 'leads' | 'structure' | 'brand' | 'audit';
+type Section = 'overview' | 'cards' | 'seats' | 'leads' | 'company' | 'structure' | 'brand' | 'audit';
 
 const SECTION_META: Record<Section, { title: string; description: string }> = {
   overview: { title: 'Overview', description: 'How your cards are doing and what to do next.' },
-  cards: { title: 'Cards', description: 'Edit each person’s card, publish it and get its QR code.' },
+  cards: { title: 'Card studio', description: 'Edit each person’s card, publish it and get its QR code.' },
   seats: { title: 'People', description: 'Seats, the people in them and their cards.' },
   leads: { title: 'Leads', description: 'Visitors who shared their details.' },
+  company: { title: 'Company page', description: 'Your public page: catalogue, work, people and enquiries.' },
   structure: { title: 'Branches and teams', description: 'Locations, departments and teams.' },
   brand: { title: 'Brand kit', description: 'Logo, colours and what employees can change.' },
   audit: { title: 'Audit log', description: 'Every change admins made.' },
@@ -58,6 +60,7 @@ export default function DashboardPage() {
   const [org, setOrg] = useState<Organization | null>(null);
   const [brandKit, setBrandKit] = useState<BrandKit | null>(null);
   const [ownCardName, setOwnCardName] = useState<string>('');
+  const [recentLeads, setRecentLeads] = useState(0);
   const [loading, setLoading] = useState(true);
   const [section, setSection] = useState<Section>('overview');
   const [cardSeatId, setCardSeatId] = useState<string | null>(null);
@@ -86,6 +89,10 @@ export default function DashboardPage() {
       // Sign-in is by phone, so the person record may have no name: use the name on their own card.
       const ownSeat = seats?.items?.find((s) => s.personId && s.personId === me.person?.id);
       setOwnCardName(cards.find((c) => (c.seatId || c.id) === ownSeat?.id)?.name || '');
+      apiClient
+        .getOverviewStats(tenantId)
+        .then((s) => setRecentLeads(s.period?.leads ?? 0))
+        .catch(() => undefined);
     }
   }, []);
 
@@ -193,7 +200,7 @@ export default function DashboardPage() {
   }
 
   const visible: Section[] = isAdmin
-    ? (['overview', 'cards', 'seats', ...(leadsEnabled ? (['leads'] as Section[]) : []), 'structure', 'brand', 'audit'] as Section[])
+    ? (['overview', 'cards', 'seats', ...(leadsEnabled ? (['leads'] as Section[]) : []), 'company', 'structure', 'brand', 'audit'] as Section[])
     : ['overview', 'cards'];
   const current = visible.includes(section) ? section : 'overview';
 
@@ -202,6 +209,7 @@ export default function DashboardPage() {
     cards: <CreditCard aria-hidden="true" />,
     seats: <Users aria-hidden="true" />,
     leads: <Inbox aria-hidden="true" />,
+    company: <Globe aria-hidden="true" />,
     structure: <Building2 aria-hidden="true" />,
     brand: <Palette aria-hidden="true" />,
     audit: <FileClock aria-hidden="true" />,
@@ -214,6 +222,7 @@ export default function DashboardPage() {
     icon: icons[id] as NavItem['icon'],
     isActive: current === id,
     primary: primary.includes(id),
+    badge: id === 'leads' && recentLeads > 0 ? recentLeads : undefined,
   }));
 
   const brandColours = brandKit?.brandColours;
@@ -226,9 +235,6 @@ export default function DashboardPage() {
       userRole={roleDisplay}
       navItems={navItems}
       onNavigate={(id) => navigate(id as Section)}
-      // Sections with their own heading (People, Leads, Brand kit...) render it themselves; avoid saying it twice.
-      pageTitle={current === 'overview' || current === 'cards' ? SECTION_META[current].title : undefined}
-      pageDescription={current === 'overview' || current === 'cards' ? SECTION_META[current].description : undefined}
       onSignOut={handleLogout}
     >
       <div data-testid="dashboard-container">
@@ -243,9 +249,14 @@ export default function DashboardPage() {
             tenantId={activeOrgId}
             isAdmin={isAdmin}
             companyName={companyName}
+            firstName={displayName.split(/\s+/)[0]}
             selfPersonId={profile.person?.id}
             selfName={profile.person?.name || ownCardName}
             onNavigate={(next) => navigate(next)}
+            onEditCard={(seatId) => {
+              setCardSeatId(seatId);
+              navigate('cards');
+            }}
           />
         ) : null}
 
@@ -288,6 +299,10 @@ export default function DashboardPage() {
         ) : null}
 
         {current === 'leads' && leadsEnabled ? <LeadsFeature tenantId={activeOrgId} /> : null}
+
+        {current === 'company' && isAdmin ? (
+          <CompanyPageFeature tenantId={activeOrgId} organization={org} onOrganizationSaved={setOrg} />
+        ) : null}
 
         {current === 'structure' && isAdmin ? <OrgStructureFeature tenantId={activeOrgId} plan={plan} /> : null}
 

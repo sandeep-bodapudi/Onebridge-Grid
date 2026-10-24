@@ -34,8 +34,7 @@ describe('Phase D2: App Shell, Sign In & Onboarding Architecture', () => {
         </AppShell>
       );
 
-      // Greeting uses the person's first name; full name and role sit in the user menu
-      expect(screen.getByText('Good morning, Sandeep')).toBeTruthy();
+      // The person and role sit at the bottom of the rail; pages render their own greeting and title
       expect(screen.getByText('Sandeep Bodapudi')).toBeTruthy();
       expect(screen.getByText('Admin')).toBeTruthy();
 
@@ -49,7 +48,7 @@ describe('Phase D2: App Shell, Sign In & Onboarding Architecture', () => {
 
       // Company switcher & Business ID nameplate
       expect(screen.getAllByText('Bharat Enterprises')).toHaveLength(2);
-      expect(screen.getAllByText('OB-7KQ2MX')).toHaveLength(2);
+      expect(screen.getAllByText('OB-7KQ2MX')).toHaveLength(1);
     });
 
     it('greeting uses person name and never exposes phone number', () => {
@@ -67,7 +66,7 @@ describe('Phase D2: App Shell, Sign In & Onboarding Architecture', () => {
         </AppShell>
       );
 
-      expect(screen.getByText('Good morning, Priya')).toBeTruthy();
+      expect(screen.getByText('Priya')).toBeTruthy();
       expect(screen.queryByText(/98765/)).toBeNull();
     });
   });

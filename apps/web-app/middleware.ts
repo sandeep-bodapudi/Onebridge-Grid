@@ -4,7 +4,8 @@ import { DEMO_ACCESS_COOKIE, demoAccessToken, safeEqual } from './src/demo-acces
 /** Hosted prototype only: ask for the shared passcode before showing the dashboard (D-DEMO-HOSTING). */
 export async function middleware(request: NextRequest) {
   const passcode = process.env.DEMO_ACCESS_PASSCODE;
-  if (!passcode) return NextResponse.next();
+  // The product homepage is public; the passcode guards the demo behind it.
+  if (!passcode || request.nextUrl.pathname === '/') return NextResponse.next();
 
   const cookie = request.cookies.get(DEMO_ACCESS_COOKIE)?.value || '';
   if (cookie && safeEqual(cookie, await demoAccessToken(passcode))) return NextResponse.next();

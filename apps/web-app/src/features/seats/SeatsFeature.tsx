@@ -59,6 +59,7 @@ export const SeatsFeature: React.FC<SeatsFeatureProps> = ({
         displayName: cardBySeat.get(s.id)?.name || undefined,
         cardStatus: cardBySeat.get(s.id)?.status,
         cardPublicUrl: cardBySeat.get(s.id)?.publicUrl,
+        stats: cardBySeat.get(s.id)?.stats,
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
       }));

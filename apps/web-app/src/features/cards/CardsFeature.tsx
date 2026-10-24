@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { ExternalLink, Search } from 'lucide-react';
 import {
   CardEditor,
   type CardEditorCard,
   type CardEditorSection,
   type CardEditorTemplate,
+  Avatar,
   Input,
-  PhoneFramePreview,
-  Select,
+  PageHeader,
   Skeleton,
   StatusChip,
   VisitorCard,
@@ -47,11 +47,6 @@ function toEditorCard(card: Card): CardEditorCard {
   };
 }
 
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '—';
-  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
-}
 
 /** Builds the visitor-page view of a card from the editor's (possibly unsaved) draft. */
 function previewData(
@@ -104,7 +99,6 @@ export const CardsFeature: React.FC<CardsFeatureProps> = ({
   const [templates, setTemplates] = useState<CardEditorTemplate[]>([]);
   const [selectedSeatId, setSelectedSeatId] = useState<string | null>(initialSeatId ?? null);
   const [card, setCard] = useState<Card | null>(null);
-  const [draft, setDraft] = useState<{ templateId: string; sections: CardEditorSection[] } | null>(null);
   const [query, setQuery] = useState('');
   const [listLoading, setListLoading] = useState(true);
   const [cardLoading, setCardLoading] = useState(false);
@@ -222,102 +216,118 @@ export const CardsFeature: React.FC<CardsFeatureProps> = ({
   // Stable object: CardEditor resets its draft whenever `card` changes identity.
   const editorCard = useMemo(() => (card ? toEditorCard(card) : null), [card]);
 
-  const preview =
-    card && company ? previewData(card, draft ?? { templateId: card.templateId, sections: card.sections as unknown as CardEditorSection[] }, company) : null;
-
-  return (
-    <div className={cn('grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_340px]', className)} data-testid="cards-feature">
-      {/* Below the large breakpoint a long list would push the editor off screen: pick a person from a menu instead. */}
-      {!listLoading && seats.length > 0 ? (
-        <div className="lg:hidden space-y-1">
-          <label htmlFor="cards-person-select" className="block text-sm font-semibold">
-            Person
-          </label>
-          <Select
-            id="cards-person-select"
-            value={selectedSeatId ?? ''}
-            onChange={(e) => setSelectedSeatId(e.target.value)}
-            options={seats.map((seat) => ({
-              value: seat.id,
-              label: `${nameOf(seat) || 'Name not added yet'}, ${seat.title}${summaries[seat.id]?.status && summaries[seat.id]?.status !== 'published' ? ' (draft)' : ''}`,
-            }))}
-          />
+  const renderPreview = (d: { templateId: string; sections: CardEditorSection[] }) =>
+    card && company ? (
+      <div
+        className="w-[300px] max-w-full h-[612px] rounded-[40px] bg-[#0C0B0B] p-2.5 shrink-0 shadow-[0_30px_80px_rgba(0,0,0,0.55),0_0_0_1px_rgba(250,247,242,0.08)]"
+        role="region"
+        aria-label="Live preview of the visitor card"
+      >
+        <div
+          className="w-full h-full rounded-[31px] overflow-hidden overflow-y-auto pointer-events-auto bg-warm-paper [scrollbar-width:none]"
+          // A transform keeps the card's fixed action bar inside the phone instead of the window.
+          style={{ transform: 'translateZ(0)' }}
+        >
+          <div
+            className="pointer-events-none select-none light"
+            ref={(el) => {
+              if (el) el.setAttribute('inert', '');
+            }}
+          >
+            <VisitorCard data={previewData(card, d, company)} theme="light" />
+          </div>
         </div>
-      ) : null}
-      <nav aria-label="People" className={cn('min-w-0 space-y-3', !listLoading && seats.length > 0 && 'hidden lg:block')}>
+      </div>
+    ) : null;
+
+  const peopleList = (
+    <div className="space-y-2.5">
+      <div className="text-xs font-bold uppercase tracking-[0.06em] text-charcoal/50 dark:text-warm-paper/45">People</div>
+      {seats.length > 6 ? (
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-charcoal/50 dark:text-warm-paper/50" aria-hidden="true" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50" aria-hidden="true" />
           <label htmlFor="cards-search" className="sr-only">
             Search cards
           </label>
-          <Input id="cards-search" type="search" placeholder="Search people" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
+          <Input id="cards-search" type="search" placeholder="Search people" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9 rounded-[10px] dark:bg-charcoal-deep" />
         </div>
-        {listLoading ? (
-          <div className="space-y-2" aria-busy="true">
-            {[0, 1, 2].map((i) => (
-              <Skeleton key={i} height={56} />
-            ))}
-          </div>
-        ) : seats.length === 0 ? (
-          <p className="text-sm text-charcoal/70 dark:text-warm-paper/70" data-testid="cards-empty">
-            No cards yet. Add a seat under People and its card appears here.
-          </p>
-        ) : (
-          <ul className="space-y-1 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto">
-            {filtered.map((seat) => {
-              const name = nameOf(seat);
-              const status = summaries[seat.id]?.status;
-              const selected = seat.id === selectedSeatId;
-              return (
-                <li key={seat.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSeatId(seat.id)}
-                    aria-current={selected ? 'true' : undefined}
-                    className={cn(
-                      'w-full flex items-center gap-3 min-h-[56px] px-3 rounded-control text-left transition-colors',
-                      selected ? 'bg-sand dark:bg-charcoal' : 'hover:bg-sand/50 dark:hover:bg-charcoal/60'
-                    )}
-                    data-testid={`cards-seat-${seat.id}`}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        'w-9 h-9 shrink-0 rounded-control flex items-center justify-center text-xs font-bold',
-                        selected ? 'bg-charcoal text-warm-paper dark:bg-warm-paper dark:text-charcoal' : 'bg-sand-border/60 dark:bg-charcoal-deep'
-                      )}
-                    >
-                      {name ? initialsOf(name) : '—'}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className={cn('block text-sm truncate', name ? 'font-bold' : 'font-semibold text-charcoal/60 dark:text-warm-paper/60')}>
-                        {name || 'Name not added yet'}
-                      </span>
-                      <span className="block text-xs text-charcoal/60 dark:text-warm-paper/60 truncate">{seat.title}</span>
-                    </span>
-                    {status === 'published' ? (
-                      <span className="sr-only">Published</span>
-                    ) : status ? (
-                      <StatusChip status={status === 'pending_approval' ? 'info' : 'draft'} className="shrink-0">
-                        {status === 'pending_approval' ? 'Review' : 'Draft'}
-                      </StatusChip>
-                    ) : null}
-                  </button>
-                </li>
-              );
-            })}
-            {filtered.length === 0 ? <li className="px-3 py-4 text-sm text-charcoal/70 dark:text-warm-paper/70">No one matches “{query}”.</li> : null}
-          </ul>
-        )}
+      ) : null}
+      <nav aria-label="People">
+        <ul className="space-y-0.5 max-h-[264px] overflow-y-auto pr-1">
+          {filtered.map((seat) => {
+            const name = nameOf(seat);
+            const status = summaries[seat.id]?.status;
+            const selected = seat.id === selectedSeatId;
+            return (
+              <li key={seat.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSeatId(seat.id)}
+                  aria-current={selected ? 'true' : undefined}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 min-h-[48px] px-2 rounded-[10px] text-left transition-colors',
+                    selected ? 'bg-sand dark:bg-[#393536]' : 'hover:bg-sand/50 dark:hover:bg-white/5'
+                  )}
+                  data-testid={`cards-seat-${seat.id}`}
+                >
+                  <Avatar name={name} size="sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className={cn('block text-sm truncate', name ? 'font-semibold' : 'opacity-60')}>{name || 'Name not added yet'}</span>
+                    <span className="block text-xs opacity-60 truncate">{seat.title}</span>
+                  </span>
+                  {status && status !== 'published' ? (
+                    <StatusChip status={status === 'pending_approval' ? 'info' : 'draft'} className="shrink-0">
+                      {status === 'pending_approval' ? 'Review' : 'Draft'}
+                    </StatusChip>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
+          {filtered.length === 0 ? <li className="px-2 py-3 text-sm opacity-70">No one matches “{query}”.</li> : null}
+        </ul>
       </nav>
+    </div>
+  );
 
-      <div className="min-w-0 space-y-8">
-        {notice ? (
-          <p role="status" className="px-4 py-3 rounded-panel border border-success/40 bg-success/10 text-sm">
-            {notice}
-          </p>
-        ) : null}
+  return (
+    <div className={cn('space-y-6', className)} data-testid="cards-feature">
+      <PageHeader
+        title="Card studio"
+        subtitle={cardPersonName ? `Editing ${cardPersonName} · ${card?.status === 'published' ? 'changes go live when you save' : 'publish to make the QR code work'}` : 'Choose a person to edit their card'}
+        actions={
+          card && card.status === 'published' ? (
+            <a
+              href={apiClient.publicCardUrl(card.slug)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-[10px] border border-white/15 bg-charcoal text-sm font-bold hover:bg-[#393536]"
+            >
+              <ExternalLink className="w-4 h-4" aria-hidden="true" />
+              Open live card
+            </a>
+          ) : null
+        }
+      />
+
+      {notice ? (
+        <p role="status" className="px-4 py-3 rounded-[10px] border border-success/40 bg-success/10 text-sm">
+          {notice}
+        </p>
+      ) : null}
+
+      {listLoading ? (
+        <div className="grid gap-4 lg:grid-cols-[300px_1fr]" aria-busy="true">
+          <Skeleton height={420} />
+          <Skeleton height={620} />
+        </div>
+      ) : seats.length === 0 ? (
+        <p className="px-5 py-10 rounded-[14px] border border-dashed border-white/15 text-sm text-center opacity-80" data-testid="cards-empty">
+          No cards yet. Add a person under People and their card appears here.
+        </p>
+      ) : (
         <CardEditor
+          layout="studio"
           card={editorCard}
           templates={templates}
           isAdmin={isAdmin}
@@ -329,34 +339,16 @@ export const CardsFeature: React.FC<CardsFeatureProps> = ({
           onSave={handleSave}
           onPublish={() => runPublish('publish')}
           onApprove={() => runPublish('approve')}
-          onDraftChange={setDraft}
+          peopleSlot={peopleList}
+          renderPreview={renderPreview}
+          brandBand={company?.brandColours?.band}
         />
-        {card && renderCardExtras ? (
-          <div className="pt-6 border-t border-sand-border dark:border-sand-border/30">
-            {renderCardExtras({ id: card.id, name: cardPersonName || 'this card', status: card.status })}
-          </div>
-        ) : null}
-      </div>
+      )}
 
-      {preview ? (
-        <aside className="hidden xl:block" aria-label="Live preview">
-          <div className="sticky top-0 space-y-2">
-            <p className="text-sm font-bold text-charcoal/70 dark:text-warm-paper/70">Live preview</p>
-            <PhoneFramePreview width={320} height={620} aria-label="Live preview of the visitor card">
-              <div
-                className="pointer-events-none select-none"
-                // A transform makes the card's fixed action bar sit inside the phone frame instead of the window.
-                style={{ transform: 'translateZ(0)' }}
-                ref={(el) => {
-                  if (el) el.setAttribute('inert', '');
-                }}
-              >
-                <VisitorCard data={preview} />
-              </div>
-            </PhoneFramePreview>
-            <p className="text-xs text-charcoal/60 dark:text-warm-paper/60">Shows unsaved changes. Visitors see them after you save.</p>
-          </div>
-        </aside>
+      {card && renderCardExtras ? (
+        <section className="rounded-[14px] border border-white/[0.08] bg-charcoal p-5 md:p-6">
+          {renderCardExtras({ id: card.id, name: cardPersonName || 'this card', status: card.status })}
+        </section>
       ) : null}
     </div>
   );
