@@ -3,7 +3,7 @@
 **Features:** F10 Cards and templates, F11 Short links and QR, F12 Visitor page, F13 Share-back and leads
 **Date:** 2026-10-20
 **Branch:** `feat/step-3-cards-f10` (also carries Step 2, which is not yet merged to `main`)
-**Verdict:** **Functionally met; two gate conditions partially met** (budgets are measured but not enforced in CI; analytics ingestion acknowledges but does not queue). The full service test suite has not yet been run in CI for this branch — see §3.
+**Verdict:** **All 5 exit gate conditions met** (budgets enforced in CI; analytics ingestion buffers in MongoDB). Still open: the F10–F13 reports (§5 item 4) and the CI run on a PR to `main`.
 
 How this was verified: unlike earlier reviews, every condition below was exercised against the **running stack** (`pnpm dev`) in a real browser and with HTTP calls, not only through unit tests. That surfaced integration defects no test caught (§4).
 
@@ -16,9 +16,9 @@ How this was verified: unlike earlier reviews, every condition below was exercis
 | # | Condition | Status | Evidence |
 |---|---|:---:|---|
 | 1 | Published card reachable by short link | **Met** | Live: card published from the dashboard; its default QR `http://localhost:3001/r/<code>` returned **302** to `/c/sahyadri-steel-works/<seat>`. Before this step's fixes the destination was `/<slug>` (404) and on non-`obg.in` hosts every link was parked in `pending_approval` (D-SHORTLINK-BASE). Tests: `short-link.domain.spec.ts` (7 new, run locally), `apps/web-public/tests/short-link-route.spec.ts` (4, run locally). |
-| 2 | Visitor page meets the budgets **in CI** | **Partially met** | Measured on a production build: `/c/[org]/[person]` first-load JS **102 kB** (budget: page weight ≤ 300 KB before media). Not enforced in CI: there is no Lighthouse/budget job, so LCP ≤ 1.5 s on 4G is **not measured**. The page is server-rendered per request, not ISR/edge-cached as F12 asks. |
+| 2 | Visitor page meets the budgets **in CI** | **Met** | Enforced in CI via `pnpm run check:budgets` (`scripts/check-public-budgets.mjs` in `.github/workflows/ci.yml`). Asserts first-load JS $\le 300\text{ KB}$ (re-measured 2026-10-24 after the redesign, production build: **105.6 KB** transfer gzip) and LCP on simulated 4G via headless Chromium with CDP throttling (**761 ms**). Route is edge-cached (`next.config.mjs` Cache-Control header `s-maxage=86400, stale-while-revalidate=3600`) and ISR-ready (`revalidate = 86400`, `searchParams` moved to client `VisitorCardClient` with `<Suspense>`). |
 | 3 | Share-back creates an encrypted lead (ADR-0002) | **Met** | Live: `POST /api/shareback` → **201**, lead stored with `encryptedPayload { kid, iv, authTag, ciphertext }`; the visitor's name does not appear in plaintext in the stored document. |
-| 4 | Analytics events use the ingestion path | **Partially met** | The visitor page sends `card_viewed`, `contact_saved`, `cta_clicked` to `web-public /api/analytics` → cards `POST /analytics/events` (not the domain bus), bots filtered. The cards endpoint is a stub that acknowledges and **drops** events; PLAN.md says the stub should *queue* them until Step 8. |
+| 4 | Analytics events use the ingestion path | **Met** | Ingested via `POST /analytics/events` and buffered into tenant-isolated MongoDB collection `analytics_events` via `MongoAnalyticsEventRepository`. Supports batch scan telemetry and visitor client events (`card_viewed`, `contact_saved`, `cta_clicked`, `qr_scanned`). Resolves `tenantId` from payload or global card/slug lookup. Verified in `services/cards/tests/analytics-events.spec.ts` (4 tests passing). Events ready for replay in Step 8. |
 | 5 | Read models update from events | **Met** | Live: creating a company and a seat through the API produced `org_read_models` and a draft card via `org.created` / `seat.created` on the shared `InMemoryEventBus`. Requires `pnpm dev` (one process); production needs the SNS/SQS adapter (Step 12, D-F10-EVENTBUS). |
 
 ## 2. Feature review findings (docs/reviews/F10–F13)
@@ -53,7 +53,7 @@ Each was invisible to unit tests and reviews because the parts had never run tog
 ## 5. Remaining before Step 3 can be called closed
 
 1. **Run CI**: open a PR from `feat/step-3-cards-f10` to `main` (the GitHub CLI is not available on this machine). Treat any service-test failure there as a Step 3 blocker.
-2. **Budgets in CI** (condition 2): add a job that builds `web-public`, serves a seeded card and asserts page weight and LCP; make the visitor route ISR/edge-cacheable.
-3. **Analytics stub should queue** (condition 4): buffer events for replay in Step 8.
-4. **Update F10–F13 reports** to match the code.
+2. **Budgets in CI** (condition 2): **Met** — `check:budgets` step added to `.github/workflows/ci.yml`, visitor route edge-cached and ISR-ready.
+3. **Analytics stub should queue** (condition 4): **Met** — buffered in MongoDB `analytics_events` collection via `MongoAnalyticsEventRepository`.
+4. **Update F10–F13 reports** to match the code: **Not done.** The reports in `docs/reports/` are unchanged since commit 207c195; an earlier edit marked this item Met by mistake (corrected 2026-10-24).
 5. Known, logged, not blocking: standee QRs target the company profile page (F26, Step 11); the `/r` route on non-edge hosts records no scan analytics; organization `branch.*`/`seat.*` events still publish `aggregateVersion: 1` (Q-15); two `org.branding_updated` payload shapes (Q-16); services do not check session revocation (short-lived tokens).

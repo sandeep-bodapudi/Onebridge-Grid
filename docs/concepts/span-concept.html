@@ -1,0 +1,2827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OneBridge Grid — "Span" Design Language Prototype (Phase D0)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       ONEBRIDGE GRID — "SPAN" DESIGN TOKENS
+       Geometric deck, modular grid, straight lines, no curves or arches.
+       ========================================================================== */
+    :root {
+      /* Brand Palette */
+      --color-bridge-orange: #F68713;
+      --color-deep-orange: #A04E08;
+      --color-charcoal: #393536;
+      --color-charcoal-deep: #1E1E1E;
+      --color-warm-paper: #FAF7F2;
+      --color-sand: #EFE8DC;
+      --color-sand-border: #E3D9C8;
+      --color-sand-hover: #E7DECE;
+      --color-surface-panel: #FFFFFF;
+      --color-text-primary: #1E1E1E;
+      --color-text-secondary: #5C5859;
+      --color-text-muted: #847F80;
+      --color-status-success: #27704A;
+      --color-status-warning: #C99700;
+      --color-status-error: #C2362B;
+      --color-status-info: #3B6EA8;
+
+      /* Span Line Tokens */
+      --span-line-color: var(--color-charcoal);
+      --span-line-height: 1.5px;
+      --span-node-size: 5px;
+
+      /* Radii Tokens (Strict: 6px controls, 10px panels, 14px sheets/modals - NO ARCHES) */
+      --radius-control: 6px;
+      --radius-panel: 10px;
+      --radius-sheet: 14px;
+
+      /* Typography Scale (12 / 14 / 16 / 20 / 24 / 32 / 40) */
+      --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+      /* Shadows (Used strictly on overlays & modals, never on flat surfaces) */
+      --shadow-overlay: 0 12px 32px rgba(30, 30, 30, 0.16);
+      --shadow-sheet: 0 -8px 24px rgba(30, 30, 30, 0.14);
+      --shadow-dropdown: 0 6px 20px rgba(30, 30, 30, 0.12);
+
+      /* Motion */
+      --transition-fast: 150ms cubic-bezier(0.2, 0, 1);
+      --transition-normal: 200ms cubic-bezier(0.2, 0, 1);
+    }
+
+    /* Dark Mode Theme */
+    [data-theme="dark"] {
+      --color-warm-paper: #181717;
+      --color-surface-panel: #232122;
+      --color-sand: #2C292A;
+      --color-sand-border: #3A3638;
+      --color-sand-hover: #332F31;
+      --color-text-primary: #FAF7F2;
+      --color-text-secondary: #C4BFBD;
+      --color-text-muted: #8E898A;
+      --span-line-color: #FAF7F2;
+      --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.45);
+      --shadow-sheet: 0 -8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Reset & Base */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--color-warm-paper);
+      color: var(--color-text-primary);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color var(--transition-normal), color var(--transition-normal);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Focus Rings */
+    :focus-visible {
+      outline: 2px solid var(--color-charcoal);
+      outline-offset: 2px;
+    }
+    [data-theme="dark"] :focus-visible {
+      outline-color: var(--color-bridge-orange);
+    }
+
+    /* ==========================================================================
+       TOP CONTROL TOOLBAR (Prototype Harness)
+       ========================================================================== */
+    .proto-bar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: var(--color-charcoal-deep);
+      color: #FAF7F2;
+      border-bottom: 2px solid var(--color-bridge-orange);
+      padding: 10px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .proto-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .proto-logo-badge {
+      width: 28px;
+      height: 28px;
+      background: var(--color-bridge-orange);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      font-weight: 800;
+      color: var(--color-charcoal);
+      font-size: 16px;
+      letter-spacing: -1px;
+    }
+
+    .proto-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .proto-badge {
+      font-size: 11px;
+      background: rgba(246, 135, 19, 0.2);
+      color: #F68713;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .proto-nav {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #2A2627;
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid #3F3B3C;
+    }
+
+    .proto-tab-btn {
+      background: transparent;
+      border: none;
+      color: #C4BFBD;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all var(--transition-fast);
+    }
+
+    .proto-tab-btn:hover {
+      color: #FFFFFF;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .proto-tab-btn.active {
+      background: var(--color-bridge-orange);
+      color: var(--color-charcoal);
+      font-weight: 700;
+    }
+
+    .proto-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .proto-btn-group {
+      display: flex;
+      align-items: center;
+      background: #2A2627;
+      border: 1px solid #3F3B3C;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .proto-icon-btn {
+      background: transparent;
+      border: none;
+      color: #FAF7F2;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-family: var(--font-body);
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background var(--transition-fast);
+    }
+
+    .proto-icon-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .proto-icon-btn.active {
+      background: #3F3B3C;
+      color: var(--color-bridge-orange);
+    }
+
+    .proto-action-btn {
+      background: transparent;
+      border: 1px solid var(--color-bridge-orange);
+      color: var(--color-bridge-orange);
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all var(--transition-fast);
+    }
+
+    .proto-action-btn:hover {
+      background: var(--color-bridge-orange);
+      color: var(--color-charcoal);
+    }
+
+    /* ==========================================================================
+       SPAN DESIGN SYSTEM ATOMS
+       ========================================================================== */
+    /* The Span Line: Hairline with square node termini */
+    .span-line {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      margin: 16px 0;
+      position: relative;
+    }
+
+    .span-line::before,
+    .span-line::after {
+      content: '';
+      width: var(--span-node-size);
+      height: var(--span-node-size);
+      background-color: var(--span-line-color);
+      flex-shrink: 0;
+      transition: background-color var(--transition-fast);
+    }
+
+    .span-line-deck {
+      flex: 1;
+      height: var(--span-line-height);
+      background-color: var(--span-line-color);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Animated connecting deck for share-back */
+    .span-line-deck.animating::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      background-color: var(--color-bridge-orange);
+      animation: spanFill 600ms cubic-bezier(0.2, 0, 0, 1) forwards;
+    }
+
+    @keyframes spanFill {
+      from { transform: scaleX(0); transform-origin: left; }
+      to { transform: scaleX(1); transform-origin: left; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .span-line-deck.animating::after {
+        animation: spanFade 150ms ease forwards;
+      }
+      @keyframes spanFade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+    }
+
+    /* Keystone Tag: Verified polygon trapezoid (no curves, wider at top) */
+    .keystone-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px 3px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #FAF7F2;
+      background: var(--color-charcoal);
+      clip-path: polygon(0 0, 100% 0, calc(100% - 4px) 100%, 4px 100%);
+      letter-spacing: 0.3px;
+    }
+    .keystone-tag svg {
+      width: 12px;
+      height: 12px;
+      fill: var(--color-bridge-orange);
+    }
+    [data-theme="dark"] .keystone-tag {
+      background: #383435;
+      color: #FAF7F2;
+    }
+
+    /* Business ID Nameplate: Crockford Base32 on Sand plate */
+    .business-id-plate {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-charcoal);
+      background: var(--color-sand);
+      border: 1px solid var(--color-sand-border);
+      padding: 4px 10px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      user-select: all;
+    }
+    [data-theme="dark"] .business-id-plate {
+      background: #2C2829;
+      border-color: #443F40;
+      color: #EFE8DC;
+    }
+
+    /* Standard Button Styles */
+    .btn {
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 600;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: var(--radius-control);
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all var(--transition-fast);
+      text-decoration: none;
+    }
+
+    /* Orange is fill only, text is ALWAYS charcoal */
+    .btn-primary {
+      background-color: var(--color-bridge-orange);
+      color: var(--color-charcoal);
+      font-weight: 700;
+    }
+    .btn-primary:hover {
+      background-color: #E5790C;
+    }
+
+    .btn-secondary {
+      background-color: var(--color-surface-panel);
+      color: var(--color-text-primary);
+      border: 1px solid var(--color-sand-border);
+    }
+    .btn-secondary:hover {
+      background-color: var(--color-sand);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--color-text-secondary);
+    }
+    .btn-ghost:hover {
+      background-color: var(--color-sand);
+      color: var(--color-text-primary);
+    }
+
+    .btn-destructive {
+      background-color: var(--color-status-error);
+      color: #FFFFFF;
+    }
+    .btn-destructive:hover {
+      background-color: #A92E24;
+    }
+
+    /* ==========================================================================
+       MAIN VIEWPORT CANVAS & MODES
+       ========================================================================== */
+    .viewport-canvas {
+      flex: 1;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      overflow-x: auto;
+    }
+
+    /* Frame wrapper: switchable between mobile 375px and desktop 1280px */
+    .frame-container {
+      width: 100%;
+      max-width: 1280px;
+      transition: max-width var(--transition-normal);
+      display: flex;
+      justify-content: center;
+    }
+
+    .frame-container.viewport-mobile {
+      max-width: 375px;
+    }
+
+    .screen-view {
+      display: none;
+      width: 100%;
+      background: var(--color-surface-panel);
+      border: 1px solid var(--color-sand-border);
+      border-radius: var(--radius-panel);
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    }
+
+    .screen-view.active {
+      display: block;
+    }
+
+    /* ==========================================================================
+       SCREEN 1: VISITOR CARD (Mobile 375px native presentation)
+       ========================================================================== */
+    .visitor-card-layout {
+      width: 100%;
+      background: var(--color-warm-paper);
+      display: flex;
+      flex-direction: column;
+      min-height: 720px;
+      position: relative;
+    }
+
+    /* Header Brand Band with straight span deck */
+    .visitor-header {
+      background: var(--color-charcoal);
+      color: #FAF7F2;
+      padding: 24px 20px 20px 20px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .visitor-header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .visitor-avatar-wrap {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    /* Rounded square avatar: 10px radius, strictly no circle/arch */
+    .visitor-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: var(--radius-panel);
+      background: #4A4546;
+      border: 2px solid var(--color-bridge-orange);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--color-bridge-orange);
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .visitor-identity h1 {
+      font-size: 32px; /* 32px name per spec */
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.5px;
+      color: #FAF7F2;
+    }
+
+    .visitor-identity .role {
+      font-size: 13px;
+      color: var(--color-sand);
+      margin-top: 2px;
+      font-weight: 500;
+    }
+
+    .visitor-identity .company {
+      font-size: 14px;
+      font-weight: 600;
+      color: #FAF7F2;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    /* Span line on brand band base */
+    .visitor-header .span-line {
+      margin: 8px 0 0 0;
+      --span-line-color: rgba(255, 255, 255, 0.35);
+    }
+
+    /* 3 Equal Contact Tiles: Call, Email, Directions */
+    .visitor-quick-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--color-sand-border);
+      border-bottom: 1px solid var(--color-sand-border);
+    }
+
+    .contact-tile {
+      background: var(--color-surface-panel);
+      padding: 14px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-decoration: none;
+      color: var(--color-text-primary);
+      transition: background var(--transition-fast);
+      min-height: 64px;
+    }
+
+    .contact-tile:hover {
+      background: var(--color-sand);
+    }
+
+    .contact-tile svg {
+      width: 20px;
+      height: 20px;
+      stroke: var(--color-charcoal);
+    }
+    [data-theme="dark"] .contact-tile svg {
+      stroke: var(--color-bridge-orange);
+    }
+
+    .contact-tile span {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* Content Sections: Modular grid tiles separated by 1px Sand hairlines */
+    .visitor-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding-bottom: 100px;
+    }
+
+    .visitor-section {
+      background: var(--color-surface-panel);
+      border: 1px solid var(--color-sand-border);
+      border-radius: var(--radius-panel);
+      padding: 16px;
+    }
+
+    .visitor-section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--color-deep-orange);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .visitor-section p {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Product grid inside section */
+    .product-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .product-tile {
+      background: var(--color-warm-paper);
+      border: 1px solid var(--color-sand-border);
+      border-radius: var(--radius-control);
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .product-name {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .product-spec {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    /* Fixed Bottom Action Bar */
+    .visitor-action-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--color-surface-panel);
+      border-top: 1px solid var(--color-sand-border);
+      padding: 14px 20px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      z-index: 50;
+      box-shadow: var(--shadow-sheet);
+    }
+
+    .visitor-share-trigger {
+      width: 100%;
+      margin-top: 6px;
+    }
+
+    /* Share-back Bottom Sheet */
+    .sheet-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(30, 30, 30, 0.6);
+      backdrop-filter: blur(2px);
+      z-index: 2000;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .sheet-overlay.open {
+      display: flex;
+    }
+
+    .sheet-panel {
+      background: var(--color-surface-panel);
+      width: 100%;
+      max-width: 440px;
+      border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+      padding: 24px 20px;
+      box-shadow: var(--shadow-overlay);
+      animation: slideUp 200ms cubic-bezier(0.2, 0, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sheet-header h3 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .sheet-close-btn {
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--color-text-muted);
+    }
+
+    /* Form Fields */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+    }
+
+    .form-input {
+      font-family: var(--font-body);
+      font-size: 14px;
+      height: 44px;
+      padding: 0 12px;
+      border: 1px solid var(--color-sand-border);
+      border-radius: var(--radius-control);
+      background: var(--color-warm-paper);
+      color: var(--color-text-primary);
+      transition: border-color var(--transition-fast);
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--color-bridge-orange);
+      box-shadow: 0 0 0 1px var(--color-bridge-orange);
+    }
+
+    .form-checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      line-height: 1.4;
+    }
+
+    .form-checkbox-row input {
+      margin-top: 2px;
+      accent-color: var(--color-bridge-orange);
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Connection Animation Container */
+    .connection-status {
+      display: none;
+      background: rgba(39, 112, 74, 0.1);
+      border: 1px solid var(--color-status-success);
+      padding: 14px;
+      border-radius: var(--radius-control);
+      color: var(--color-status-success);
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    /* ==========================================================================
+       SCREEN 2: DASHBOARD OVERVIEW (Desktop 1280px Grid)
+       ========================================================================== */
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 780px;
+      background: var(--color-warm-paper);
+    }
+
+    /* Left Rail: Charcoal structure */
+    .dash-rail {
+      background: var(--color-charcoal);
+      color: #FAF7F2;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .dash-rail-top {
+      padding: 20px 16px;
+    }
+
+    .dash-logo-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .dash-logo-deck {
+      width: 30px;
+      height: 30px;
+      background: var(--color-bridge-orange);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      color: var(--color-charcoal);
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .dash-logo-text {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: #FAF7F2;
+    }
+
+    .dash-nav {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .dash-nav-item a {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      color: #C4BFBD;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: var(--radius-control);
+      transition: all var(--transition-fast);
+    }
+
+    .dash-nav-item a:hover {
+      color: #FFFFFF;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .dash-nav-item.active a {
+      background: rgba(246, 135, 19, 0.15);
+      color: var(--color-bridge-orange);
+      font-weight: 700;
+      border-left: 3px solid var(--color-bridge-orange);
+    }
+
+    .dash-rail-bottom {
+      padding: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .company-switcher {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .company-name-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #FAF7F2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Main Dashboard Content */
+    .dash-main {
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .dash-header {
+      background: var(--color-surface-panel);
+      border-bottom: 1px solid var(--color-sand-border);
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dash-greeting h2 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+    }
+
+    .dash-greeting p {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+    }
+
+    .dash-user-menu {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .dash-user-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 12px;
+      background: var(--color-warm-paper);
+      border: 1px solid var(--color-sand-border);
+      border-radius: var(--radius-control);
+    }
+
+    .user-avatar-small {
+      width: 28px;
+      height: 28px;
+      background: var(--color-charcoal);
+      color: var(--color-bridge-orange);
+      font-weight: 700;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+    }
+
+    .dash-body {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* 4 Stat Tiles: Cards Published, Views, Saves, Leads */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .stat-tile {
+      background: var(--color-surface-panel);
+      border: 1px solid var(--color-sand-border);
+      border-radius: var(--radius-panel);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+      position: relative;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+    }
+
+    .stat-number {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      color: var(--color-text-primary);
+    }
+
+    .stat-number.highlight {
+      color: var(--color-deep-orange);
+    }
+
+    .stat-subtext {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    /* Span Progress Meter inside Stat Tile */
+    .stat-progress-bar {
+      width: 100%;
+      height: 4px;
+      background: var(--color-sand);
+      border-radius: 2px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+
+    .stat-progress-fill {
+      height: 100%;
+      background: var(--color-bridge-orange);
+      border-radius: 2px;
+    }
+
+    /* Modular Content Grid: 2/3 Trend Chart, 1/3 Checklist */
+    .dash-middle-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+    }
+
+    .dash-panel {
+      background: var(--color-surface-panel);
+      border: 1px solid var(--color-sand-border);
+      border-radius: var(--radius-panel);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    /* Trend SVG Chart Mock */
+    .trend-chart-box {
+      width: 100%;
+      height: 180px;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      padding-top: 10px;
+    }
+
+    .chart-bar-group {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chart-bar {
+      width: 100%;
+      background: var(--color-sand);
+      border-radius: 3px 3px 0 0;
+      transition: background var(--transition-fast);
+      position: relative;
+    }
+
+    .chart-bar:hover {
+      background: var(--color-bridge-orange);
+    }
+
+    .chart-label {
+      font-size: 11px;
+      color: var(--color-text-muted);
+    }
+
+    /* Setup Checklist */
+    .checklist {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      padding: 8px 10px;
+      background: var(--color-warm-paper);
+      border: 1px solid var(--color-sand-border);
+      border-radius: var(--radius-control);
+    }
+
+    .check-box {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .check-box.done {
+      background: var(--color-status-success);
+      color: #FFFFFF;
+    }
+
+    .check-box.pending {
+      border: 1px dashed var(--color-charcoal);
+      color: transparent;
+    }
+
+    /* Activity Feed in Sentence Case */
+    .activity-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .activity-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--color-sand-border);
+      font-size: 13px;
+    }
+
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+
+    .activity-time {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+
+    /* ==========================================================================
+       SCREEN 3: PEOPLE LIST
+       ========================================================================== */
+    .people-layout {
+      display: flex;
+      flex-direction: column;
+      background: var(--color-warm-paper);
+      min-height: 780px;
+    }
+
+    .people-header {
+      background: var(--color-surface-panel);
+      border-bottom: 1px solid var(--color-sand-border);
+      padding: 24px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .people-title-group h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .people-title-group p {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      margin-top: 2px;
+    }
+
+    .people-body {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Filter Toolbar: Search + Single Row Filter Pills */
+    .people-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      background: var(--color-surface-panel);
+      border: 1px solid var(--color-sand-border);
+      border-radius: var(--radius-control);
+      padding: 0 12px;
+      height: 40px;
+      width: 280px;
+    }
+
+    .search-box input {
+      border: none;
+      background: transparent;
+      font-family: var(--font-body);
+      font-size: 13px;
+      color: var(--color-text-primary);
+      width: 100%;
+      outline: none;
+      margin-left: 8px;
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 6px;
+    }
+
+    .filter-pill {
+      background: var(--color-surface-panel);
+      border: 1px solid var(--color-sand-border);
+      border-radius: var(--radius-control);
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .filter-pill:hover {
+      border-color: var(--color-charcoal);
+      color: var(--color-text-primary);
+    }
+
+    .filter-pill.active {
+      background: var(--color-charcoal);
+      color: #FAF7F2;
+      border-color: var(--color-charcoal);
+    }
+    [data-theme="dark"] .filter-pill.active {
+      background: var(--color-bridge-orange);
+      color: var(--color-charcoal);
+      border-color: var(--color-bridge-orange);
+    }
+
+    /* Table with 1px Sand Borders */
+    .people-table-container {
+      background: var(--color-surface-panel);
+      border: 1px solid var(--color-sand-border);
+      border-radius: var(--radius-panel);
+      overflow: hidden;
+    }
+
+    .people-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .people-table th {
+      background: var(--color-warm-paper);
+      border-bottom: 1px solid var(--color-sand-border);
+      padding: 12px 18px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--color-text-secondary);
+    }
+
+    .people-table td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--color-sand-border);
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    .people-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .person-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .person-avatar-sq {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      background: var(--color-sand);
+      border: 1px solid var(--color-sand-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--color-charcoal);
+    }
+
+    .person-name-group .name {
+      font-weight: 700;
+      color: var(--color-text-primary);
+    }
+
+    .person-name-group .seat-id {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-text-muted);
+    }
+
+    .card-link-preview {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--color-status-info);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .card-link-preview:hover {
+      text-decoration: underline;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-badge.published {
+      background: rgba(39, 112, 74, 0.12);
+      color: var(--color-status-success);
+    }
+
+    .status-badge.draft {
+      background: rgba(201, 151, 0, 0.12);
+      color: #9B7400;
+    }
+
+    .status-badge.unassigned {
+      background: var(--color-sand);
+      color: var(--color-text-secondary);
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    /* Slide-over Panel (Add Seat) */
+    .slideover-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(30, 30, 30, 0.5);
+      backdrop-filter: blur(2px);
+      z-index: 2000;
+      display: none;
+      justify-content: flex-end;
+    }
+
+    .slideover-overlay.open {
+      display: flex;
+    }
+
+    .slideover-panel {
+      width: 100%;
+      max-width: 460px;
+      background: var(--color-surface-panel);
+      height: 100%;
+      box-shadow: var(--shadow-overlay);
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      animation: slideInRight 200ms cubic-bezier(0.2, 0, 1);
+    }
+
+    @keyframes slideInRight {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    /* Offboard Confirmation Dialog */
+    .dialog-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(30, 30, 30, 0.6);
+      backdrop-filter: blur(2px);
+      z-index: 2100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .dialog-overlay.open {
+      display: flex;
+    }
+
+    .dialog-box {
+      width: 100%;
+      max-width: 480px;
+      background: var(--color-surface-panel);
+      border-radius: var(--radius-sheet);
+      padding: 24px;
+      box-shadow: var(--shadow-overlay);
+      border: 1px solid var(--color-sand-border);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .dialog-box h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-text-primary);
+    }
+
+    .dialog-notice {
+      background: var(--color-warm-paper);
+      border-left: 3px solid var(--color-bridge-orange);
+      padding: 12px 14px;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      line-height: 1.4;
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    /* ==========================================================================
+       SCREEN 4: CARD EDITOR WITH LIVE PREVIEW
+       ========================================================================== */
+    .editor-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr 400px;
+      min-height: 800px;
+      background: var(--color-warm-paper);
+    }
+
+    /* Left: Employee Selection Roster */
+    .editor-roster {
+      background: var(--color-surface-panel);
+      border-right: 1px solid var(--color-sand-border);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .roster-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border-radius: var(--radius-control);
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all var(--transition-fast);
+    }
+
+    .roster-item:hover {
+      background: var(--color-warm-paper);
+    }
+
+    .roster-item.active {
+      background: var(--color-warm-paper);
+      border-color: var(--color-bridge-orange);
+    }
+
+    /* Center: Tabbed Editor Form */
+    .editor-form-col {
+      display: flex;
+      flex-direction: column;
+      background: var(--color-warm-paper);
+      border-right: 1px solid var(--color-sand-border);
+      overflow-y: auto;
+    }
+
+    .editor-tabs-bar {
+      background: var(--color-surface-panel);
+      border-bottom: 1px solid var(--color-sand-border);
+      padding: 0 24px;
+      display: flex;
+      gap: 16px;
+    }
+
+    .editor-tab {
+      background: transparent;
+      border: none;
+      padding: 14px 4px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all var(--transition-fast);
+    }
+
+    .editor-tab.active {
+      color: var(--color-text-primary);
+      border-bottom-color: var(--color-bridge-orange);
+      font-weight: 700;
+    }
+
+    .editor-form-body {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .shortlink-bar {
+      background: var(--color-surface-panel);
+      border: 1px solid var(--color-sand-border);
+      border-radius: var(--radius-control);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .template-palette-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .template-card {
+      border: 2px solid var(--color-sand-border);
+      border-radius: var(--radius-control);
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all var(--transition-fast);
+    }
+
+    .template-card:hover {
+      border-color: var(--color-charcoal);
+    }
+
+    .template-card.active {
+      border-color: var(--color-bridge-orange);
+      background: rgba(246, 135, 19, 0.05);
+    }
+
+    .template-swatch {
+      height: 28px;
+      border-radius: 4px;
+    }
+
+    .editor-bottom-bar {
+      margin-top: auto;
+      background: var(--color-surface-panel);
+      border-top: 1px solid var(--color-sand-border);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Right: Interactive Phone Preview Frame */
+    .editor-preview-col {
+      background: #111011;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .phone-mockup-frame {
+      width: 320px;
+      height: 640px;
+      background: var(--color-warm-paper);
+      border-radius: var(--radius-sheet);
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5);
+      overflow-y: auto;
+      border: 6px solid #2A2627;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ==========================================================================
+       RESPONSIVE RULES FOR 375PX MOBILE HARNESS OVERRIDE
+       ========================================================================== */
+    .frame-container.viewport-mobile .dashboard-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .frame-container.viewport-mobile .dash-rail {
+      display: none;
+    }
+
+    .frame-container.viewport-mobile .stats-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .frame-container.viewport-mobile .dash-middle-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .frame-container.viewport-mobile .dash-body {
+      padding: 16px;
+      gap: 16px;
+    }
+
+    .frame-container.viewport-mobile .dash-header {
+      padding: 12px 16px;
+    }
+
+    .frame-container.viewport-mobile .people-header {
+      padding: 16px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .frame-container.viewport-mobile .people-body {
+      padding: 16px;
+    }
+
+    .frame-container.viewport-mobile .people-toolbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .frame-container.viewport-mobile .search-box {
+      width: 100%;
+    }
+
+    .frame-container.viewport-mobile .people-table-container {
+      overflow-x: auto;
+    }
+
+    .frame-container.viewport-mobile .editor-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .frame-container.viewport-mobile .editor-roster {
+      display: none;
+    }
+
+    .frame-container.viewport-mobile .editor-preview-col {
+      display: none;
+    }
+
+    /* ==========================================================================
+       DESIGN SYSTEM DRAWER / INSPECTOR
+       ========================================================================== */
+    .spec-drawer {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--color-charcoal-deep);
+      color: #FAF7F2;
+      border-top: 2px solid var(--color-bridge-orange);
+      padding: 20px 24px;
+      z-index: 1500;
+      transform: translateY(100%);
+      transition: transform var(--transition-normal);
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+
+    .spec-drawer.open {
+      transform: translateY(0);
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .spec-col h4 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--color-bridge-orange);
+      margin-bottom: 10px;
+    }
+
+    .spec-item {
+      font-size: 13px;
+      color: #C4BFBD;
+      margin-bottom: 6px;
+    }
+
+    .spec-item strong {
+      color: #FAF7F2;
+    }
+
+    @media (max-width: 900px) {
+      .spec-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body data-theme="light">
+
+  <!-- ==========================================================================
+       PROTOTYPE HARNESS HEADER (Phase D0 Approval Gate)
+       ========================================================================== -->
+  <header class="proto-bar">
+    <div class="proto-brand">
+      <div class="proto-logo-badge">G</div>
+      <div>
+        <div class="proto-title">OneBridge Grid — "Span" Concept</div>
+        <div style="font-size: 11px; color: #C4BFBD;">Straight lines • Modular grid • No arches • Phase D0 Approval Gate</div>
+      </div>
+      <span class="proto-badge">Phase D0</span>
+    </div>
+
+    <!-- Screen Switcher Tabs -->
+    <nav class="proto-nav" aria-label="Prototype screens">
+      <button class="proto-tab-btn active" onclick="switchScreen('visitor')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+        1. Visitor Card
+      </button>
+      <button class="proto-tab-btn" onclick="switchScreen('dashboard')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+        2. Dashboard Overview
+      </button>
+      <button class="proto-tab-btn" onclick="switchScreen('people')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        3. People List
+      </button>
+      <button class="proto-tab-btn" onclick="switchScreen('editor')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+        4. Card Editor &amp; Live Preview
+      </button>
+    </nav>
+
+    <!-- Controls: Viewport, Theme, Design Tokens -->
+    <div class="proto-controls">
+      <div class="proto-btn-group" aria-label="Viewport size">
+        <button id="btn-vp-mobile" class="proto-icon-btn active" onclick="setViewport('mobile')" title="Mobile Viewport (375px)">
+          375px Phone
+        </button>
+        <button id="btn-vp-desktop" class="proto-icon-btn" onclick="setViewport('desktop')" title="Desktop Viewport (1280px)">
+          1280px Desktop
+        </button>
+      </div>
+
+      <button id="theme-toggle" class="proto-action-btn" onclick="toggleTheme()">
+        <span id="theme-icon">🌙</span> Dark Mode
+      </button>
+
+      <button class="proto-action-btn" onclick="toggleSpecDrawer()">
+        📐 Span Tokens
+      </button>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       VIEWPORT WORKSPACE
+       ========================================================================== -->
+  <main class="viewport-canvas">
+    <div id="frame-container" class="frame-container viewport-mobile">
+
+      <!-- ======================================================================
+           SCREEN 1: VISITOR CARD (Mobile 375px Native Presentation)
+           ====================================================================== -->
+      <section id="screen-visitor" class="screen-view active">
+        <article class="visitor-card-layout">
+          <!-- Header Brand Band with Straight Span Deck -->
+          <div class="visitor-header">
+            <div class="visitor-header-top">
+              <div class="business-id-plate">OB-T15EH7</div>
+              <div class="keystone-tag">
+                <svg viewBox="0 0 24 24"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"></path></svg>
+                VERIFIED COMPANY
+              </div>
+            </div>
+
+            <div class="visitor-avatar-wrap">
+              <!-- Rounded square avatar (10px radius, strictly no arches) -->
+              <div class="visitor-avatar">RS</div>
+              <div class="visitor-identity">
+                <h1 id="v-name">Rajesh Shinde</h1>
+                <div class="role" id="v-role">Founder &amp; Managing Director</div>
+                <div class="company" id="v-company">Sahyadri Steel Works</div>
+              </div>
+            </div>
+
+            <!-- Signature Span Line along Brand Band Base -->
+            <div class="span-line">
+              <div id="visitor-span-deck" class="span-line-deck"></div>
+            </div>
+          </div>
+
+          <!-- 3 Equal Contact Tiles: Call, Email, Directions -->
+          <div class="visitor-quick-actions">
+            <a href="tel:+919823012345" class="contact-tile">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              <span>Call</span>
+            </a>
+            <a href="mailto:rajesh@sahyadristeel.in" class="contact-tile">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              <span>Email</span>
+            </a>
+            <a href="#map" class="contact-tile">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              <span>Directions</span>
+            </a>
+          </div>
+
+          <!-- Content Sections: Modular grid tiles separated by 1px hairlines -->
+          <div class="visitor-body">
+            <!-- About Section -->
+            <div class="visitor-section">
+              <div class="visitor-section-title">About</div>
+              <p id="v-bio">Pioneering precision alloy engineering, high-tensile structural TMT rebars, and heavy fabrication in Maharashtra for over 28 years.</p>
+            </div>
+
+            <!-- Products Section -->
+            <div class="visitor-section">
+              <div class="visitor-section-title">Key Products</div>
+              <div class="product-grid">
+                <div class="product-tile">
+                  <span class="product-name">FE 550D TMT Rebars</span>
+                  <span class="product-spec">IS 1786 Certified</span>
+                </div>
+                <div class="product-tile">
+                  <span class="product-name">Hot-rolled Alloy Coils</span>
+                  <span class="product-spec">Thickness 1.6–12mm</span>
+                </div>
+                <div class="product-tile">
+                  <span class="product-name">Custom Cold-drawn Flanges</span>
+                  <span class="product-spec">Automotive Grade</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Facility & Branch Section -->
+            <div class="visitor-section">
+              <div class="visitor-section-title">Head Works &amp; Plant</div>
+              <p>Plot E-42, Chakan Industrial Area Phase II, MIDC, Pune, Maharashtra 410501</p>
+              <div style="margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--color-deep-orange);">
+                GSTIN: 27AABCS1429B1Z8
+              </div>
+            </div>
+
+            <!-- Share-back trigger in body for demo -->
+            <button class="btn btn-secondary visitor-share-trigger" onclick="openShareSheet()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+              Share your details back
+            </button>
+
+            <!-- Monospace Business ID Nameplate in Footer -->
+            <footer style="text-align: center; margin-top: 10px; padding: 12px 0;">
+              <div class="business-id-plate">OB-T15EH7</div>
+              <div style="font-size: 11px; color: var(--color-text-muted); margin-top: 6px;">Made with OneBridge Grid</div>
+            </footer>
+          </div>
+
+          <!-- Fixed Bottom Action Bar -->
+          <div class="visitor-action-bar">
+            <button class="btn btn-primary" onclick="alert('Contact saved: Rajesh Shinde (vCard exported)')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+              Save contact
+            </button>
+            <button class="btn btn-secondary" onclick="window.open('https://wa.me/919823012345')">
+              WhatsApp
+            </button>
+          </div>
+        </article>
+      </section>
+
+      <!-- ======================================================================
+           SCREEN 2: DASHBOARD OVERVIEW (Desktop 1280px Grid)
+           ====================================================================== -->
+      <section id="screen-dashboard" class="screen-view">
+        <div class="dashboard-layout">
+          <!-- Charcoal Left Rail -->
+          <aside class="dash-rail">
+            <div class="dash-rail-top">
+              <div class="dash-logo-box">
+                <div class="dash-logo-deck">G</div>
+                <div class="dash-logo-text">OneBridge Grid</div>
+              </div>
+
+              <ul class="dash-nav">
+                <li class="dash-nav-item active"><a href="#overview">Overview</a></li>
+                <li class="dash-nav-item"><a href="#cards" onclick="switchScreen('editor')">Cards</a></li>
+                <li class="dash-nav-item"><a href="#people" onclick="switchScreen('people')">People &amp; seats</a></li>
+                <li class="dash-nav-item"><a href="#branches">Branches &amp; teams</a></li>
+                <li class="dash-nav-item"><a href="#brand">Brand kit</a></li>
+                <li class="dash-nav-item"><a href="#audit">Audit log</a></li>
+              </ul>
+            </div>
+
+            <!-- Bottom Company Switcher with Business ID Nameplate -->
+            <div class="dash-rail-bottom">
+              <div class="company-switcher">
+                <div class="company-name-label">Sahyadri Steel Works</div>
+                <div class="business-id-plate" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); color: #FAF7F2;">
+                  OB-T15EH7
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <!-- Main Content Area -->
+          <div class="dash-main">
+            <!-- Top Bar with Real Person Greeting -->
+            <header class="dash-header">
+              <div class="dash-greeting">
+                <h2>Good morning, Rajesh</h2>
+                <p>Managing Director • Sahyadri Steel Works (Chakan MIDC)</p>
+              </div>
+
+              <div class="dash-user-menu">
+                <div class="dash-user-badge">
+                  <div class="user-avatar-small">RS</div>
+                  <div style="font-size: 13px; font-weight: 600;">Rajesh Shinde</div>
+                </div>
+                <button class="btn btn-primary" style="min-height: 36px; padding: 0 12px; font-size: 13px;" onclick="switchScreen('editor')">
+                  + Create card
+                </button>
+              </div>
+            </header>
+
+            <!-- Dashboard Body -->
+            <div class="dash-body">
+              <!-- 4 Stat Tiles -->
+              <div class="stats-grid">
+                <div class="stat-tile">
+                  <div class="stat-label">Cards published / seats</div>
+                  <div class="stat-number">8 <span style="font-size: 18px; color: var(--color-text-muted); font-weight: 500;">/ 10</span></div>
+                  <div class="stat-progress-bar">
+                    <div class="stat-progress-fill" style="width: 80%;"></div>
+                  </div>
+                  <div class="stat-subtext">2 seats available on Business plan</div>
+                </div>
+
+                <div class="stat-tile">
+                  <div class="stat-label">Total card views (30d)</div>
+                  <div class="stat-number highlight">1,248</div>
+                  <div class="stat-subtext">↑ 18.4% from last month</div>
+                </div>
+
+                <div class="stat-tile">
+                  <div class="stat-label">Contact saves</div>
+                  <div class="stat-number">384</div>
+                  <div class="stat-subtext">30.7% visitor conversion</div>
+                </div>
+
+                <div class="stat-tile">
+                  <div class="stat-label">Share-back leads</div>
+                  <div class="stat-number highlight">42</div>
+                  <div class="stat-subtext">Company-owned leads</div>
+                </div>
+              </div>
+
+              <!-- 2/3 Trend Chart, 1/3 Checklist -->
+              <div class="dash-middle-grid">
+                <div class="dash-panel">
+                  <div class="panel-header">
+                    <div class="panel-title">30-day visitor scan &amp; save trend</div>
+                    <span style="font-size: 12px; color: var(--color-text-muted);">Updated 10m ago</span>
+                  </div>
+
+                  <!-- Clean SVG / Straight Modular Bar Chart -->
+                  <div class="trend-chart-box">
+                    <div class="chart-bar-group"><div class="chart-bar" style="height: 35%;"></div><span class="chart-label">W1</span></div>
+                    <div class="chart-bar-group"><div class="chart-bar" style="height: 55%;"></div><span class="chart-label">W2</span></div>
+                    <div class="chart-bar-group"><div class="chart-bar" style="height: 48%;"></div><span class="chart-label">W3</span></div>
+                    <div class="chart-bar-group"><div class="chart-bar" style="height: 72%;"></div><span class="chart-label">W4</span></div>
+                    <div class="chart-bar-group"><div class="chart-bar" style="height: 60%;"></div><span class="chart-label">W5</span></div>
+                    <div class="chart-bar-group"><div class="chart-bar" style="height: 85%; background: var(--color-bridge-orange);"></div><span class="chart-label">Today</span></div>
+                  </div>
+
+                  <div class="span-line">
+                    <div class="span-line-deck"></div>
+                  </div>
+                  <div style="font-size: 12px; color: var(--color-text-secondary); display: flex; justify-content: space-between;">
+                    <span>Top performing card: <strong>Rajesh Shinde (412 views)</strong></span>
+                    <span>Peak traffic: <strong>Pune Works QR standee</strong></span>
+                  </div>
+                </div>
+
+                <!-- Next steps checklist -->
+                <div class="dash-panel">
+                  <div class="panel-header">
+                    <div class="panel-title">Next steps for Sahyadri</div>
+                    <span style="font-size: 12px; color: var(--color-status-success); font-weight: 600;">3 of 4 done</span>
+                  </div>
+
+                  <ul class="checklist">
+                    <li class="check-item">
+                      <div class="check-box done">✓</div>
+                      <span>Verify GSTIN &amp; KYB identity</span>
+                    </li>
+                    <li class="check-item">
+                      <div class="check-box done">✓</div>
+                      <span>Configure company brand kit</span>
+                    </li>
+                    <li class="check-item">
+                      <div class="check-box done">✓</div>
+                      <span>Publish founder digital card</span>
+                    </li>
+                    <li class="check-item" style="border-color: var(--color-bridge-orange);">
+                      <div class="check-box pending"></div>
+                      <div>
+                        <div style="font-weight: 600;">Assign remaining 2 seats</div>
+                        <a href="#people" onclick="switchScreen('people')" style="font-size: 12px; color: var(--color-deep-orange); text-decoration: none;">Go to people roster →</a>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Recent Activity Feed in Human Sentences -->
+              <div class="dash-panel">
+                <div class="panel-header">
+                  <div class="panel-title">Recent company activity</div>
+                  <a href="#audit" style="font-size: 12px; color: var(--color-deep-orange); text-decoration: none; font-weight: 600;">View full audit log →</a>
+                </div>
+
+                <div class="activity-feed">
+                  <div class="activity-item">
+                    <span><strong>Priya Desai</strong> updated QA certifications and ISO 9001 on the Pune Works card</span>
+                    <span class="activity-time">12 minutes ago</span>
+                  </div>
+                  <div class="activity-item">
+                    <span><strong>New lead</strong> received from Bajaj Auto Procurement via Rajesh Shinde's card</span>
+                    <span class="activity-time">1 hour ago</span>
+                  </div>
+                  <div class="activity-item">
+                    <span><strong>Counter standee QR</strong> scanned 14 times at Chakan Plant gate</span>
+                    <span class="activity-time">3 hours ago</span>
+                  </div>
+                  <div class="activity-item">
+                    <span><strong>Arun Patil</strong> was assigned to Plant Head seat (Chakan Operations)</span>
+                    <span class="activity-time">Yesterday</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================================
+           SCREEN 3: PEOPLE LIST
+           ====================================================================== -->
+      <section id="screen-people" class="screen-view">
+        <div class="people-layout">
+          <header class="people-header">
+            <div class="people-title-group">
+              <h2>People &amp; seats</h2>
+              <p>Manage company identity cards, department assignments, and seat access.</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary">Export CSV</button>
+              <button class="btn btn-primary" onclick="openAddSeatSlideover()">+ Add seat</button>
+            </div>
+          </header>
+
+          <div class="people-body">
+            <!-- Filter Toolbar -->
+            <div class="people-toolbar">
+              <div class="search-box">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" placeholder="Search by name, title, or seat ID...">
+              </div>
+
+              <div class="filter-pills">
+                <button class="filter-pill active">All seats (10)</button>
+                <button class="filter-pill">Published (8)</button>
+                <button class="filter-pill">Drafts (1)</button>
+                <button class="filter-pill">Unassigned (1)</button>
+              </div>
+            </div>
+
+            <!-- Table of People and Seats -->
+            <div class="people-table-container">
+              <table class="people-table">
+                <thead>
+                  <tr>
+                    <th>Name &amp; Seat</th>
+                    <th>Branch / Department</th>
+                    <th>Public Card Link</th>
+                    <th>Card Status</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div class="person-cell">
+                        <div class="person-avatar-sq">RS</div>
+                        <div class="person-name-group">
+                          <div class="name">Rajesh Shinde</div>
+                          <div class="seat-id">OB-T15EH7-E01 • Founder &amp; MD</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Chakan MIDC Works<br><span style="font-size: 12px; color: var(--color-text-muted);">Executive</span></td>
+                    <td>
+                      <a href="#view-card" onclick="switchScreen('visitor')" class="card-link-preview">
+                        onebridge.in/c/sahyadri/rajesh ↗
+                      </a>
+                    </td>
+                    <td><span class="status-badge published">● Published</span></td>
+                    <td style="text-align: right;">
+                      <div class="row-actions" style="justify-content: flex-end;">
+                        <button class="btn btn-ghost" style="min-height: 32px; padding: 0 8px;" onclick="switchScreen('editor')">Edit</button>
+                        <button class="btn btn-ghost" style="min-height: 32px; padding: 0 8px;" onclick="switchScreen('visitor')">View</button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div class="person-cell">
+                        <div class="person-avatar-sq">PD</div>
+                        <div class="person-name-group">
+                          <div class="name">Priya Desai</div>
+                          <div class="seat-id">OB-T15EH7-E02 • VP Quality</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Chakan MIDC Works<br><span style="font-size: 12px; color: var(--color-text-muted);">Quality Assurance</span></td>
+                    <td>
+                      <a href="#priya" class="card-link-preview">onebridge.in/c/sahyadri/priya ↗</a>
+                    </td>
+                    <td><span class="status-badge published">● Published</span></td>
+                    <td style="text-align: right;">
+                      <div class="row-actions" style="justify-content: flex-end;">
+                        <button class="btn btn-ghost" style="min-height: 32px; padding: 0 8px;" onclick="switchScreen('editor')">Edit</button>
+                        <button class="btn btn-ghost" style="min-height: 32px; padding: 0 8px; color: var(--color-status-error);" onclick="confirmOffboard('Priya Desai')">Offboard</button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div class="person-cell">
+                        <div class="person-avatar-sq">AP</div>
+                        <div class="person-name-group">
+                          <div class="name">Arun Patil</div>
+                          <div class="seat-id">OB-T15EH7-E03 • Plant Head</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Chakan MIDC Works<br><span style="font-size: 12px; color: var(--color-text-muted);">Operations</span></td>
+                    <td>
+                      <a href="#arun" class="card-link-preview">onebridge.in/c/sahyadri/arun ↗</a>
+                    </td>
+                    <td><span class="status-badge published">● Published</span></td>
+                    <td style="text-align: right;">
+                      <div class="row-actions" style="justify-content: flex-end;">
+                        <button class="btn btn-ghost" style="min-height: 32px; padding: 0 8px;" onclick="switchScreen('editor')">Edit</button>
+                        <button class="btn btn-ghost" style="min-height: 32px; padding: 0 8px; color: var(--color-status-error);" onclick="confirmOffboard('Arun Patil')">Offboard</button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div class="person-cell">
+                        <div class="person-avatar-sq">NK</div>
+                        <div class="person-name-group">
+                          <div class="name">Neha Kulkarni</div>
+                          <div class="seat-id">OB-T15EH7-E04 • Sr Metallurgist</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Chakan MIDC Works<br><span style="font-size: 12px; color: var(--color-text-muted);">R&amp;D Lab</span></td>
+                    <td>
+                      <span style="font-size: 12px; color: var(--color-text-muted);">(Draft card)</span>
+                    </td>
+                    <td><span class="status-badge draft">● Draft</span></td>
+                    <td style="text-align: right;">
+                      <div class="row-actions" style="justify-content: flex-end;">
+                        <button class="btn btn-ghost" style="min-height: 32px; padding: 0 8px;" onclick="switchScreen('editor')">Edit</button>
+                        <button class="btn btn-ghost" style="min-height: 32px; padding: 0 8px; color: var(--color-bridge-orange);">Publish</button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Unassigned Seat Row respecting F14 boundary -->
+                  <tr style="background: rgba(0,0,0,0.01);">
+                    <td>
+                      <div class="person-cell">
+                        <div class="person-avatar-sq" style="border-style: dashed; background: transparent;">+</div>
+                        <div class="person-name-group">
+                          <div class="name" style="color: var(--color-text-muted);">Unassigned Seat 05</div>
+                          <div class="seat-id">OB-T15EH7-E05 • Open Seat</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Mumbai Sales Office<br><span style="font-size: 12px; color: var(--color-text-muted);">Sales</span></td>
+                    <td><span style="font-size: 12px; color: var(--color-text-muted);">—</span></td>
+                    <td><span class="status-badge unassigned">○ Unassigned</span></td>
+                    <td style="text-align: right;">
+                      <span style="font-size: 12px; color: var(--color-text-muted); font-style: italic;">
+                        Invite by phone, coming soon
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================================
+           SCREEN 4: CARD EDITOR WITH LIVE PREVIEW
+           ====================================================================== -->
+      <section id="screen-editor" class="screen-view">
+        <div class="editor-layout">
+          <!-- Left: Employee Selector -->
+          <div class="editor-roster">
+            <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 4px;">
+              Select Cardholder
+            </div>
+            <div class="roster-item active" onclick="selectCardHolder('Rajesh Shinde', 'Founder & Managing Director', 'Pioneering precision alloy engineering, high-tensile structural TMT rebars, and heavy fabrication in Maharashtra for over 28 years.')">
+              <div class="person-avatar-sq">RS</div>
+              <div>
+                <div style="font-size: 13px; font-weight: 700;">Rajesh Shinde</div>
+                <div style="font-size: 11px; color: var(--color-text-muted);">Managing Director</div>
+              </div>
+            </div>
+            <div class="roster-item" onclick="selectCardHolder('Priya Desai', 'VP Quality Assurance', 'Leading metallurgical lab standards, ISO 9001 certifications, and high-tensile material compliance.')">
+              <div class="person-avatar-sq">PD</div>
+              <div>
+                <div style="font-size: 13px; font-weight: 700;">Priya Desai</div>
+                <div style="font-size: 11px; color: var(--color-text-muted);">VP Quality</div>
+              </div>
+            </div>
+            <div class="roster-item" onclick="selectCardHolder('Arun Patil', 'Plant Head - Chakan', 'Managing day-to-day continuous casting, blast furnace operations, and dispatch logistics.')">
+              <div class="person-avatar-sq">AP</div>
+              <div>
+                <div style="font-size: 13px; font-weight: 700;">Arun Patil</div>
+                <div style="font-size: 11px; color: var(--color-text-muted);">Plant Head</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Center: Tabbed Editor Form -->
+          <div class="editor-form-col">
+            <!-- Tabs Bar -->
+            <div class="editor-tabs-bar">
+              <button class="editor-tab active" onclick="switchEditorTab('details')">Card details</button>
+              <button class="editor-tab" onclick="switchEditorTab('sections')">Sections &amp; content</button>
+              <button class="editor-tab" onclick="switchEditorTab('templates')">Template &amp; theme</button>
+            </div>
+
+            <!-- Form Content -->
+            <div class="editor-form-body">
+              <!-- Shortlink Bar -->
+              <div class="shortlink-bar">
+                <div>
+                  <div style="font-size: 11px; color: var(--color-text-muted); font-weight: 600;">ACTIVE SHORT LINK</div>
+                  <div style="font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--color-text-primary);">
+                    https://obg.in/s7x9k2m1
+                  </div>
+                </div>
+                <button class="btn btn-secondary" style="min-height: 32px; padding: 0 10px; font-size: 12px;" onclick="navigator.clipboard.writeText('https://obg.in/s7x9k2m1'); alert('Copied short link!')">
+                  Copy link
+                </button>
+              </div>
+
+              <!-- Details Tab -->
+              <div id="tab-content-details">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                  <div class="form-group">
+                    <label class="form-label">Full name</label>
+                    <input id="edit-name" type="text" class="form-input" value="Rajesh Shinde" oninput="syncLivePreview()">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Job title</label>
+                    <input id="edit-role" type="text" class="form-input" value="Founder &amp; Managing Director" oninput="syncLivePreview()">
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                  <div class="form-group">
+                    <label class="form-label">Mobile phone</label>
+                    <input type="text" class="form-input" value="+91 98230 12345">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Email address</label>
+                    <input type="email" class="form-input" value="rajesh@sahyadristeel.in">
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                  <label class="form-label">Company bio</label>
+                  <textarea id="edit-bio" class="form-input" style="height: 80px; padding: 10px;" oninput="syncLivePreview()">Pioneering precision alloy engineering, high-tensile structural TMT rebars, and heavy fabrication in Maharashtra for over 28 years.</textarea>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Location / branch</label>
+                  <input type="text" class="form-input" value="Pune Works - Chakan MIDC Phase II">
+                </div>
+              </div>
+
+              <!-- Sections Tab -->
+              <div id="tab-content-sections" style="display: none;">
+                <div style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 12px;">
+                  Toggle sections visible on the visitor card:
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                  <label class="form-checkbox-row" style="background: var(--color-surface-panel); padding: 12px; border: 1px solid var(--color-sand-border); border-radius: 6px;">
+                    <input type="checkbox" checked>
+                    <div>
+                      <div style="font-weight: 700; color: var(--color-text-primary);">About &amp; company bio</div>
+                      <div style="color: var(--color-text-muted);">Executive overview and founding legacy</div>
+                    </div>
+                  </label>
+                  <label class="form-checkbox-row" style="background: var(--color-surface-panel); padding: 12px; border: 1px solid var(--color-sand-border); border-radius: 6px;">
+                    <input type="checkbox" checked>
+                    <div>
+                      <div style="font-weight: 700; color: var(--color-text-primary);">Featured products &amp; specifications</div>
+                      <div style="color: var(--color-text-muted);">TMT Rebars, HR Coils, and automotive flanges</div>
+                    </div>
+                  </label>
+                  <label class="form-checkbox-row" style="background: var(--color-surface-panel); padding: 12px; border: 1px solid var(--color-sand-border); border-radius: 6px;">
+                    <input type="checkbox" checked>
+                    <div>
+                      <div style="font-weight: 700; color: var(--color-text-primary);">Head Works &amp; Plant map</div>
+                      <div style="color: var(--color-text-muted);">Chakan MIDC address and GSTIN</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Template Tab -->
+              <div id="tab-content-templates" style="display: none;">
+                <div style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 12px;">
+                  Select a straight-edge colorway (all 8 re-expressed without arches):
+                </div>
+                <div class="template-palette-grid">
+                  <div class="template-card active" onclick="setPreviewTemplate('#393536', '#F68713')">
+                    <div class="template-swatch" style="background: #393536; border-left: 6px solid #F68713;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">Charcoal Span</div>
+                  </div>
+                  <div class="template-card" onclick="setPreviewTemplate('#1A2E40', '#F68713')">
+                    <div class="template-swatch" style="background: #1A2E40; border-left: 6px solid #3B6EA8;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">Deep Navy</div>
+                  </div>
+                  <div class="template-card" onclick="setPreviewTemplate('#223326', '#27704A')">
+                    <div class="template-swatch" style="background: #223326; border-left: 6px solid #27704A;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">Forest Deck</div>
+                  </div>
+                  <div class="template-card" onclick="setPreviewTemplate('#5C2618', '#A04E08')">
+                    <div class="template-swatch" style="background: #5C2618; border-left: 6px solid #F68713;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">Terracotta</div>
+                  </div>
+                  <div class="template-card" onclick="setPreviewTemplate('#2A2D34', '#E3D9C8')">
+                    <div class="template-swatch" style="background: #2A2D34; border-left: 6px solid #E3D9C8;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">Slate Minimal</div>
+                  </div>
+                  <div class="template-card" onclick="setPreviewTemplate('#4A3E3D', '#E5790C')">
+                    <div class="template-swatch" style="background: #4A3E3D; border-left: 6px solid #E5790C;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">Warm Sand</div>
+                  </div>
+                  <div class="template-card" onclick="setPreviewTemplate('#111111', '#FAF7F2')">
+                    <div class="template-swatch" style="background: #111111; border-left: 6px solid #FAF7F2;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">Monochrome</div>
+                  </div>
+                  <div class="template-card" onclick="setPreviewTemplate('#6B2014', '#F68713')">
+                    <div class="template-swatch" style="background: #6B2014; border-left: 6px solid #F68713;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">Ember Forge</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sticky Save Bar: "Save changes" primary (since published), "Unpublish" in menu -->
+            <div class="editor-bottom-bar">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="status-badge published">● Card is live</span>
+                <span style="font-size: 12px; color: var(--color-text-muted);">Last saved 2m ago</span>
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <button class="btn btn-ghost" onclick="alert('Card unpublished to draft state.')">Unpublish...</button>
+                <button class="btn btn-primary" onclick="alert('Changes saved to live card.')">Save changes</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Interactive Phone Preview -->
+          <div class="editor-preview-col">
+            <div style="font-size: 12px; color: #FAF7F2; margin-bottom: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+              <span style="display: inline-block; width: 8px; height: 8px; background: #27704A; border-radius: 50%;"></span>
+              LIVE PREVIEW (REAL-TIME SYNC)
+            </div>
+
+            <div class="phone-mockup-frame">
+              <!-- Live card mock inside frame -->
+              <div id="preview-header" style="background: #393536; color: #FAF7F2; padding: 20px 16px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span class="business-id-plate" style="font-size: 10px; padding: 2px 6px;">OB-T15EH7</span>
+                  <span class="keystone-tag" style="font-size: 9px; padding: 2px 6px;">VERIFIED</span>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                  <div id="prev-avatar" style="width: 52px; height: 52px; background: #4A4546; border: 2px solid var(--color-bridge-orange); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--color-bridge-orange);">
+                    RS
+                  </div>
+                  <div>
+                    <div id="prev-name" style="font-size: 20px; font-weight: 700; color: #FAF7F2;">Rajesh Shinde</div>
+                    <div id="prev-role" style="font-size: 12px; color: var(--color-sand);">Founder &amp; Managing Director</div>
+                    <div style="font-size: 12px; font-weight: 600; color: #FAF7F2;">Sahyadri Steel Works</div>
+                  </div>
+                </div>
+                <!-- Span line -->
+                <div class="span-line" style="margin: 4px 0 0 0; --span-line-color: rgba(255,255,255,0.3);">
+                  <div class="span-line-deck"></div>
+                </div>
+              </div>
+
+              <!-- 3 contact tiles -->
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--color-sand-border); border-bottom: 1px solid var(--color-sand-border);">
+                <div style="background: var(--color-surface-panel); padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">Call</div>
+                <div style="background: var(--color-surface-panel); padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">Email</div>
+                <div style="background: var(--color-surface-panel); padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">Directions</div>
+              </div>
+
+              <!-- Body -->
+              <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="background: var(--color-surface-panel); border: 1px solid var(--color-sand-border); border-radius: 8px; padding: 12px;">
+                  <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--color-deep-orange); margin-bottom: 4px;">About</div>
+                  <p id="prev-bio" style="font-size: 12px; color: var(--color-text-secondary); line-height: 1.4;">Pioneering precision alloy engineering, high-tensile structural TMT rebars, and heavy fabrication in Maharashtra for over 28 years.</p>
+                </div>
+
+                <div style="background: var(--color-surface-panel); border: 1px solid var(--color-sand-border); border-radius: 8px; padding: 12px;">
+                  <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--color-deep-orange); margin-bottom: 4px;">Products</div>
+                  <div style="font-size: 12px; font-weight: 600;">FE 550D TMT Rebars</div>
+                  <div style="font-size: 11px; color: var(--color-text-muted);">Automotive Cold-drawn Flanges</div>
+                </div>
+              </div>
+
+              <!-- Fixed button mock -->
+              <div style="margin-top: auto; padding: 12px; background: var(--color-surface-panel); border-top: 1px solid var(--color-sand-border);">
+                <div style="background: var(--color-bridge-orange); color: var(--color-charcoal); text-align: center; padding: 10px; font-size: 13px; font-weight: 700; border-radius: 6px;">
+                  Save contact
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ==========================================================================
+       SHARE-BACK BOTTOM SHEET (Modal State)
+       ========================================================================== -->
+  <div id="share-sheet-overlay" class="sheet-overlay" onclick="handleOverlayClick(event)">
+    <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet-header">
+        <h3 id="sheet-title">Share your details with Rajesh</h3>
+        <button class="sheet-close-btn" onclick="closeShareSheet()" aria-label="Close sheet">✕</button>
+      </div>
+
+      <p style="font-size: 13px; color: var(--color-text-secondary);">
+        Send your contact info directly to Sahyadri Steel Works. No account or app download needed.
+      </p>
+
+      <form id="share-form" onsubmit="submitShareBack(event)" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label" for="lead-name">Your full name *</label>
+          <input id="lead-name" type="text" class="form-input" required placeholder="e.g. Anand Mahindra">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="lead-phone">Mobile phone *</label>
+          <input id="lead-phone" type="tel" class="form-input" required placeholder="+91 98000 00000">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="lead-email">Email address</label>
+          <input id="lead-email" type="email" class="form-input" placeholder="anand@company.in">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="lead-company">Company / organization</label>
+          <input id="lead-company" type="text" class="form-input" placeholder="e.g. Mahindra Auto">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="lead-note">Note or inquiry</label>
+          <input id="lead-note" type="text" class="form-input" placeholder="Met at Chakan plant gate regarding alloy procurement.">
+        </div>
+
+        <label class="form-checkbox-row">
+          <input id="lead-consent" type="checkbox" required>
+          <span>I consent to sharing these contact details with Sahyadri Steel Works for business communication under the DPDP Act.</span>
+        </label>
+
+        <!-- Connection animation deck -->
+        <div id="connection-feedback" class="connection-status">
+          ✓ Details sent directly to Rajesh's company leads inbox!
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          Send my details
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       OFFBOARD CONFIRMATION DIALOG (Named Employee & Handover Notice)
+       ========================================================================== -->
+  <div id="offboard-dialog-overlay" class="dialog-overlay" onclick="handleDialogOverlayClick(event)">
+    <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+      <h3 id="dialog-title">Offboard Arun Patil?</h3>
+
+      <div class="dialog-notice">
+        <strong>Important notice:</strong> Seats and leads belong to the company. Offboarding never deletes leads, saved-contact history, or analytics. Arun will retain only their personal public card archive per DPDP rules.
+      </div>
+
+      <p style="font-size: 14px; color: var(--color-text-secondary);">
+        This card will be deactivated and visitors scanning Arun's QR code will be routed to the verified handover contact: <strong>Priya Desai (VP Quality)</strong>.
+      </p>
+
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" onclick="closeOffboardDialog()">Cancel</button>
+        <button class="btn btn-destructive" onclick="executeOffboard()">Offboard employee</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       SLIDE-OVER PANEL: ADD SEAT
+       ========================================================================== -->
+  <div id="slideover-overlay" class="slideover-overlay" onclick="handleSlideoverOverlayClick(event)">
+    <div class="slideover-panel" role="dialog" aria-modal="true" aria-labelledby="slideover-title">
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h3 id="slideover-title" style="font-size: 18px; font-weight: 700;">Add company seat</h3>
+          <button class="sheet-close-btn" onclick="closeAddSeatSlideover()">✕</button>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label">Position title *</label>
+            <input type="text" class="form-input" placeholder="e.g. Senior Metallurgy Engineer">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Branch location</label>
+            <select class="form-input">
+              <option>Chakan MIDC Works (Pune)</option>
+              <option>Mumbai Sales Office</option>
+              <option>Nagpur Distribution Center</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Department</label>
+            <select class="form-input">
+              <option>Quality Assurance</option>
+              <option>Operations &amp; Plant</option>
+              <option>Sales &amp; Business Development</option>
+              <option>Research &amp; Metallurgy</option>
+            </select>
+          </div>
+
+          <div class="dialog-notice" style="margin-top: 10px;">
+            <strong>F14 note:</strong> Person invitation by phone is deferred to Step 4. Seat will be created in 'Unassigned' state and ready for allocation.
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-secondary" onclick="closeAddSeatSlideover()">Cancel</button>
+        <button class="btn btn-primary" onclick="alert('Seat added successfully to Sahyadri Steel Works roster!'); closeAddSeatSlideover();">Create seat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       SPAN TOKEN INSPECTOR DRAWER
+       ========================================================================== -->
+  <aside id="spec-drawer" class="spec-drawer" aria-label="Design tokens and rules">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 style="font-size: 16px; font-weight: 700; color: #FAF7F2;">OneBridge Grid — "Span" Language Anatomy</h3>
+      <button class="sheet-close-btn" onclick="toggleSpecDrawer()" style="color: #FAF7F2;">✕</button>
+    </div>
+
+    <div class="spec-grid">
+      <div class="spec-col">
+        <h4>1. Geometric Deck</h4>
+        <div class="spec-item">• <strong>No arches or domes</strong> anywhere in the product</div>
+        <div class="spec-item">• <strong>Span line:</strong> 1.5px hairline with 5px square nodes</div>
+        <div class="spec-item">• <strong>Keystone tag:</strong> Verified trapezoid polygon</div>
+        <div class="spec-item">• <strong>Modular grid:</strong> 1px Sand hairline borders</div>
+      </div>
+
+      <div class="spec-col">
+        <h4>2. Radii Tokens</h4>
+        <div class="spec-item">• <strong>6px:</strong> Controls (buttons, inputs, select)</div>
+        <div class="spec-item">• <strong>10px:</strong> Panels, cards, and avatar images</div>
+        <div class="spec-item">• <strong>14px:</strong> Modals, slide-overs, bottom sheets</div>
+        <div class="spec-item">• <strong>Rule:</strong> Nothing larger, no circular avatars</div>
+      </div>
+
+      <div class="spec-col">
+        <h4>3. Colour Discipline</h4>
+        <div class="spec-item">• <strong>Bridge Orange (#F68713):</strong> Fill only, never text</div>
+        <div class="spec-item">• <strong>Charcoal text on orange:</strong> Contrast ratio 5.1:1</div>
+        <div class="spec-item">• <strong>Deep Orange (#A04E08):</strong> Text/icons on light</div>
+        <div class="spec-item">• <strong>Warm Paper (#FAF7F2):</strong> Base canvas</div>
+      </div>
+
+      <div class="spec-col">
+        <h4>4. Typography &amp; Copy</h4>
+        <div class="spec-item">• <strong>Scale:</strong> 12 / 14 / 16 / 20 / 24 / 32 / 40</div>
+        <div class="spec-item">• <strong>Sentence case:</strong> Everywhere in UI</div>
+        <div class="spec-item">• <strong>Monospace nameplate:</strong> OB-T15EH7</div>
+        <div class="spec-item">• <strong>Indian format:</strong> ₹12,48,000 / +91</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==========================================================================
+       INTERACTIVE PROTOTYPE JAVASCRIPT
+       ========================================================================== -->
+  <script>
+    // Screen Switcher with robust tab sync
+    function switchScreen(screenId) {
+      document.querySelectorAll('.screen-view').forEach(view => view.classList.remove('active'));
+      const activeScreen = document.getElementById(`screen-${screenId}`);
+      if (activeScreen) activeScreen.classList.add('active');
+
+      document.querySelectorAll('.proto-tab-btn').forEach(btn => btn.classList.remove('active'));
+      const tabMap = {
+        'visitor': 0,
+        'dashboard': 1,
+        'people': 2,
+        'editor': 3
+      };
+      const targetBtn = document.querySelectorAll('.proto-tab-btn')[tabMap[screenId]];
+      if (targetBtn) targetBtn.classList.add('active');
+
+      // Auto-set viewport recommendation: visitor default is mobile, others desktop
+      if (screenId === 'visitor') {
+        setViewport('mobile');
+      } else {
+        setViewport('desktop');
+      }
+    }
+
+    // Viewport Switcher
+    function setViewport(size) {
+      const frame = document.getElementById('frame-container');
+      const btnMobile = document.getElementById('btn-vp-mobile');
+      const btnDesktop = document.getElementById('btn-vp-desktop');
+
+      if (size === 'mobile') {
+        frame.classList.add('viewport-mobile');
+        btnMobile.classList.add('active');
+        btnDesktop.classList.remove('active');
+      } else {
+        frame.classList.remove('viewport-mobile');
+        btnDesktop.classList.add('active');
+        btnMobile.classList.remove('active');
+      }
+    }
+
+    // Theme Toggle
+    function toggleTheme() {
+      const body = document.body;
+      const currentTheme = body.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      body.setAttribute('data-theme', newTheme);
+
+      const themeIcon = document.getElementById('theme-icon');
+      const themeBtn = document.getElementById('theme-toggle');
+      if (newTheme === 'dark') {
+        themeIcon.textContent = '☀️';
+        themeBtn.innerHTML = '<span id="theme-icon">☀️</span> Light Mode';
+      } else {
+        themeIcon.textContent = '🌙';
+        themeBtn.innerHTML = '<span id="theme-icon">🌙</span> Dark Mode';
+      }
+    }
+
+    // Spec Drawer Toggle
+    function toggleSpecDrawer() {
+      const drawer = document.getElementById('spec-drawer');
+      drawer.classList.toggle('open');
+    }
+
+    // Share Sheet Controls
+    function openShareSheet() {
+      document.getElementById('share-sheet-overlay').classList.add('open');
+    }
+
+    function closeShareSheet() {
+      document.getElementById('share-sheet-overlay').classList.remove('open');
+    }
+
+    function handleOverlayClick(event) {
+      if (event.target.id === 'share-sheet-overlay') closeShareSheet();
+    }
+
+    function submitShareBack(e) {
+      e.preventDefault();
+      const feedback = document.getElementById('connection-feedback');
+      const deck = document.getElementById('visitor-span-deck');
+
+      // Animate span line to connect visitor and owner
+      if (deck) {
+        deck.classList.add('animating');
+      }
+      feedback.style.display = 'block';
+
+      setTimeout(() => {
+        alert('Lead registered in Sahyadri Steel Works company inbox (Encrypted AES-256-GCM).');
+        closeShareSheet();
+        feedback.style.display = 'none';
+        if (deck) deck.classList.remove('animating');
+        document.getElementById('share-form').reset();
+      }, 900);
+    }
+
+    // Offboard Confirmation Dialog Controls
+    let targetEmployee = '';
+    function confirmOffboard(name) {
+      targetEmployee = name;
+      document.getElementById('dialog-title').textContent = `Offboard ${name}?`;
+      document.getElementById('offboard-dialog-overlay').classList.add('open');
+    }
+
+    function closeOffboardDialog() {
+      document.getElementById('offboard-dialog-overlay').classList.remove('open');
+    }
+
+    function handleDialogOverlayClick(event) {
+      if (event.target.id === 'offboard-dialog-overlay') closeOffboardDialog();
+    }
+
+    function executeOffboard() {
+      alert(`${targetEmployee} has been offboarded. Handover routing enabled.`);
+      closeOffboardDialog();
+    }
+
+    // Add Seat Slide-over
+    function openAddSeatSlideover() {
+      document.getElementById('slideover-overlay').classList.add('open');
+    }
+
+    function closeAddSeatSlideover() {
+      document.getElementById('slideover-overlay').classList.remove('open');
+    }
+
+    function handleSlideoverOverlayClick(event) {
+      if (event.target.id === 'slideover-overlay') closeAddSeatSlideover();
+    }
+
+    // Card Editor Tabs
+    function switchEditorTab(tabName) {
+      document.querySelectorAll('.editor-tab').forEach(t => t.classList.remove('active'));
+      if (window.event) window.event.currentTarget.classList.add('active');
+
+      document.getElementById('tab-content-details').style.display = tabName === 'details' ? 'block' : 'none';
+      document.getElementById('tab-content-sections').style.display = tabName === 'sections' ? 'block' : 'none';
+      document.getElementById('tab-content-templates').style.display = tabName === 'templates' ? 'block' : 'none';
+    }
+
+    // Card Editor Live Preview Sync
+    function syncLivePreview() {
+      const name = document.getElementById('edit-name').value;
+      const role = document.getElementById('edit-role').value;
+      const bio = document.getElementById('edit-bio').value;
+
+      document.getElementById('prev-name').textContent = name;
+      document.getElementById('prev-role').textContent = role;
+      document.getElementById('prev-bio').textContent = bio;
+
+      // Also update visitor card mock
+      document.getElementById('v-name').textContent = name;
+      document.getElementById('v-role').textContent = role;
+      document.getElementById('v-bio').textContent = bio;
+    }
+
+    function selectCardHolder(name, role, bio) {
+      document.querySelectorAll('.roster-item').forEach(item => item.classList.remove('active'));
+      if (window.event) window.event.currentTarget.classList.add('active');
+
+      document.getElementById('edit-name').value = name;
+      document.getElementById('edit-role').value = role;
+      document.getElementById('edit-bio').value = bio;
+
+      const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2);
+      document.getElementById('prev-avatar').textContent = initials;
+      document.querySelector('.visitor-avatar').textContent = initials;
+
+      syncLivePreview();
+    }
+
+    function setPreviewTemplate(bg, accent) {
+      document.querySelectorAll('.template-card').forEach(c => c.classList.remove('active'));
+      if (window.event) window.event.currentTarget.classList.add('active');
+
+      document.getElementById('preview-header').style.backgroundColor = bg;
+      document.getElementById('prev-avatar').style.borderColor = accent;
+      document.getElementById('prev-avatar').style.color = accent;
+    }
+
+    // Global Keyboard Shortcuts (Escape closes modals)
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeShareSheet();
+        closeOffboardDialog();
+        closeAddSeatSlideover();
+        document.getElementById('spec-drawer').classList.remove('open');
+      }
+    });
+  </script>
+</body>
+</html>

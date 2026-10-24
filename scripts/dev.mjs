@@ -26,14 +26,20 @@ const isWindows = process.platform === 'win32';
 
 dotenv.config({ path: path.join(rootDir, '.env') });
 
+// Web ports are configurable when 3000/3001 are taken by another project:
+//   WEB_APP_PORT=3002 WEB_PUBLIC_PORT=3003 pnpm dev
+const WEB_APP_PORT = process.env.WEB_APP_PORT || '3000';
+const WEB_PUBLIC_PORT = process.env.WEB_PUBLIC_PORT || '3001';
+
 // Local development defaults. Values already set (e.g. from .env) win.
 // NODE_ENV must be explicit: identity treats an unset NODE_ENV as production
 // and (correctly) refuses fake OTP/OAuth providers there.
 const DEV_DEFAULTS = {
   NODE_ENV: 'development',
-  APP_URL: 'http://localhost:3000',
-  WEB_PUBLIC_URL: 'http://localhost:3001',
-  SHORT_LINK_BASE_URL: 'http://localhost:3001/r',
+  APP_URL: `http://localhost:${WEB_APP_PORT}`,
+  WEB_PUBLIC_URL: `http://localhost:${WEB_PUBLIC_PORT}`,
+  SHORT_LINK_BASE_URL: `http://localhost:${WEB_PUBLIC_PORT}/r`,
+  NEXT_PUBLIC_WEB_PUBLIC_URL: `http://localhost:${WEB_PUBLIC_PORT}`,
   JWT_SECRET: 'dev-jwt-secret-key-at-least-32-characters-long',
   INTERNAL_SERVICE_KEY: 'dev-internal-service-key-at-least-32-chars',
   ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
@@ -42,6 +48,9 @@ const DEV_DEFAULTS = {
   ENABLE_FAKE_OAUTH: 'true',
   IDENTITY_API_URL: 'http://localhost:4001',
   CARDS_SERVICE_URL: 'http://localhost:4003',
+  NEXT_PUBLIC_CARDS_API_URL: 'http://localhost:4003',
+  DEMO_LEADS_PANEL: 'true',
+  NEXT_PUBLIC_DEMO_LEADS_PANEL: 'true',
 };
 for (const [key, value] of Object.entries(DEV_DEFAULTS)) {
   if (!process.env[key]) process.env[key] = value;
@@ -94,9 +103,9 @@ function importDist(relPath) {
   return import(pathToFileURL(path.join(rootDir, relPath)).href);
 }
 
-function startNextApp(name, filter) {
+function startNextApp(name, filter, port) {
   // shell: true on Windows: Node refuses to spawn .cmd shims without a shell (EINVAL).
-  const child = spawn('pnpm', ['--filter', filter, 'run', 'dev'], {
+  const child = spawn('pnpm', ['--filter', filter, 'exec', 'next', 'dev', '-p', port], {
     cwd: rootDir,
     stdio: 'inherit',
     shell: isWindows,
@@ -170,9 +179,9 @@ async function main() {
 
   log(`Services ready: identity :${PORTS.identity}, organization :${PORTS.organization}, cards :${PORTS.cards} (shared event bus)`);
 
-  startNextApp('web-app', '@onebridge/web-app');
-  startNextApp('web-public', '@onebridge/web-public');
-  log('Admin dashboard: http://localhost:3000   Visitor cards: http://localhost:3001');
+  startNextApp('web-app', '@onebridge/web-app', WEB_APP_PORT);
+  startNextApp('web-public', '@onebridge/web-public', WEB_PUBLIC_PORT);
+  log(`Admin dashboard: http://localhost:${WEB_APP_PORT}   Visitor cards: http://localhost:${WEB_PUBLIC_PORT}`);
 }
 
 async function cleanup() {
