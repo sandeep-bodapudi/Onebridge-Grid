@@ -130,6 +130,7 @@ describe('F10: CardEditor', () => {
   it('moves sections up and down', () => {
     const onSave = vi.fn();
     render(<CardEditor card={makeCard()} templates={templates} isAdmin onSave={onSave} onPublish={vi.fn()} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Sections' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move down: About' }));
     fireEvent.click(screen.getByTestId('card-save'));
     const order = onSave.mock.calls[0][0].sections.map((s: CardEditorSection) => s.type);
@@ -145,6 +146,35 @@ describe('F10: CardEditor', () => {
     expect(screen.getByTestId('card-editor-empty')).toBeTruthy();
     rerender(<CardEditor card={makeCard()} templates={templates} isAdmin error="Could not save the card" onSave={vi.fn()} onPublish={vi.fn()} />);
     expect(screen.getByRole('alert').textContent).toBe('Could not save the card');
+  });
+
+  it('validates details on blur and keeps Save from sending invalid data', () => {
+    const onSave = vi.fn();
+    render(<CardEditor card={makeCard()} templates={templates} isAdmin onSave={onSave} onPublish={vi.fn()} />);
+    const phone = screen.getByTestId('card-field-phone');
+    fireEvent.change(phone, { target: { value: '123' } });
+    fireEvent.blur(phone);
+    expect(screen.getByText(/10-digit indian mobile number/i)).toBeTruthy();
+    fireEvent.click(screen.getByTestId('card-save'));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('makes Save the main action once a card is published (no second publish step)', () => {
+    render(
+      <CardEditor card={makeCard({ status: 'published' })} templates={templates} isAdmin onSave={vi.fn()} onPublish={vi.fn()} />
+    );
+    expect(screen.queryByTestId('card-publish')).toBeNull();
+    expect(screen.getByTestId('card-save').textContent).toBe('Save changes');
+  });
+
+  it('reports each edit for the live preview', () => {
+    const onDraftChange = vi.fn();
+    render(
+      <CardEditor card={makeCard()} templates={templates} isAdmin onSave={vi.fn()} onPublish={vi.fn()} onDraftChange={onDraftChange} />
+    );
+    fireEvent.change(screen.getByTestId('card-field-designation'), { target: { value: 'Head of sales' } });
+    const last = onDraftChange.mock.calls[onDraftChange.mock.calls.length - 1][0];
+    expect(last.sections.find((s: CardEditorSection) => s.type === 'about').content.designation).toBe('Head of sales');
   });
 
   it('has no axe violations', async () => {

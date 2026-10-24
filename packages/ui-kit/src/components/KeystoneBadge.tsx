@@ -31,7 +31,7 @@ export const KeystoneBadge: React.FC<KeystoneBadgeProps> = ({
 
   return (
     <div
-      className={`relative inline-flex items-center justify-center bg-sand-paper border border-sand-border rounded-arch shadow-sm text-bridge-orange-deep ${sizeClasses} ${className}`}
+      className={`relative inline-flex items-center justify-center bg-sand-paper border border-sand-border rounded-[4px] shadow-sm text-deep-orange ${sizeClasses} ${className}`}
       title={label}
       role="img"
       aria-label={label}

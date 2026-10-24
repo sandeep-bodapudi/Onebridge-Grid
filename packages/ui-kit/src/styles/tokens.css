@@ -7,37 +7,43 @@
     font-family: 'Manrope';
     font-style: normal;
     font-weight: 400;
+    font-display: swap;
     src: url('/fonts/manrope-regular.woff2') format('woff2');
   }
   @font-face {
     font-family: 'Manrope';
     font-style: normal;
-    font-weight: 700;
-    src: url('/fonts/manrope-bold.woff2') format('woff2');
+    font-weight: 600;
+    font-display: swap;
+    src: url('/fonts/manrope-semibold.woff2') format('woff2');
   }
   @font-face {
     font-family: 'Manrope';
     font-style: normal;
-    font-weight: 800;
-    src: url('/fonts/manrope-extrabold.woff2') format('woff2');
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/manrope-bold.woff2') format('woff2');
   }
   @font-face {
     font-family: 'Noto Sans Devanagari';
     font-style: normal;
     font-weight: 400;
+    font-display: swap;
     src: url('/fonts/noto-sans-devanagari-regular.woff2') format('woff2');
   }
   @font-face {
     font-family: 'Noto Sans Devanagari';
     font-style: normal;
-    font-weight: 700;
-    src: url('/fonts/noto-sans-devanagari-bold.woff2') format('woff2');
+    font-weight: 600;
+    font-display: swap;
+    src: url('/fonts/noto-sans-devanagari-semibold.woff2') format('woff2');
   }
   @font-face {
     font-family: 'Noto Sans Devanagari';
     font-style: normal;
-    font-weight: 800;
-    src: url('/fonts/noto-sans-devanagari-extrabold.woff2') format('woff2');
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/noto-sans-devanagari-bold.woff2') format('woff2');
   }
 
   :root {
@@ -52,53 +58,68 @@
     --color-error: 194 54 43;              /* #C2362B */
     --color-info: 59 110 168;              /* #3B6EA8 */
     --color-sand-border: 227 217 200;      /* #E3D9C8 */
+
+    /* Span Design Tokens */
+    --span-line-height: 1.5px;
+    --span-node-size: 5px;
+    --radius-control: 6px;
+    --radius-panel: 10px;
+    --radius-sheet: 14px;
   }
 
-  /* Dark mode: neutrals (charcoal, charcoal-deep, warm-paper, sand,
-     sand-border) keep their light-theme values. Components choose dark
-     surfaces and text explicitly with dark: variants (dark:bg-charcoal,
-     dark:text-warm-paper, ...). Inverting the neutrals here as well
-     inverted dark mode twice, giving light surfaces with light text.
-     Only accents are lightened so they stay readable on dark surfaces.
-     .dark: Storybook's class toggle. Media query: apps follow the system
-     setting (Tailwind darkMode 'media'). */
+  /* Dark mode: ensure text and surfaces pass WCAG AA contrast (fixing sign-in invisible heading) */
   .dark {
     --color-deep-orange: 255 159 51;       /* #FF9F33: readable on dark surfaces */
     --color-success: 52 168 83;            /* #34A853 */
     --color-warning: 251 188 4;            /* #FBBC04 */
     --color-error: 234 67 53;              /* #EA4335 */
     --color-info: 66 133 244;              /* #4285F4 */
+    --color-sand-border: 58 54 56;         /* #3A3638 */
   }
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --color-deep-orange: 255 159 51;       /* #FF9F33: readable on dark surfaces */
+      --color-deep-orange: 255 159 51;       /* #FF9F33 */
       --color-success: 52 168 83;            /* #34A853 */
       --color-warning: 251 188 4;            /* #FBBC04 */
       --color-error: 234 67 53;              /* #EA4335 */
       --color-info: 66 133 244;              /* #4285F4 */
+      --color-sand-border: 58 54 56;         /* #3A3638 */
     }
   }
 
   body {
     @apply bg-warm-paper text-charcoal font-body antialiased dark:bg-charcoal-deep dark:text-warm-paper;
   }
-}
-@keyframes arc-success {
-  0% {
-    opacity: 0;
-    transform: scale(0.96) translateY(4px);
+
+  /* Accessible focus outline: 2px outline with 2px offset on interactive elements */
+  :focus-visible {
+    outline: 2px solid rgb(var(--color-charcoal));
+    outline-offset: 2px;
   }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
+  .dark :focus-visible,
+  [data-theme="dark"] :focus-visible {
+    outline-color: rgb(var(--color-bridge-orange));
   }
 }
 
-.animate-arc-success {
-  animation: arc-success 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+/* Span Line Connection Animation */
+@keyframes span-fill {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
 }
 
+.animate-span-fill {
+  animation: span-fill 600ms cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+/* Reduced Motion: All animations switch to 150ms fades or static display */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.01ms !important;
@@ -107,9 +128,12 @@
     transition-property: opacity, background-color, border-color, color, fill, stroke !important;
     scroll-behavior: auto !important;
   }
-  .animate-arc-success {
+  .animate-pulse {
     animation: none !important;
-    transition: opacity 150ms ease-out !important;
+    opacity: 0.7 !important;
+  }
+  .animate-span-fill {
+    animation: none !important;
+    opacity: 1 !important;
   }
 }
-

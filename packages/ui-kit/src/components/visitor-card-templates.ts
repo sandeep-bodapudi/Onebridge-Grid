@@ -18,6 +18,12 @@ export interface TemplateStyle {
   frameClass: string;
   /** Optional brand-colour stripe under the band. */
   stripeColour?: string;
+  /** Tailwind class for the person's name and details on the band (always readable on it). */
+  textClass: string;
+  /** Inline colour for text on the band, when the company set its own band text colour. */
+  textStyle?: Record<string, string>;
+  /** Colour of the span line along the bottom of the band. */
+  lineClass: string;
 }
 
 function hexToRgb(hex: string): [number, number, number] | null {
@@ -46,7 +52,7 @@ export function readableTextClassOn(backgroundHex: string): 'text-charcoal' | 't
   return contrastWithCharcoal >= contrastWithWhite ? 'text-charcoal' : 'text-white';
 }
 
-const NAME = 'font-extrabold text-lg tracking-wide uppercase';
+const NAME = 'font-semibold text-sm tracking-wide';
 
 export function getTemplateStyle(templateId: string, brandBand: string, brandText?: string): TemplateStyle {
   const brandTextClass = brandText ? '' : readableTextClassOn(brandBand);
@@ -54,13 +60,16 @@ export function getTemplateStyle(templateId: string, brandBand: string, brandTex
 
   switch (templateId) {
     case 'bridge-orange':
-      return { headerClass: 'bg-bridge-orange', companyNameClass: `${NAME} text-charcoal`, frameClass: '' };
+      return { headerClass: 'bg-bridge-orange', companyNameClass: `${NAME} text-charcoal`, frameClass: '', textClass: 'text-charcoal', lineClass: 'bg-charcoal' };
+    case 'span-minimal':
     case 'arch-minimal':
       return {
         headerClass: 'bg-warm-paper dark:bg-charcoal',
         companyNameClass: `${NAME} text-charcoal dark:text-warm-paper`,
         frameClass: '',
         stripeColour: brandBand,
+        textClass: 'text-charcoal dark:text-warm-paper',
+        lineClass: 'bg-charcoal dark:bg-warm-paper',
       };
     case 'keystone-dark':
       return {
@@ -69,20 +78,37 @@ export function getTemplateStyle(templateId: string, brandBand: string, brandTex
         // The card body switches to VisitorCard's dark theme for this template.
         frameClass: 'border-charcoal',
         stripeColour: brandBand,
+        textClass: 'text-warm-paper',
+        lineClass: 'bg-warm-paper',
       };
     case 'paper-light':
-      return { headerClass: 'bg-sand dark:bg-charcoal', companyNameClass: `${NAME} text-charcoal dark:text-warm-paper`, frameClass: '' };
+      return {
+        headerClass: 'bg-sand dark:bg-charcoal',
+        companyNameClass: `${NAME} text-charcoal dark:text-warm-paper`,
+        frameClass: '',
+        textClass: 'text-charcoal dark:text-warm-paper',
+        lineClass: 'bg-charcoal dark:bg-warm-paper',
+      };
     case 'enterprise-blue':
-      return { headerClass: 'bg-info', companyNameClass: `${NAME} text-white`, frameClass: '' };
+      return { headerClass: 'bg-info', companyNameClass: `${NAME} text-white`, frameClass: '', textClass: 'text-white', lineClass: 'bg-white' };
     case 'grid-mono':
-      return { headerClass: 'bg-charcoal', companyNameClass: `${NAME} text-warm-paper tracking-[0.2em]`, frameClass: '!rounded-none' };
+      return {
+        headerClass: 'bg-charcoal',
+        companyNameClass: `${NAME} text-warm-paper tracking-[0.2em]`,
+        frameClass: '!rounded-none',
+        textClass: 'text-warm-paper',
+        lineClass: 'bg-bridge-orange',
+      };
     case 'sand-warm':
       return {
         headerClass: '',
-        headerStyle: { background: `linear-gradient(160deg, ${brandBand} 0%, rgb(var(--color-sand)) 100%)` },
+        // Warm sand band with a solid brand-colour deck along the top (straight edge, no gradient fade).
+        headerStyle: { background: `linear-gradient(180deg, ${brandBand} 0, ${brandBand} 12px, rgb(var(--color-sand)) 12px)` },
         companyNameClass: `${NAME} ${brandTextClass}`.trim(),
         companyNameStyle: brandNameStyle,
         frameClass: '',
+        textClass: 'text-charcoal',
+        lineClass: 'bg-charcoal',
       };
     case 'classic-charcoal':
     default:
@@ -93,6 +119,9 @@ export function getTemplateStyle(templateId: string, brandBand: string, brandTex
         companyNameClass: `${NAME} ${brandTextClass}`.trim(),
         companyNameStyle: brandNameStyle,
         frameClass: '',
+        textClass: brandText ? '' : readableTextClassOn(brandBand),
+        textStyle: brandNameStyle,
+        lineClass: readableTextClassOn(brandBand) === 'text-charcoal' ? 'bg-charcoal' : 'bg-white',
       };
   }
 }

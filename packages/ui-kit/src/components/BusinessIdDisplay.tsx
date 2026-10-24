@@ -56,7 +56,6 @@ export const BusinessIdDisplay: React.FC<BusinessIdDisplayProps> = ({
       onCopy?.(businessId);
       setTimeout(() => setCopied(false), copyFeedbackDurationMs);
     } catch {
-      // Graceful fallback for environments blocking clipboard access
       setCopied(false);
     }
   };
@@ -66,13 +65,13 @@ export const BusinessIdDisplay: React.FC<BusinessIdDisplayProps> = ({
       <div
         data-testid="business-id-loading"
         className={cn(
-          'inline-flex items-center gap-8 p-8 rounded-12 bg-sand/30 animate-pulse',
-          variant === 'settings' && 'w-full max-w-sm p-16 rounded-16',
+          'inline-flex items-center gap-2 p-2 rounded-control bg-sand/30 animate-pulse',
+          variant === 'settings' && 'w-full max-w-sm p-4 rounded-panel',
           className
         )}
         {...props}
       >
-        <div className="h-20 w-32 bg-charcoal/20 rounded-8" />
+        <div className="h-5 w-8 bg-charcoal/20 rounded-control" />
         <button
           type="button"
           disabled
@@ -88,7 +87,7 @@ export const BusinessIdDisplay: React.FC<BusinessIdDisplayProps> = ({
       <div
         data-testid="business-id-empty"
         className={cn(
-          'inline-flex items-center gap-8 text-xs font-bold text-charcoal/60 dark:text-warm-paper/60 p-8 rounded-12 bg-sand/20',
+          'inline-flex items-center gap-2 text-xs font-bold text-charcoal/60 dark:text-warm-paper/60 p-2 rounded-control bg-sand/20',
           className
         )}
         {...props}
@@ -104,28 +103,28 @@ export const BusinessIdDisplay: React.FC<BusinessIdDisplayProps> = ({
       <div
         data-testid="business-id-settings"
         className={cn(
-          'p-16 rounded-16 bg-white dark:bg-charcoal border border-sand-border space-y-8 shadow-sm',
+          'p-4 rounded-panel bg-white dark:bg-charcoal border border-sand-border dark:border-sand-border/30 space-y-2 shadow-sm',
           className
         )}
         {...props}
       >
         <div className="flex items-center justify-between">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-charcoal/70 dark:text-warm-paper/70">
+          <span className="text-xs font-bold uppercase tracking-wider text-charcoal/70 dark:text-warm-paper/70">
             {labels.label}
           </span>
           {isOffline && (
             <span
               data-testid="business-id-offline-indicator"
-              className="text-xs font-bold text-deep-orange px-8 py-2 rounded-8 bg-warning/10"
+              className="text-xs font-bold text-deep-orange px-2 py-0.5 rounded-control bg-warning/10"
             >
               {labels.offlineBadge}
             </span>
           )}
         </div>
-        <div className="flex items-center justify-between gap-12 bg-sand/30 dark:bg-charcoal-deep/50 p-8 rounded-12">
+        <div className="flex items-center justify-between gap-3 bg-sand/30 dark:bg-charcoal-deep/50 p-2 rounded-control">
           <span
             data-testid="business-id-value"
-            className="font-mono text-base font-extrabold text-charcoal dark:text-warm-paper tracking-wide px-8"
+            className="font-mono text-base font-bold text-charcoal dark:text-warm-paper tracking-wide px-2 select-all"
           >
             {businessId}
           </span>
@@ -135,7 +134,7 @@ export const BusinessIdDisplay: React.FC<BusinessIdDisplayProps> = ({
             data-testid="btn-copy-business-id"
             aria-label={copied ? labels.copiedText : labels.copyButtonAriaLabel}
             className={cn(
-              'min-h-[44px] min-w-[44px] px-16 py-8 rounded-12 font-bold text-xs transition-colors duration-150 motion-reduce:transition-none flex items-center justify-center gap-4 focus-visible:outline-2 focus-visible:outline-bridge-orange',
+              'min-h-[44px] min-w-[44px] px-4 py-2 rounded-control font-bold text-xs transition-colors duration-150 motion-reduce:transition-none flex items-center justify-center gap-1 focus-visible:outline-2 focus-visible:outline-bridge-orange',
               copied
                 ? 'bg-success text-white'
                 : 'bg-bridge-orange text-charcoal hover:bg-opacity-90'
@@ -148,74 +147,41 @@ export const BusinessIdDisplay: React.FC<BusinessIdDisplayProps> = ({
               </>
             ) : (
               <>
-                <span aria-hidden="true">📋</span>
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
+                >
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
                 <span>{labels.copyText}</span>
               </>
             )}
           </button>
         </div>
-        <span aria-live="polite" className="sr-only">
-          {copied ? labels.copiedText : ''}
-        </span>
       </div>
     );
   }
 
-  // Variant: Admin Left Rail Footer
+  // Variant: Left Navigation Rail
   if (variant === 'rail') {
     return (
       <div
         data-testid="business-id-rail"
         className={cn(
-          'flex items-center justify-between p-8 rounded-12 bg-charcoal-deep text-warm-paper text-xs border border-charcoal/40',
+          'flex items-center justify-between gap-2 px-3 py-2 rounded-control bg-white/5 dark:bg-charcoal-deep/40 border border-white/10 dark:border-sand-border/20',
           className
         )}
         {...props}
       >
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-warm-paper/60 uppercase">
-            {labels.label}
-          </span>
-          <span data-testid="business-id-value" className="font-mono font-bold">
-            {businessId}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={handleCopy}
-          data-testid="btn-copy-business-id"
-          aria-label={copied ? labels.copiedText : labels.copyButtonAriaLabel}
-          className={cn(
-            'min-h-[44px] min-w-[44px] px-8 rounded-8 font-bold text-xs transition-colors duration-150 motion-reduce:transition-none flex items-center justify-center focus-visible:outline-2 focus-visible:outline-bridge-orange',
-            copied
-              ? 'bg-success text-white'
-              : 'bg-bridge-orange text-charcoal hover:bg-opacity-90'
-          )}
+        <span
+          data-testid="business-id-value"
+          className="font-mono text-xs font-bold text-warm-paper dark:text-sand tracking-wider truncate select-all"
         >
-          {copied ? '✓' : 'Copy'}
-        </button>
-        <span aria-live="polite" className="sr-only">
-          {copied ? labels.copiedText : ''}
-        </span>
-      </div>
-    );
-  }
-
-  // Variant: Public Profile Footer
-  if (variant === 'public') {
-    return (
-      <div
-        data-testid="business-id-public"
-        className={cn(
-          'inline-flex items-center gap-12 p-8 rounded-16 bg-warm-paper dark:bg-charcoal border border-sand-border text-xs',
-          className
-        )}
-        {...props}
-      >
-        <span className="font-bold text-charcoal/70 dark:text-warm-paper/70">
-          {labels.label}:
-        </span>
-        <span data-testid="business-id-value" className="font-mono font-bold text-charcoal dark:text-warm-paper">
           {businessId}
         </span>
         <button
@@ -223,42 +189,95 @@ export const BusinessIdDisplay: React.FC<BusinessIdDisplayProps> = ({
           onClick={handleCopy}
           data-testid="btn-copy-business-id"
           aria-label={copied ? labels.copiedText : labels.copyButtonAriaLabel}
-          className={cn(
-            'min-h-[44px] min-w-[44px] px-12 py-6 rounded-12 font-bold transition-colors duration-150 motion-reduce:transition-none flex items-center justify-center',
-            copied
-              ? 'bg-success text-white'
-              : 'bg-sand hover:bg-sand-border text-charcoal dark:bg-charcoal-deep dark:text-warm-paper'
-          )}
+          className="min-h-[44px] min-w-[44px] p-2 rounded-control text-warm-paper/70 hover:text-warm-paper hover:bg-white/10 transition-colors flex items-center justify-center focus-visible:outline-2 focus-visible:outline-bridge-orange"
         >
-          {copied ? labels.copiedText : labels.copyText}
+          {copied ? (
+            <span className="text-success text-xs font-bold" aria-hidden="true">✓</span>
+          ) : (
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          )}
         </button>
-        <span aria-live="polite" className="sr-only">
-          {copied ? labels.copiedText : ''}
-        </span>
       </div>
     );
   }
 
-  // Default: Compact Badge
+  // Variant: Public Visitor Card
+  if (variant === 'public') {
+    return (
+      <div
+        data-testid="business-id-public"
+        className={cn(
+          'inline-flex items-center gap-2 px-3 py-1.5 rounded-control bg-sand/60 dark:bg-charcoal-deep/60 border border-sand-border dark:border-sand-border/30',
+          className
+        )}
+        {...props}
+      >
+        <span className="text-xs font-bold uppercase tracking-wider text-charcoal/60 dark:text-warm-paper/60">
+          ID:
+        </span>
+        <span
+          data-testid="business-id-value"
+          className="font-mono text-xs font-bold text-charcoal dark:text-warm-paper tracking-wider select-all"
+        >
+          {businessId}
+        </span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          data-testid="btn-copy-business-id"
+          aria-label={copied ? labels.copiedText : labels.copyButtonAriaLabel}
+          className="min-h-[44px] min-w-[44px] p-2 rounded-control text-charcoal/60 dark:text-warm-paper/60 hover:text-charcoal dark:hover:text-warm-paper transition-colors flex items-center justify-center focus-visible:outline-2 focus-visible:outline-bridge-orange"
+        >
+          {copied ? (
+            <span className="text-success text-xs font-bold" aria-hidden="true">✓</span>
+          ) : (
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          )}
+        </button>
+      </div>
+    );
+  }
+
+  // Variant: Default Compact Badge
   return (
     <div
       data-testid="business-id-badge"
       className={cn(
-        'inline-flex items-center gap-8 px-12 py-6 rounded-12 bg-sand/40 dark:bg-charcoal/60 border border-sand-border text-xs font-bold',
+        'inline-flex items-center gap-2 px-2.5 py-1 rounded-control bg-sand/80 dark:bg-charcoal border border-sand-border dark:border-sand-border/30',
         className
       )}
       {...props}
     >
-      <span className="text-charcoal/60 dark:text-warm-paper/60 uppercase text-[10px]">
-        {labels.label}
-      </span>
-      <span data-testid="business-id-value" className="font-mono text-charcoal dark:text-warm-paper">
+      <span
+        data-testid="business-id-value"
+        className="font-mono text-xs font-bold text-charcoal dark:text-warm-paper tracking-wider select-all"
+      >
         {businessId}
       </span>
       {isOffline && (
         <span
           data-testid="business-id-offline-indicator"
-          className="text-deep-orange text-[10px] px-4 py-1 rounded-4 bg-warning/10"
+          className="text-[10px] font-bold text-deep-orange px-1.5 py-0.5 rounded-control bg-warning/15 dark:bg-warning/20"
         >
           {labels.offlineBadge}
         </span>
@@ -268,18 +287,29 @@ export const BusinessIdDisplay: React.FC<BusinessIdDisplayProps> = ({
         onClick={handleCopy}
         data-testid="btn-copy-business-id"
         aria-label={copied ? labels.copiedText : labels.copyButtonAriaLabel}
-        className={cn(
-          'min-h-[44px] min-w-[44px] px-8 py-4 rounded-8 font-bold transition-colors duration-150 motion-reduce:transition-none flex items-center justify-center focus-visible:outline-2 focus-visible:outline-bridge-orange',
-          copied
-            ? 'bg-success text-white'
-            : 'bg-bridge-orange text-charcoal hover:bg-opacity-90'
-        )}
+        className="min-h-[44px] min-w-[44px] p-2 rounded-control text-charcoal/60 dark:text-warm-paper/60 hover:text-charcoal dark:hover:text-warm-paper transition-colors flex items-center justify-center focus-visible:outline-2 focus-visible:outline-bridge-orange"
       >
-        {copied ? '✓' : labels.copyText}
+        {copied ? (
+          <span className="text-success text-xs font-bold flex items-center gap-1">
+            <span aria-hidden="true">✓</span>
+            <span>{labels.copiedText}</span>
+          </span>
+        ) : (
+          <svg
+            className="w-3.5 h-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+        )}
       </button>
-      <span aria-live="polite" className="sr-only">
-        {copied ? labels.copiedText : ''}
-      </span>
     </div>
   );
 };
+
+export const BusinessIdNameplate = BusinessIdDisplay;

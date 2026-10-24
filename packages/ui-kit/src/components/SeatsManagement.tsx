@@ -1,6 +1,14 @@
-import React, { useState } from 'react';
-import { cn, ActionButton } from './ActionButton';
-import { StatusChip } from './index';
+import React, { useMemo, useState } from 'react';
+import { AlertTriangle, ExternalLink, Lock, Plus, Search, UserPlus, Users, WifiOff } from 'lucide-react';
+import { cn } from './ActionButton';
+import { Button } from './Button';
+import { Input } from './Input';
+import { Select } from './Select';
+import { StatusChip } from './StatusChip';
+import { EmptyState } from './EmptyState';
+import { Skeleton } from './Skeleton';
+import { SlideOverPanel } from './SlideOverPanel';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export interface SeatItem {
   id: string; // e.g. OB-7KQ2MX-E0001
@@ -19,8 +27,26 @@ export interface SeatItem {
     qrCodeUrl?: string | null;
     nfcChipId?: string | null;
   } | null;
+  /** Name shown on the seat's card (from the cards service). */
+  displayName?: string;
+  /** Status of the seat's card. */
+  cardStatus?: 'draft' | 'pending_approval' | 'published' | 'inactive';
+  /** Real visitor page URL of the seat's card. */
+  cardPublicUrl?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface NewSeatInput {
+  title: string;
+  name?: string;
+  phone?: string;
+  email?: string;
+  branchId?: string;
+  departmentId?: string;
+  teamId?: string;
+  personId?: string;
+  managerSeatId?: string;
 }
 
 export interface SeatsManagementLabels {
@@ -54,35 +80,32 @@ export interface SeatsManagementLabels {
 }
 
 export const defaultSeatsLabelsEn: SeatsManagementLabels = {
-  title: 'Seats and people',
-  subtitle: 'Each digital card and NFC chip is bound to a company-owned seat.',
+  title: 'People',
+  subtitle: 'Each card belongs to a company seat, so its link, QR codes and leads stay when people change.',
   addSeat: 'Add seat',
   addVacantSeat: 'Create vacant seat',
-  emptyTitle: 'No seats configured yet',
-  emptyDesc:
-    'Seats belong to the company and hold cards, QR codes, NFC chips, and lead history even when employees change.',
+  emptyTitle: 'No seats yet',
+  emptyDesc: 'Add a seat for each person who needs a card. The seat keeps the card, QR codes and leads even when people change.',
   overLimitWarningTitle: 'Plan seat limit reached',
-  overLimitWarningDesc:
-    'You have reached your seat limit. Over-limit seats are preserved as read-only. Upgrade plan to create or modify additional seats.',
+  overLimitWarningDesc: 'Extra seats stay visible but read-only. Upgrade your plan to add or edit them.',
   offlineBanner: 'You are currently offline. Viewing cached seats and people.',
-  assignPerson: 'Assign person',
-  reassignPerson: 'Reassign person',
-  statusVacant: 'Vacant',
+  assignPerson: 'Invite by phone',
+  reassignPerson: 'Invite by phone',
+  statusVacant: 'Not signed in yet',
   statusInvited: 'Invited',
-  statusActive: 'Active',
+  statusActive: 'Signed in',
   statusInactive: 'Inactive',
   statusOffboarded: 'Offboarded',
-  readOnlyBadge: 'Read-only (Plan limit)',
-  cardBindingTitle: 'Digital Card & NFC Bindings',
+  readOnlyBadge: 'Read-only',
+  cardBindingTitle: 'Card',
   seatIdLabel: 'Seat ID',
-  personAssignedLabel: 'Assigned Person',
-  noPersonAssigned: 'No person assigned (Vacant)',
+  personAssignedLabel: 'Person',
+  noPersonAssigned: 'No one yet',
   cancel: 'Cancel',
-  save: 'Save assignment',
-  assignPersonTitle: 'Assign person to seat',
-  assignPersonDesc:
-    'Reassigning keeps the card URL, QR code, NFC chip binding, and lead history intact.',
-  personIdPlaceholder: 'Enter person ID or name',
+  save: 'Save',
+  assignPersonTitle: 'Invite by phone',
+  assignPersonDesc: 'Until then, fill in the card details yourself.',
+  personIdPlaceholder: 'Name',
   upgradePlan: 'Upgrade plan',
 };
 
@@ -98,24 +121,20 @@ export const seatsLabelsHi: Partial<SeatsManagementLabels> = {
   overLimitWarningDesc:
     'आप अपनी सीट सीमा तक पहुँच चुके हैं। अतिरिक्त सीटें केवल-पढ़ने योग्य रखी जाती हैं। योजना अपग्रेड करें।',
   offlineBanner: 'आप वर्तमान में ऑफ़लाइन हैं। कैश्ड सीटें देखी जा रही हैं।',
-  assignPerson: 'व्यक्ति असाइन करें',
-  reassignPerson: 'व्यक्ति पुनः असाइन करें',
+  assignPerson: 'फ़ोन से आमंत्रित करें',
+  reassignPerson: 'फ़ोन से आमंत्रित करें',
   statusVacant: 'रिक्त',
   statusInvited: 'आमंत्रित',
   statusActive: 'सक्रिय',
   statusInactive: 'निष्क्रिय',
   statusOffboarded: 'ऑफबोर्डेड',
-  readOnlyBadge: 'केवल-पढ़ने योग्य (योजना सीमा)',
-  cardBindingTitle: 'डिजिटल कार्ड और NFC बाइंडिंग',
+  readOnlyBadge: 'केवल-पढ़ने योग्य',
+  cardBindingTitle: 'कार्ड',
   seatIdLabel: 'सीट आईडी',
-  personAssignedLabel: 'असाइन किया गया व्यक्ति',
-  noPersonAssigned: 'कोई व्यक्ति असाइन नहीं (रिक्त)',
+  personAssignedLabel: 'व्यक्ति',
+  noPersonAssigned: 'अभी कोई नहीं',
   cancel: 'रद्द करें',
-  save: 'असाइनमेंट सहेजें',
-  assignPersonTitle: 'सीट पर व्यक्ति असाइन करें',
-  assignPersonDesc:
-    'पुनः असाइन करने पर भी कार्ड यूआरएल, क्यूआर कोड, एनएफसी चिप बाइंडिंग और लीड इतिहास सुरक्षित रहते हैं।',
-  personIdPlaceholder: 'व्यक्ति आईडी या नाम दर्ज करें',
+  save: 'सहेजें',
   upgradePlan: 'योजना अपग्रेड करें',
 };
 
@@ -128,22 +147,28 @@ export interface SeatsManagementProps {
   isOffline?: boolean;
   error?: string | null;
   labels?: Partial<SeatsManagementLabels>;
-  onCreateSeat?: (dto: {
-    title: string;
-    branchId?: string;
-    departmentId?: string;
-    teamId?: string;
-    personId?: string;
-    managerSeatId?: string;
-  }) => Promise<void> | void;
+  onCreateSeat?: (dto: NewSeatInput) => Promise<void> | void;
+  /** Kept for API compatibility; inviting people (F14) is not offered yet. */
   onAssignPerson?: (seatId: string, personId: string) => Promise<void> | void;
   onUpdateStatus?: (seatId: string, status: SeatItem['status']) => Promise<void> | void;
   onArchiveSeat?: (seatId: string) => Promise<void> | void;
+  /** Opens the card editor for a seat. */
+  onEditCard?: (seatId: string) => void;
   branches?: Array<{ id: string; name: string }>;
   departments?: Array<{ id: string; name: string }>;
   teams?: Array<{ id: string; name: string }>;
   className?: string;
 }
+
+type Filter = 'all' | SeatItem['status'];
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '—';
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+const PHONE_PATTERN = /^(\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}$/;
 
 export const SeatsManagement: React.FC<SeatsManagementProps> = ({
   seats,
@@ -155,454 +180,491 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
   error = null,
   labels: customLabels,
   onCreateSeat,
-  onAssignPerson,
   onUpdateStatus,
   onArchiveSeat,
+  onEditCard,
   branches = [],
   departments = [],
   teams = [],
   className,
 }) => {
   const labels: SeatsManagementLabels = { ...defaultSeatsLabelsEn, ...customLabels };
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [addOpen, setAddOpen] = useState(false);
+  const [draft, setDraft] = useState<NewSeatInput>({ title: '' });
+  const [draftErrors, setDraftErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [managed, setManaged] = useState<SeatItem | null>(null);
+  const [confirmSeat, setConfirmSeat] = useState<SeatItem | null>(null);
 
-  const [activeModalSeat, setActiveModalSeat] = useState<SeatItem | null>(null);
-  const [assignPersonInput, setAssignPersonInput] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-
+  const liveSeats = seats.filter((s) => s.status !== 'offboarded');
   const hasOverLimitSeats = seats.some((s) => s.isReadOnly) || total > maxSeats;
+  const atLimit = liveSeats.length >= maxSeats;
 
-  const filteredSeats = filterStatus === 'all'
-    ? seats
-    : seats.filter((s) => s.status === filterStatus);
-
-  const getStatusChip = (status: SeatItem['status']) => {
-    switch (status) {
-      case 'active':
-        return <StatusChip status="success">{labels.statusActive}</StatusChip>;
-      case 'invited':
-        return <StatusChip status="info">{labels.statusInvited}</StatusChip>;
-      case 'vacant':
-        return <StatusChip status="warning">{labels.statusVacant}</StatusChip>;
-      case 'inactive':
-        return <StatusChip status="error">{labels.statusInactive}</StatusChip>;
-      case 'offboarded':
-        return (
-          <span className="inline-flex items-center px-12 py-4 rounded-12 font-bold text-sm bg-sand dark:bg-charcoal-deep text-charcoal/60 dark:text-warm-paper/60">
-            {labels.statusOffboarded}
-          </span>
-        );
-      default:
-        return null;
-    }
+  const statusLabel: Record<SeatItem['status'], string> = {
+    vacant: labels.statusVacant,
+    invited: labels.statusInvited,
+    active: labels.statusActive,
+    inactive: labels.statusInactive,
+    offboarded: labels.statusOffboarded,
+  };
+  const statusChip = (status: SeatItem['status']) => {
+    const variant = status === 'active' ? 'success' : status === 'vacant' || status === 'invited' ? 'info' : status === 'inactive' ? 'warning' : 'archived';
+    return <StatusChip status={variant}>{statusLabel[status]}</StatusChip>;
+  };
+  const cardChip = (seat: SeatItem) => {
+    if (!seat.cardStatus) return <span className="text-sm text-charcoal/50 dark:text-warm-paper/50">—</span>;
+    if (seat.cardStatus === 'published') return <StatusChip status="published">Published</StatusChip>;
+    if (seat.cardStatus === 'pending_approval') return <StatusChip status="info">Waiting for approval</StatusChip>;
+    if (seat.cardStatus === 'inactive') return <StatusChip status="archived">Inactive</StatusChip>;
+    return <StatusChip status="draft">Draft</StatusChip>;
   };
 
-  const handleOpenAssignModal = (seat: SeatItem) => {
-    setActiveModalSeat(seat);
-    setAssignPersonInput(seat.personId || '');
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: seats.length };
+    for (const s of seats) c[s.status] = (c[s.status] || 0) + 1;
+    return c;
+  }, [seats]);
+
+  const filterOptions: Array<{ value: Filter; label: string }> = [
+    { value: 'all', label: 'All' },
+    { value: 'active', label: labels.statusActive },
+    { value: 'vacant', label: customLabels?.statusVacant ?? 'Not signed in' },
+    { value: 'inactive', label: labels.statusInactive },
+    { value: 'offboarded', label: labels.statusOffboarded },
+  ];
+
+  const visible = seats.filter((s) => {
+    if (filter !== 'all' && s.status !== filter) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return [s.displayName, s.title, branches.find((b) => b.id === s.branchId)?.name]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(q));
+  });
+
+  const nameOf = (seat: SeatItem) => seat.displayName?.trim() || labels.noPersonAssigned;
+  const branchOf = (seat: SeatItem) => branches.find((b) => b.id === seat.branchId)?.name;
+
+  const validateDraft = (d: NewSeatInput) => {
+    const errs: Record<string, string> = {};
+    if (!d.title.trim()) errs.title = 'Enter a job title for this seat.';
+    if (d.phone && !PHONE_PATTERN.test(d.phone.trim())) errs.phone = 'Enter a 10-digit Indian mobile number.';
+    if (d.email && !/^\S+@\S+\.\S+$/.test(d.email.trim())) errs.email = 'Enter an email address like name@company.com.';
+    return errs;
   };
 
-  const handleCloseModal = () => {
-    setActiveModalSeat(null);
-    setAssignPersonInput('');
-    setIsSubmitting(false);
+  const blurField = (field: keyof NewSeatInput) => {
+    const errs = validateDraft(draft);
+    setDraftErrors((prev) => ({ ...prev, [field]: errs[field] || '' }));
   };
 
-  const handleConfirmAssignment = async (e: React.FormEvent) => {
+  const submitDraft = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeModalSeat || !assignPersonInput.trim() || !onAssignPerson) return;
+    const errs = validateDraft(draft);
+    setDraftErrors(errs);
+    if (Object.values(errs).some(Boolean) || !onCreateSeat) return;
+    setSubmitting(true);
     try {
-      setIsSubmitting(true);
-      await onAssignPerson(activeModalSeat.id, assignPersonInput.trim());
-      handleCloseModal();
+      await onCreateSeat({
+        ...draft,
+        title: draft.title.trim(),
+        name: draft.name?.trim() || undefined,
+        phone: draft.phone?.trim() || undefined,
+        email: draft.email?.trim() || undefined,
+        branchId: draft.branchId || undefined,
+        departmentId: draft.departmentId || undefined,
+        teamId: draft.teamId || undefined,
+      });
+      setAddOpen(false);
+      setDraft({ title: '' });
+      setDraftErrors({});
+    } catch {
+      // The host shows the error; keep the form open.
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 
   if (isLoading) {
     return (
-      <div
-        data-testid="seats-loading"
-        className={cn(
-          'p-24 space-y-24 bg-warm-paper dark:bg-charcoal min-h-[400px]',
-          className
-        )}
-      >
-        <div className="h-32 bg-sand dark:bg-charcoal-deep rounded-12 w-1/3 animate-pulse motion-reduce:animate-none" />
-        <div className="h-16 bg-sand dark:bg-charcoal-deep rounded-12 w-1/2 animate-pulse motion-reduce:animate-none" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 pt-16">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="h-160 rounded-arch border border-sand-border dark:border-charcoal-deep p-24 bg-sand/30 dark:bg-charcoal-deep/30 animate-pulse motion-reduce:animate-none"
-            />
-          ))}
-        </div>
+      <div data-testid="seats-loading" className={cn('space-y-4', className)} aria-busy="true">
+        <Skeleton width="40%" height={28} />
+        <Skeleton height={44} />
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} height={64} />
+        ))}
       </div>
     );
   }
 
   return (
-    <div
-      className={cn(
-        'p-24 space-y-24 bg-warm-paper dark:bg-charcoal text-charcoal dark:text-warm-paper min-h-[400px]',
-        className
-      )}
-    >
-      {/* Offline Status Banner */}
-      {isOffline && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="rounded-arch bg-info/10 text-info border border-info/30 p-16 flex items-center justify-between"
-        >
-          <div className="flex items-center space-x-12">
-            <span className="text-xl" aria-hidden="true">📡</span>
-            <span className="font-bold text-sm">{labels.offlineBanner}</span>
-          </div>
+    <div className={cn('space-y-6 text-charcoal dark:text-warm-paper', className)}>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold">{labels.title}</h2>
+          <p className="text-sm text-charcoal/70 dark:text-warm-paper/70 max-w-2xl">{labels.subtitle}</p>
         </div>
-      )}
+        {onCreateSeat ? (
+          <Button
+            variant="primary"
+            onClick={() => setAddOpen(true)}
+            disabled={atLimit}
+            data-testid="add-seat-button"
+            className="gap-2 self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" aria-hidden="true" />
+            {labels.addSeat}
+          </Button>
+        ) : null}
+      </div>
 
-      {/* Error Banner */}
-      {error && (
-        <div
-          role="alert"
-          className="rounded-arch bg-error/10 text-error border border-error/30 p-16 flex items-center justify-between"
-        >
-          <div className="flex items-center space-x-12">
-            <span className="text-xl" aria-hidden="true">⚠️</span>
-            <span className="font-bold text-sm">{error}</span>
-          </div>
+      {isOffline ? (
+        <div role="status" aria-live="polite" className="flex items-center gap-3 px-4 py-3 rounded-panel border border-warning/40 bg-warning/10 text-sm">
+          <WifiOff className="w-4 h-4 shrink-0" aria-hidden="true" />
+          {labels.offlineBanner}
         </div>
-      )}
+      ) : null}
 
-      {/* Over-Limit Plan Warning Banner */}
-      {hasOverLimitSeats && (
+      {error ? (
+        <div role="alert" className="flex items-center gap-3 px-4 py-3 rounded-panel border border-error/40 bg-error/10 text-sm">
+          <AlertTriangle className="w-4 h-4 text-error shrink-0" aria-hidden="true" />
+          {error}
+        </div>
+      ) : null}
+
+      {hasOverLimitSeats ? (
         <div
           role="region"
           aria-label="Plan limit warning"
           data-testid="over-limit-banner"
-          className="rounded-arch bg-warning/10 border-2 border-warning/40 p-20 flex flex-col md:flex-row items-start md:items-center justify-between gap-16"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-4 rounded-panel border border-warning/40 bg-warning/10"
         >
-          <div className="space-y-4">
-            <div className="flex items-center space-x-8">
-              <span className="text-xl" aria-hidden="true">🔒</span>
-              <h2 className="font-extrabold text-base text-deep-orange">
-                {labels.overLimitWarningTitle} ({total}/{maxSeats})
-              </h2>
+          <div className="flex items-start gap-3">
+            <Lock className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
+            <div>
+              <div className="text-sm font-bold">
+                {labels.overLimitWarningTitle} ({total} of {maxSeats})
+              </div>
+              <p className="text-sm text-charcoal/80 dark:text-warm-paper/80">{labels.overLimitWarningDesc}</p>
             </div>
-            <p className="text-sm text-charcoal/80 dark:text-warm-paper/80 max-w-2xl">
-              {labels.overLimitWarningDesc}
-            </p>
           </div>
-          <ActionButton
-            variant="primary"
-            className="whitespace-nowrap min-h-[44px]"
-            onClick={() => {}}
-          >
-            {labels.upgradePlan}
-          </ActionButton>
         </div>
-      )}
+      ) : null}
 
-      {/* Header and Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-16">
-        <div>
-          <h1 className="text-2xl font-extrabold">{labels.title}</h1>
-          <p className="text-sm text-charcoal/70 dark:text-warm-paper/70 mt-4">
-            {labels.subtitle}
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-12">
-          {onCreateSeat && (
-            <ActionButton
-              variant="primary"
-              className="min-h-[44px] min-w-[44px]"
-              onClick={() =>
-                onCreateSeat({
-                  title: 'New Seat',
-                })
-              }
-            >
-              + {labels.addSeat}
-            </ActionButton>
-          )}
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-8 items-center pt-8 border-b border-sand-border dark:border-charcoal-deep pb-12">
-        <span className="text-xs font-bold uppercase tracking-wider text-charcoal/60 dark:text-warm-paper/60 mr-8">
-          Status:
-        </span>
-        {['all', 'vacant', 'invited', 'active', 'inactive', 'offboarded'].map((status) => (
-          <button
-            key={status}
-            type="button"
-            onClick={() => setFilterStatus(status)}
-            className={cn(
-              'px-12 py-6 rounded-12 text-xs font-bold transition-colors min-h-[36px]',
-              filterStatus === status
-                ? 'bg-charcoal text-warm-paper dark:bg-warm-paper dark:text-charcoal'
-                : 'bg-sand dark:bg-charcoal-deep text-charcoal/70 dark:text-warm-paper/70 hover:bg-sand-border'
-            )}
-          >
-            {status === 'all'
-              ? 'All Seats'
-              : labels[`status${status.charAt(0).toUpperCase() + status.slice(1)}` as keyof SeatsManagementLabels] || status}
-          </button>
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {seats.length === 0 && (
-        <div
+      {seats.length === 0 ? (
+        <EmptyState
           data-testid="seats-empty-state"
-          className="rounded-arch border-2 border-dashed border-sand-border dark:border-charcoal-deep p-48 text-center space-y-16"
-        >
-          <div className="text-4xl" aria-hidden="true">🪑</div>
-          <h2 className="text-xl font-bold">{labels.emptyTitle}</h2>
-          <p className="text-sm text-charcoal/70 dark:text-warm-paper/70 max-w-md mx-auto">
-            {labels.emptyDesc}
-          </p>
-          {onCreateSeat && (
-            <ActionButton
-              variant="primary"
-              className="mt-16 min-h-[44px]"
-              onClick={() =>
-                onCreateSeat({
-                  title: 'Founder / Managing Director',
-                })
-              }
-            >
-              {labels.addSeat}
-            </ActionButton>
-          )}
-        </div>
-      )}
-
-      {/* Seats Cards Grid */}
-      {seats.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
-          {filteredSeats.map((seat) => {
-            const branchName = branches.find((b) => b.id === seat.branchId)?.name;
-            const deptName = departments.find((d) => d.id === seat.departmentId)?.name;
-            const teamName = teams.find((t) => t.id === seat.teamId)?.name;
-
-            return (
-              <div
-                key={seat.id}
-                data-testid={`seat-card-${seat.id}`}
-                className={cn(
-                  'rounded-arch border p-20 space-y-16 transition-shadow shadow-sm',
-                  seat.isReadOnly
-                    ? 'border-warning/50 bg-sand/30 dark:bg-charcoal-deep/30'
-                    : 'border-sand-border dark:border-charcoal-deep bg-white dark:bg-charcoal-deep/50'
-                )}
-              >
-                {/* Seat Header: ID + Title + Status */}
-                <div className="flex items-start justify-between gap-12">
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-8">
-                      <span className="font-mono text-xs font-bold px-8 py-2 rounded-8 bg-sand dark:bg-charcoal-deep text-charcoal dark:text-warm-paper">
-                        {seat.id}
-                      </span>
-                      {seat.isReadOnly && (
-                        <span
-                          data-testid={`readonly-badge-${seat.id}`}
-                          className="px-8 py-2 rounded-8 text-xs font-bold bg-warning/20 text-deep-orange"
-                        >
-                          {labels.readOnlyBadge}
-                        </span>
-                      )}
-                    </div>
-                    <h2 className="font-extrabold text-lg leading-snug">{seat.title}</h2>
-                  </div>
-                  <div>{getStatusChip(seat.status)}</div>
-                </div>
-
-                {/* Organization Hierarchy metadata */}
-                {(branchName || deptName || teamName) && (
-                  <div className="text-xs text-charcoal/70 dark:text-warm-paper/70 flex flex-wrap gap-x-12 gap-y-4">
-                    {branchName && <span>🏢 {branchName}</span>}
-                    {deptName && <span>📁 {deptName}</span>}
-                    {teamName && <span>👥 {teamName}</span>}
-                  </div>
-                )}
-
-                {/* Person Assignment Details */}
-                <div className="p-12 rounded-12 bg-sand/40 dark:bg-charcoal-deep/70 flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-bold text-charcoal/60 dark:text-warm-paper/60 uppercase">
-                      {labels.personAssignedLabel}
-                    </div>
-                    <div className="text-sm font-extrabold mt-2">
-                      {seat.personId ? (
-                        <span className="text-charcoal dark:text-warm-paper">
-                          👤 {seat.personId}
-                        </span>
-                      ) : (
-                        <span className="text-deep-orange italic">
-                          {labels.noPersonAssigned}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {!seat.isReadOnly && onAssignPerson && (
-                    <ActionButton
-                      variant="ghost"
-                      className="text-xs font-bold px-12 py-6 min-h-[44px]"
-                      onClick={() => handleOpenAssignModal(seat)}
-                    >
-                      {seat.personId ? labels.reassignPerson : labels.assignPerson}
-                    </ActionButton>
-                  )}
-                </div>
-
-                {/* Digital Card & NFC Binding Information */}
-                {seat.cardBinding && (
-                  <div className="border-t border-sand-border dark:border-charcoal-deep pt-12 text-xs space-y-4 text-charcoal/80 dark:text-warm-paper/80">
-                    <div className="font-bold text-charcoal/60 dark:text-warm-paper/60 uppercase">
-                      {labels.cardBindingTitle}
-                    </div>
-                    <div className="grid grid-cols-2 gap-8 pt-2">
-                      {seat.cardBinding.cardUrl && (
-                        <div>
-                          <span className="font-bold">Card: </span>
-                          <span className="font-mono truncate block" title={seat.cardBinding.cardUrl}>
-                            {seat.cardBinding.cardUrl}
-                          </span>
-                        </div>
-                      )}
-                      {seat.cardBinding.nfcChipId && (
-                        <div>
-                          <span className="font-bold">NFC: </span>
-                          <span className="font-mono">{seat.cardBinding.nfcChipId}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Actions / Read-only notice */}
-                {seat.isReadOnly ? (
-                  <div className="text-xs font-semibold text-deep-orange pt-4">
-                    ⚠️ Seat is read-only because organization exceeds plan limits. Upgrade to edit.
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between pt-8 border-t border-sand-border dark:border-charcoal-deep">
-                    <div className="flex items-center space-x-8">
-                      {onUpdateStatus && seat.status !== 'offboarded' && (
-                        <select
-                          aria-label={`Change status for seat ${seat.id}`}
-                          value={seat.status}
-                          onChange={(e) =>
-                            onUpdateStatus(seat.id, e.target.value as SeatItem['status'])
-                          }
-                          className="text-xs font-bold rounded-8 border border-sand-border dark:border-charcoal-deep bg-sand/30 dark:bg-charcoal px-8 py-6 min-h-[44px]"
-                        >
-                          <option value="vacant">{labels.statusVacant}</option>
-                          <option value="invited">{labels.statusInvited}</option>
-                          <option value="active">{labels.statusActive}</option>
-                          <option value="inactive">{labels.statusInactive}</option>
-                        </select>
-                      )}
-                    </div>
-
-                    {onArchiveSeat && seat.status !== 'offboarded' && (
-                      <button
-                        type="button"
-                        onClick={() => onArchiveSeat(seat.id)}
-                        className="text-xs font-bold text-error hover:underline px-8 py-6 min-h-[44px]"
-                      >
-                        Offboard / Archive
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Accessible Assign/Reassign Person Modal Dialog */}
-      {activeModalSeat && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-assign-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-16 bg-charcoal/60 backdrop-blur-sm"
-        >
-          <div className="bg-warm-paper dark:bg-charcoal rounded-arch border border-sand-border dark:border-charcoal-deep max-w-lg w-full p-24 space-y-20 shadow-xl">
-            <div className="space-y-4">
-              <h2 id="modal-assign-title" className="text-xl font-extrabold">
-                {labels.assignPersonTitle}
-              </h2>
-              <p className="text-sm text-charcoal/70 dark:text-warm-paper/70">
-                {labels.assignPersonDesc}
-              </p>
+          icon={<Users className="w-6 h-6" aria-hidden="true" />}
+          title={labels.emptyTitle}
+          description={labels.emptyDesc}
+          actionLabel={onCreateSeat ? labels.addSeat : undefined}
+          onAction={onCreateSeat ? () => setAddOpen(true) : undefined}
+        />
+      ) : (
+        <>
+          <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+            <div className="relative lg:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-charcoal/50 dark:text-warm-paper/50" aria-hidden="true" />
+              <label htmlFor="seats-search" className="sr-only">
+                Search people
+              </label>
+              <Input
+                id="seats-search"
+                type="search"
+                placeholder="Search by name, title or branch"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pl-9"
+              />
             </div>
-
-            <div className="p-12 rounded-12 bg-sand/50 dark:bg-charcoal-deep text-xs space-y-4">
-              <div>
-                <span className="font-bold">Seat ID:</span> {activeModalSeat.id}
-              </div>
-              <div>
-                <span className="font-bold">Title:</span> {activeModalSeat.title}
-              </div>
-              {activeModalSeat.personId && (
-                <div>
-                  <span className="font-bold">Current Person:</span> {activeModalSeat.personId}
-                </div>
-              )}
-            </div>
-
-            <form onSubmit={handleConfirmAssignment} className="space-y-16">
-              <div className="space-y-8">
-                <label
-                  htmlFor="personIdInput"
-                  className="block text-sm font-bold text-charcoal dark:text-warm-paper"
-                >
-                  Person ID or Username
-                </label>
-                <input
-                  id="personIdInput"
-                  type="text"
-                  required
-                  value={assignPersonInput}
-                  onChange={(e) => setAssignPersonInput(e.target.value)}
-                  placeholder={labels.personIdPlaceholder}
-                  className="w-full rounded-12 border border-sand-border dark:border-charcoal-deep px-16 py-12 bg-white dark:bg-charcoal text-sm min-h-[44px] focus:outline focus:outline-2 focus:outline-bridge-orange"
-                />
-              </div>
-
-              <div className="flex items-center justify-end space-x-12 pt-8">
-                <ActionButton
+            <div role="group" aria-label="Filter by status" className="flex gap-1 overflow-x-auto pb-1 lg:pb-0">
+              {filterOptions.map((opt) => (
+                <button
+                  key={opt.value}
                   type="button"
-                  variant="ghost"
-                  className="min-h-[44px]"
-                  onClick={handleCloseModal}
-                  disabled={isSubmitting}
+                  onClick={() => setFilter(opt.value)}
+                  aria-pressed={filter === opt.value}
+                  className={cn(
+                    'shrink-0 min-h-[44px] px-3 rounded-control text-sm font-semibold transition-colors',
+                    filter === opt.value
+                      ? 'bg-charcoal text-warm-paper dark:bg-warm-paper dark:text-charcoal'
+                      : 'text-charcoal/70 hover:bg-sand dark:text-warm-paper/70 dark:hover:bg-charcoal'
+                  )}
                 >
-                  {labels.cancel}
-                </ActionButton>
-                <ActionButton
-                  type="submit"
-                  variant="primary"
-                  className="min-h-[44px]"
-                  isLoading={isSubmitting}
-                >
-                  {labels.save}
-                </ActionButton>
-              </div>
-            </form>
+                  {opt.label}
+                  <span className="ml-1.5 tabular-nums opacity-70">{counts[opt.value] || 0}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+
+          <div className="rounded-panel border border-sand-border dark:border-sand-border/30 overflow-hidden">
+            <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_140px_120px_96px] gap-4 px-4 py-3 bg-sand/40 dark:bg-charcoal-deep/50 text-xs font-semibold text-charcoal/70 dark:text-warm-paper/70">
+              <span>{labels.personAssignedLabel}</span>
+              <span>Branch</span>
+              <span>{labels.cardBindingTitle}</span>
+              <span>Status</span>
+              <span className="sr-only">Actions</span>
+            </div>
+            {visible.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-charcoal/70 dark:text-warm-paper/70">
+                No one matches this search.
+              </p>
+            ) : (
+              <ul className="divide-y divide-sand-border dark:divide-sand-border/30">
+                {visible.map((seat) => (
+                  <li
+                    key={seat.id}
+                    data-testid={`seat-card-${seat.id}`}
+                    className={cn(
+                      'grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_140px_120px_96px] items-center gap-x-4 gap-y-2 px-4 py-3 bg-warm-paper dark:bg-charcoal',
+                      seat.isReadOnly && 'bg-sand/30 dark:bg-charcoal-deep/40'
+                    )}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'w-10 h-10 shrink-0 rounded-control flex items-center justify-center text-sm font-bold',
+                          seat.displayName ? 'bg-charcoal text-warm-paper dark:bg-warm-paper dark:text-charcoal' : 'bg-sand text-charcoal/50 dark:bg-charcoal-deep dark:text-warm-paper/50'
+                        )}
+                      >
+                        {seat.displayName ? initialsOf(seat.displayName) : '—'}
+                      </span>
+                      <div className="min-w-0">
+                        <div className={cn('text-sm font-bold truncate', !seat.displayName && 'text-charcoal/60 dark:text-warm-paper/60 font-semibold')}>
+                          {nameOf(seat)}
+                        </div>
+                        <div className="text-sm text-charcoal/70 dark:text-warm-paper/70 truncate">{seat.title}</div>
+                      </div>
+                      {seat.isReadOnly ? (
+                        <span data-testid={`readonly-badge-${seat.id}`} className="shrink-0">
+                          <StatusChip status="warning">{labels.readOnlyBadge}</StatusChip>
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="hidden md:block text-sm text-charcoal/80 dark:text-warm-paper/80 truncate">{branchOf(seat) || '—'}</div>
+                    <div className="hidden md:block">{cardChip(seat)}</div>
+                    <div className="hidden md:block">{statusChip(seat.status)}</div>
+                    <div className="flex justify-end">
+                      <Button variant="ghost" onClick={() => setManaged(seat)} aria-label={`Manage ${nameOf(seat)}, ${seat.title}`}>
+                        Manage
+                      </Button>
+                    </div>
+                    <div className="md:hidden col-span-2 flex flex-wrap items-center gap-2">
+                      {statusChip(seat.status)}
+                      {cardChip(seat)}
+                      {branchOf(seat) ? <span className="text-xs text-charcoal/60 dark:text-warm-paper/60">{branchOf(seat)}</span> : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
       )}
+
+      {/* Add seat */}
+      <SlideOverPanel
+        isOpen={addOpen}
+        onClose={() => setAddOpen(false)}
+        title={labels.addSeat}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setAddOpen(false)} disabled={submitting}>
+              {labels.cancel}
+            </Button>
+            <Button variant="primary" type="submit" form="add-seat-form" isLoading={submitting} data-testid="add-seat-submit">
+              {labels.addSeat}
+            </Button>
+          </>
+        }
+      >
+        <form id="add-seat-form" onSubmit={submitDraft} noValidate className="space-y-4">
+          <p className="text-sm text-charcoal/70 dark:text-warm-paper/70">
+            The seat gets a draft card straight away. Fill in the person&apos;s details now or later in the card editor.
+          </p>
+          {(
+            [
+              { key: 'title', label: 'Job title', required: true, placeholder: 'Head of sales', type: 'text', autoComplete: 'organization-title' },
+              { key: 'name', label: 'Full name', placeholder: 'Rohit Deshmukh', type: 'text', autoComplete: 'name' },
+              { key: 'phone', label: 'Mobile number', placeholder: '98220 12345', type: 'tel', autoComplete: 'tel', hint: 'Shown on the card for Call and WhatsApp.' },
+              { key: 'email', label: 'Email', placeholder: 'rohit@company.com', type: 'email', autoComplete: 'email' },
+            ] as const
+          ).map((f) => (
+            <div key={f.key} className="space-y-1">
+              <label htmlFor={`seat-${f.key}`} className="block text-sm font-semibold">
+                {f.label}
+                {'required' in f && f.required ? <span className="text-error"> *</span> : <span className="font-normal text-charcoal/60 dark:text-warm-paper/60"> (optional)</span>}
+              </label>
+              <Input
+                id={`seat-${f.key}`}
+                type={f.type}
+                autoComplete={f.autoComplete}
+                placeholder={f.placeholder}
+                value={(draft[f.key] as string) || ''}
+                hasError={Boolean(draftErrors[f.key])}
+                aria-invalid={Boolean(draftErrors[f.key]) || undefined}
+                aria-describedby={draftErrors[f.key] ? `seat-${f.key}-error` : 'hint' in f ? `seat-${f.key}-hint` : undefined}
+                onChange={(e) => {
+                  setDraft({ ...draft, [f.key]: e.target.value });
+                  if (draftErrors[f.key]) setDraftErrors({ ...draftErrors, [f.key]: '' });
+                }}
+                onBlur={() => blurField(f.key)}
+              />
+              {draftErrors[f.key] ? (
+                <p id={`seat-${f.key}-error`} className="text-sm text-error">
+                  {draftErrors[f.key]}
+                </p>
+              ) : 'hint' in f ? (
+                <p id={`seat-${f.key}-hint`} className="text-xs text-charcoal/60 dark:text-warm-paper/60">
+                  {f.hint}
+                </p>
+              ) : null}
+            </div>
+          ))}
+          {branches.length > 0 ? (
+            <div className="space-y-1">
+              <label htmlFor="seat-branch" className="block text-sm font-semibold">
+                Branch <span className="font-normal text-charcoal/60 dark:text-warm-paper/60">(optional)</span>
+              </label>
+              <Select
+                id="seat-branch"
+                value={draft.branchId || ''}
+                onChange={(e) => setDraft({ ...draft, branchId: e.target.value })}
+                options={[{ value: '', label: 'No branch' }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
+              />
+            </div>
+          ) : null}
+          {departments.length > 0 ? (
+            <div className="space-y-1">
+              <label htmlFor="seat-department" className="block text-sm font-semibold">
+                Department <span className="font-normal text-charcoal/60 dark:text-warm-paper/60">(optional)</span>
+              </label>
+              <Select
+                id="seat-department"
+                value={draft.departmentId || ''}
+                onChange={(e) => setDraft({ ...draft, departmentId: e.target.value })}
+                options={[{ value: '', label: 'No department' }, ...departments.map((d) => ({ value: d.id, label: d.name }))]}
+              />
+            </div>
+          ) : null}
+          {teams.length > 0 ? (
+            <div className="space-y-1">
+              <label htmlFor="seat-team" className="block text-sm font-semibold">
+                Team <span className="font-normal text-charcoal/60 dark:text-warm-paper/60">(optional)</span>
+              </label>
+              <Select
+                id="seat-team"
+                value={draft.teamId || ''}
+                onChange={(e) => setDraft({ ...draft, teamId: e.target.value })}
+                options={[{ value: '', label: 'No team' }, ...teams.map((t) => ({ value: t.id, label: t.name }))]}
+              />
+            </div>
+          ) : null}
+        </form>
+      </SlideOverPanel>
+
+      {/* Manage seat */}
+      <SlideOverPanel isOpen={Boolean(managed)} onClose={() => setManaged(null)} title={managed ? nameOf(managed) : ''}>
+        {managed ? (
+          <div className="space-y-6" data-testid="manage-seat-panel">
+            <dl className="grid grid-cols-[110px_1fr] gap-x-4 gap-y-3 text-sm">
+              <dt className="text-charcoal/60 dark:text-warm-paper/60">Job title</dt>
+              <dd className="font-semibold">{managed.title}</dd>
+              <dt className="text-charcoal/60 dark:text-warm-paper/60">Branch</dt>
+              <dd>{branchOf(managed) || '—'}</dd>
+              <dt className="text-charcoal/60 dark:text-warm-paper/60">Status</dt>
+              <dd>{statusChip(managed.status)}</dd>
+              <dt className="text-charcoal/60 dark:text-warm-paper/60">{labels.cardBindingTitle}</dt>
+              <dd className="flex flex-wrap items-center gap-2">
+                {cardChip(managed)}
+                {managed.cardPublicUrl && managed.cardStatus === 'published' ? (
+                  <a
+                    href={managed.cardPublicUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 min-h-[44px] text-sm font-semibold text-deep-orange underline underline-offset-2"
+                  >
+                    Open card <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                  </a>
+                ) : null}
+              </dd>
+              <dt className="text-charcoal/60 dark:text-warm-paper/60">{labels.seatIdLabel}</dt>
+              <dd className="font-mono text-xs break-all">{managed.id}</dd>
+            </dl>
+
+            {managed.isReadOnly ? (
+              <p className="text-sm px-3 py-3 rounded-panel bg-warning/10 border border-warning/40">
+                This seat is read-only because the company is over its plan limit. Upgrade to edit it.
+              </p>
+            ) : managed.status !== 'offboarded' ? (
+              <div className="space-y-4">
+                {onEditCard ? (
+                  <Button variant="secondary" isFullWidth onClick={() => { onEditCard(managed.id); setManaged(null); }}>
+                    Edit card details
+                  </Button>
+                ) : null}
+                {onUpdateStatus ? (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-bold">{managed.status === 'inactive' ? 'Seat is paused' : 'Pause this seat'}</h3>
+                    <p className="text-sm text-charcoal/70 dark:text-warm-paper/70">
+                      {managed.status === 'inactive'
+                        ? 'Visitors see a neutral "card inactive" page. Reactivate to show the card again.'
+                        : 'Use this for someone on long leave. Visitors see a neutral "card inactive" page until you reactivate it.'}
+                    </p>
+                    <Button
+                      variant="secondary"
+                      aria-label={`Change status for seat ${managed.id}`}
+                      onClick={async () => {
+                        const status: SeatItem['status'] = managed.status === 'inactive' ? (managed.personId ? 'active' : 'vacant') : 'inactive';
+                        await onUpdateStatus(managed.id, status);
+                        setManaged({ ...managed, status });
+                      }}
+                    >
+                      {managed.status === 'inactive' ? 'Reactivate seat' : 'Pause seat'}
+                    </Button>
+                  </div>
+                ) : null}
+                <div className="flex items-start gap-3 px-3 py-3 rounded-panel border border-dashed border-sand-border dark:border-sand-border/30 text-sm">
+                  <UserPlus className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>
+                    <span className="font-semibold">{labels.assignPersonTitle}</span> is coming soon. {labels.assignPersonDesc}
+                  </span>
+                </div>
+                {onArchiveSeat ? (
+                  <div className="pt-4 border-t border-sand-border dark:border-sand-border/30 space-y-2">
+                    <h3 className="text-sm font-bold">Offboard</h3>
+                    <p className="text-sm text-charcoal/70 dark:text-warm-paper/70">
+                      Use this when someone leaves. Their card shows a &quot;has moved on&quot; page; the seat keeps its link, QR codes and leads.
+                    </p>
+                    <Button variant="destructive" onClick={() => setConfirmSeat(managed)} data-testid="offboard-seat-button">
+                      Offboard {managed.displayName || 'this seat'}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </SlideOverPanel>
+
+      <ConfirmDialog
+        isOpen={Boolean(confirmSeat)}
+        onClose={() => setConfirmSeat(null)}
+        onConfirm={async () => {
+          if (!confirmSeat || !onArchiveSeat) return;
+          await onArchiveSeat(confirmSeat.id);
+          setConfirmSeat(null);
+          setManaged(null);
+        }}
+        title={`Offboard ${confirmSeat?.displayName || confirmSeat?.title || 'this seat'}?`}
+        itemName={confirmSeat ? `${confirmSeat.displayName || labels.noPersonAssigned}, ${confirmSeat.title}` : ''}
+        explanation="Their card stops showing their details and points visitors to the company instead. You can't undo this from the dashboard."
+        confirmLabel="Offboard"
+      />
     </div>
   );
 };

@@ -3,7 +3,7 @@
 exports[`UI Kit Components > ActionButton should not have basic accessibility violations and matches snapshot 1`] = `
 <div>
   <button
-    class="inline-flex items-center justify-center rounded-16 px-24 py-12 font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bridge-orange disabled:opacity-50 disabled:cursor-not-allowed bg-bridge-orange text-charcoal hover:bg-opacity-90"
+    class="inline-flex items-center justify-center font-bold text-sm rounded-control px-4 py-2.5 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-charcoal dark:focus-visible:outline-bridge-orange disabled:opacity-50 disabled:cursor-not-allowed select-none min-h-[56px] sm:min-h-[44px] bg-bridge-orange text-charcoal hover:bg-[#E5790C] active:bg-[#D66F09]"
   >
     Click me
   </button>
@@ -13,15 +13,15 @@ exports[`UI Kit Components > ActionButton should not have basic accessibility vi
 exports[`UI Kit Components > StatTile should render label and value and match snapshot 1`] = `
 <div>
   <div
-    class="bg-sand dark:bg-charcoal-deep p-16 rounded-16"
+    class="p-5 rounded-panel border border-sand-border dark:border-sand-border/30 bg-warm-paper dark:bg-charcoal flex flex-col justify-between gap-1.5 transition-colors duration-150"
   >
     <div
-      class="text-sm font-bold text-charcoal/70 dark:text-warm-paper/70"
+      class="text-xs font-bold text-charcoal/70 dark:text-warm-paper/70 tracking-wide"
     >
       Total Views
     </div>
     <div
-      class="text-2xl font-extrabold"
+      class="text-2xl font-bold tracking-tight text-charcoal dark:text-warm-paper"
     >
       1,234
     </div>
@@ -32,9 +32,16 @@ exports[`UI Kit Components > StatTile should render label and value and match sn
 exports[`UI Kit Components > StatusChip should not have basic accessibility violations and matches snapshot 1`] = `
 <div>
   <span
-    class="inline-flex items-center px-12 py-4 rounded-12 font-bold text-sm bg-success/10 text-success"
+    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control text-xs font-bold leading-none select-none bg-success/15 text-success dark:bg-success/20 dark:text-[#34A853]"
+    role="status"
   >
-    Active
+    <span
+      aria-hidden="true"
+      class="w-1.5 h-1.5 shrink-0 bg-success dark:bg-[#34A853]"
+    />
+    <span>
+      Active
+    </span>
   </span>
 </div>
 `;

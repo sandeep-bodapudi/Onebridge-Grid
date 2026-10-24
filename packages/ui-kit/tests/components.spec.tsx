@@ -205,7 +205,7 @@ describe('UI Kit Components', () => {
       <SeatsManagement seats={[]} onCreateSeat={() => {}} />
     );
     expect(getByTestId('seats-empty-state')).toBeTruthy();
-    expect(getByText('No seats configured yet')).toBeTruthy();
+    expect(getByText('No seats yet')).toBeTruthy();
   });
 
   it('SeatsManagement renders error and offline status banners', () => {
@@ -287,7 +287,8 @@ describe('UI Kit Components', () => {
     expect(getByTestId('seat-card-OB-7KQ2MX-E0002')).toBeTruthy();
     expect(getByText('Vacant AE Seat')).toBeTruthy();
     expect(getByText('Active Director')).toBeTruthy();
-    expect(getByText(/person_vikram/i)).toBeTruthy();
+    // People are shown by name, never by person ID.
+    expect(container.textContent).not.toContain('person_vikram');
 
     const results = await axe(container);
     // @ts-expect-error - jest-axe types do not extend vitest Assertion globally without conflicts
@@ -295,7 +296,7 @@ describe('UI Kit Components', () => {
   });
 
   it('SeatsManagement renders correctly with Hindi localization labels', () => {
-    const { getByText } = render(
+    const { getByText, getAllByText } = render(
       <SeatsManagement
         seats={[]}
         labels={seatsLabelsHi}
@@ -304,7 +305,62 @@ describe('UI Kit Components', () => {
     );
     expect(getByText('सीटें और लोग')).toBeTruthy();
     expect(getByText('अभी तक कोई सीट कॉन्फ़िगर नहीं की गई है')).toBeTruthy();
-    expect(getByText('सीट जोड़ें')).toBeTruthy();
+    expect(getAllByText('सीट जोड़ें').length).toBeGreaterThan(0);
+  });
+
+  it('SeatsManagement shows names, real card links and asks before offboarding', async () => {
+    const onArchiveSeat = vi.fn();
+    const { getByText, getByRole, queryByRole } = render(
+      <SeatsManagement
+        plan="business"
+        onArchiveSeat={onArchiveSeat}
+        seats={[
+          {
+            id: 'OB-7KQ2MX-E0002',
+            tenantId: 'tenant_1',
+            title: 'Head of sales',
+            status: 'active',
+            isReadOnly: false,
+            displayName: 'Rohit Deshmukh',
+            cardStatus: 'published',
+            cardPublicUrl: 'https://cards.example/c/acme/ob-7kq2mx-e0002',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ]}
+      />
+    );
+    expect(getByText('Rohit Deshmukh')).toBeTruthy();
+    fireEvent.click(getByRole('button', { name: /manage rohit deshmukh/i }));
+    expect(getByRole('link', { name: /open card/i }).getAttribute('href')).toBe('https://cards.example/c/acme/ob-7kq2mx-e0002');
+    fireEvent.click(getByRole('button', { name: 'Offboard Rohit Deshmukh' }));
+    expect(onArchiveSeat).not.toHaveBeenCalled();
+    expect(getByText(/this affects/i).textContent).toContain('Rohit Deshmukh, Head of sales');
+    await act(async () => {
+      fireEvent.click(getByRole('button', { name: 'Offboard' }));
+    });
+    expect(onArchiveSeat).toHaveBeenCalledWith('OB-7KQ2MX-E0002');
+    expect(queryByRole('dialog')).toBeNull();
+  });
+
+  it('SeatsManagement add-seat form validates on blur and sends name and phone', async () => {
+    const onCreateSeat = vi.fn().mockResolvedValue(undefined);
+    const { getByTestId, getByLabelText, getByText, queryByText } = render(<SeatsManagement seats={[]} onCreateSeat={onCreateSeat} />);
+    fireEvent.click(getByTestId('add-seat-button'));
+    const phone = getByLabelText(/mobile number/i);
+    fireEvent.change(phone, { target: { value: '12345' } });
+    fireEvent.blur(phone);
+    expect(getByText(/10-digit indian mobile number/i)).toBeTruthy();
+    fireEvent.change(phone, { target: { value: '98220 12345' } });
+    expect(queryByText(/10-digit indian mobile number/i)).toBeNull();
+    fireEvent.change(getByLabelText(/job title/i), { target: { value: 'Head of sales' } });
+    fireEvent.change(getByLabelText(/full name/i), { target: { value: 'Rohit Deshmukh' } });
+    await act(async () => {
+      fireEvent.submit(document.getElementById('add-seat-form') as HTMLFormElement);
+    });
+    expect(onCreateSeat).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Head of sales', name: 'Rohit Deshmukh', phone: '98220 12345' })
+    );
   });
 
   describe('BrandKitManager Component', () => {
@@ -321,11 +377,11 @@ describe('UI Kit Components', () => {
         />
       );
 
-      expect(getByText('Brand kit and card locks')).toBeTruthy();
+      expect(getByText('Brand kit')).toBeTruthy();
       expect(getAllByText('Company logo').length).toBeGreaterThan(0);
-      expect(getByText('Brand colours')).toBeTruthy();
-      expect(getByText('Live digital card preview')).toBeTruthy();
-      expect(getByText('WCAG AA Pass', { exact: false })).toBeTruthy();
+      expect(getAllByText('Brand colours').length).toBeGreaterThan(0);
+      expect(getByText('Card preview')).toBeTruthy();
+      expect(getByText('Easy to read (WCAG AA pass)', { exact: false })).toBeTruthy();
 
       const results = await axe(container);
       // @ts-expect-error - jest-axe types
@@ -344,7 +400,7 @@ describe('UI Kit Components', () => {
         />
       );
 
-      expect(getByText('Low contrast warning', { exact: false })).toBeTruthy();
+      expect(getByText('Hard to read', { exact: false })).toBeTruthy();
       expect(getByText(/Text contrast is below 4.5:1/i)).toBeTruthy();
       expect(getByText(/Apply recommended text colour/i)).toBeTruthy();
     });
@@ -416,14 +472,14 @@ describe('UI Kit Components', () => {
       expect(headerBand.style.backgroundColor).toBe('rgb(27, 42, 74)'); // #1B2A4A in rgb
 
       // Simulate typing a new band hex
-      const bandHexInput = getByLabelText('Header band hex code');
+      const bandHexInput = getByLabelText('Header colour');
       fireEvent.change(bandHexInput, { target: { value: '#0A2540' } });
 
       // Live preview header band updates immediately
       expect(headerBand.style.backgroundColor).toBe('rgb(10, 37, 64)'); // #0A2540 in rgb
 
       // Simulate typing a new text hex
-      const textHexInput = getByLabelText('Band text hex code');
+      const textHexInput = getByLabelText('Header text colour');
       fireEvent.change(textHexInput, { target: { value: '#FAF7F2' } });
 
       const cardName = getByTestId('preview-card-name');
@@ -445,7 +501,7 @@ describe('UI Kit Components', () => {
       );
 
       // Change band colour to orange with white text (contrast ~2.5:1, unreadable)
-      const bandHexInput = getByLabelText('Header band hex code');
+      const bandHexInput = getByLabelText('Header colour');
       fireEvent.change(bandHexInput, { target: { value: '#F68713' } });
 
       // Contrast warning displayed
@@ -463,7 +519,7 @@ describe('UI Kit Components', () => {
 
       // Warning disappears / passes AA
       expect(queryByText(/Text contrast is below 4.5:1/i)).toBeNull();
-      expect(getByText('WCAG AA Pass', { exact: false })).toBeTruthy();
+      expect(getByText('Easy to read (WCAG AA pass)', { exact: false })).toBeTruthy();
 
       // Save button is now enabled
       expect(saveBtn?.disabled).toBe(false);
@@ -542,9 +598,10 @@ describe('UI Kit Components', () => {
         <AuditLogViewer entries={sampleEntries} total={2} />
       );
 
-      expect(getByText('Audit trail')).toBeTruthy();
-      expect(getByText('branch.created')).toBeTruthy();
-      expect(getByText('branch.updated')).toBeTruthy();
+      expect(getByText('Audit log')).toBeTruthy();
+      // Plain sentences, not event codes
+      expect(getByText('added the branch', { exact: false })).toBeTruthy();
+      expect(getByText('updated the branch', { exact: false })).toBeTruthy();
 
       const results = await axe(container);
       // @ts-expect-error - jest-axe types
@@ -554,10 +611,16 @@ describe('UI Kit Components', () => {
     it('handles filter form inputs and submission', async () => {
       const onFilterChange = vi.fn();
       const { getByLabelText, getByTestId } = render(
-        <AuditLogViewer entries={sampleEntries} total={2} onFilterChange={onFilterChange} />
+        <AuditLogViewer
+          entries={sampleEntries}
+          total={2}
+          onFilterChange={onFilterChange}
+          actorNames={{ '01JD2XPER00000000000000001': 'Priya Kulkarni' }}
+        />
       );
 
-      const actorInput = getByLabelText('Actor');
+      // Dropdowns of people and actions instead of typed IDs
+      const actorInput = getByLabelText('Person');
       const actionInput = getByLabelText('Action');
 
       fireEvent.change(actorInput, { target: { value: '01JD2XPER00000000000000001' } });
@@ -613,7 +676,7 @@ describe('UI Kit Components', () => {
       fireEvent.click(viewDiffBtn);
 
       expect(getByTestId('audit-diff-modal')).toBeTruthy();
-      expect(getByText(/Headquarters/)).toBeTruthy();
+      expect(getByTestId('audit-diff-modal').textContent).toContain('Headquarters');
       expect(getByText(/Confidential data redacted/)).toBeTruthy();
 
       const closeBtn = getByText('Close');
@@ -859,15 +922,15 @@ describe('UI Kit Components', () => {
         />
       );
 
-      // Open new source tag form
-      const newTagBtn = getByText('+ Add new QR tag');
-      fireEvent.click(newTagBtn);
-
-      const sourceInput = getByPlaceholderText(/Expo 2026/i);
-      fireEvent.change(sourceInput, { target: { value: 'linkedin_bio' } });
+      // Open the new QR form
+      fireEvent.click(getByText('Add QR for an event or place'));
 
       const labelInput = getByPlaceholderText(/Exhibition Hall B/i);
       fireEvent.change(labelInput, { target: { value: 'LinkedIn Bio' } });
+
+      // The tag is filled in from the name, and can be edited
+      const sourceInput = getByPlaceholderText(/expo_2026/i) as HTMLInputElement;
+      expect(sourceInput.value).toBe('linkedin_bio');
 
       const createBtn = getByText('Create QR tag');
       await act(async () => {
@@ -881,7 +944,7 @@ describe('UI Kit Components', () => {
         })
       );
 
-      // Open download modal
+      // Open download modal (event QRs list "Download QR"; the main QR offers "More formats")
       const downloadButtons = getAllByText('Download QR');
       fireEvent.click(downloadButtons[0]);
 

@@ -1,7 +1,47 @@
 import React from 'react';
 import { cn } from './ActionButton';
+
+// Actions
+export * from './Button';
 export * from './ActionButton';
+export * from './IconButton';
+
+// Forms
+export * from './FormField';
+export * from './Input';
+export * from './Select';
+export * from './SegmentedControl';
+export * from './OtpInput';
+
+// Display
+export * from './StatusChip';
+export * from './Table';
+export * from './Tabs';
+export * from './Toast';
+export * from './EmptyState';
+export * from './Skeleton';
+
+// Overlays
+export * from './SlideOverPanel';
+export * from './ConfirmDialog';
+
+// Brand & Span Pieces
+export * from './SpanLine';
+export * from './KeystoneTag';
+export * from './StatTile';
+export * from './QrPreview';
+export * from './PhoneFramePreview';
 export * from './BusinessIdDisplay';
+export * from './KeystoneBadge';
+
+// Layout
+export * from './AppShell';
+
+// Formatting helpers
+export * from './audit-format';
+export * from './visitor-card-templates';
+
+// Domain Features
 export * from './OrgStructure';
 export * from './SeatsManagement';
 export * from './BrandKitManager';
@@ -10,23 +50,10 @@ export * from './CardEditor';
 export * from './NeutralInactivePage';
 export * from './QrDownloadModal';
 export * from './SourceTagManager';
-export * from './KeystoneBadge';
 export * from './VisitorCard';
 
-export const StatusChip = ({ status, children }: { status: 'success'|'warning'|'error'|'info'; children: React.ReactNode }) => {
-  return (
-    <span className={cn('inline-flex items-center px-12 py-4 rounded-12 font-bold text-sm', {
-      'bg-success/10 text-success': status === 'success',
-      'bg-warning/10 text-deep-orange': status === 'warning',
-      'bg-error/10 text-error': status === 'error',
-      'bg-info/10 text-info': status === 'info',
-    })}>
-      {children}
-    </span>
-  );
-};
-
-export interface ArchCardProps extends React.HTMLAttributes<HTMLDivElement> {
+// Span Panel / Card Container
+export interface SpanCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
   isLoading?: boolean;
   error?: string;
@@ -34,59 +61,78 @@ export interface ArchCardProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
 }
 
-export const ArchCard = ({ children, isLoading, error, isEmpty, className, ...props }: ArchCardProps) => {
-  if (isLoading) return <div className={cn("rounded-arch bg-sand/50 dark:bg-charcoal/50 animate-pulse shadow-md p-16 min-h-[128px]", className)} {...props}></div>;
-  if (error) return <div className={cn("rounded-arch bg-error/10 text-error shadow-md p-16 text-center font-bold", className)} {...props}>{error}</div>;
-  if (isEmpty) return <div className={cn("rounded-arch bg-white dark:bg-charcoal shadow-md p-16 text-center text-charcoal/50 font-bold", className)} {...props}>Empty</div>;
-  return <div className={cn("rounded-arch bg-white dark:bg-charcoal shadow-md p-16", className)} {...props}>{children}</div>;
+export const SpanCard = ({ children, isLoading, error, isEmpty, className, ...props }: SpanCardProps) => {
+  if (isLoading) {
+    return (
+      <div
+        className={cn(
+          'rounded-panel border border-sand-border dark:border-sand-border/30 bg-sand/30 dark:bg-charcoal/50 animate-pulse motion-reduce:animate-none p-6 min-h-[128px]',
+          className
+        )}
+        {...props}
+      />
+    );
+  }
+  if (error) {
+    return (
+      <div
+        className={cn(
+          'rounded-panel border border-error/30 bg-error/10 text-error p-6 text-center font-bold text-sm',
+          className
+        )}
+        {...props}
+      >
+        {error}
+      </div>
+    );
+  }
+  if (isEmpty) {
+    return (
+      <div
+        className={cn(
+          'rounded-panel border border-sand-border dark:border-sand-border/30 bg-warm-paper dark:bg-charcoal p-6 text-center text-charcoal/50 dark:text-warm-paper/50 font-bold text-sm',
+          className
+        )}
+        {...props}
+      >
+        Empty
+      </div>
+    );
+  }
+  return (
+    <div
+      className={cn(
+        'rounded-panel border border-sand-border dark:border-sand-border/30 bg-warm-paper dark:bg-charcoal shadow-sm p-6',
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
 };
+
+// Backward-compatible alias for existing imports
+export const ArchCard = SpanCard;
+export type ArchCardProps = SpanCardProps;
 
 export const QrFrame = ({ children, isLoading, error, isEmpty }: { children?: React.ReactNode; isLoading?: boolean; error?: string; isEmpty?: boolean }) => {
-  if (isLoading) return <div className="border-4 border-sand-border p-16 rounded-16 animate-pulse bg-sand/50 min-w-[128px] min-h-[128px]"></div>;
-  if (error) return <div className="border-4 border-error/50 p-16 rounded-16 text-error text-center font-bold">{error}</div>;
-  if (isEmpty) return <div className="border-4 border-sand-border p-16 rounded-16 text-center text-charcoal/50 font-bold">No QR</div>;
-  return <div className="border-4 border-sand-border p-16 rounded-16">{children}</div>;
-};
-
-export const StatTile = ({ label, value, isLoading, error, isEmpty }: { label: string; value: string; isLoading?: boolean; error?: string; isEmpty?: boolean }) => {
-  if (isLoading) return (
-    <div className="bg-sand dark:bg-charcoal-deep p-16 rounded-16 animate-pulse">
-      <div className="h-4 bg-charcoal/20 rounded w-1/2 mb-8"></div>
-      <div className="h-8 bg-charcoal/20 rounded w-3/4"></div>
-    </div>
-  );
-  if (error) return <div className="bg-error/10 text-error p-16 rounded-16 text-sm font-bold">{error}</div>;
-  if (isEmpty) return <div className="bg-sand dark:bg-charcoal-deep p-16 rounded-16 text-sm text-charcoal/50 font-bold">No data</div>;
-  return (
-    <div className="bg-sand dark:bg-charcoal-deep p-16 rounded-16">
-      <div className="text-sm font-bold text-charcoal/70 dark:text-warm-paper/70">{label}</div>
-      <div className="text-2xl font-extrabold">{value}</div>
-    </div>
-  );
+  if (isLoading) return <div className="border border-sand-border p-4 rounded-panel animate-pulse motion-reduce:animate-none bg-sand/30 min-w-[128px] min-h-[128px]" />;
+  if (error) return <div className="border border-error/40 p-4 rounded-panel text-error text-center font-bold text-xs">{error}</div>;
+  if (isEmpty) return <div className="border border-sand-border p-4 rounded-panel text-center text-charcoal/50 font-bold text-xs">No QR</div>;
+  return <div className="border border-sand-border p-4 rounded-panel bg-white">{children}</div>;
 };
 
 export const SideDrawer = ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) => (
-  <div className={cn("fixed inset-y-0 right-0 w-64 bg-warm-paper dark:bg-charcoal-deep shadow-lg transform transition-transform", isOpen ? "translate-x-0" : "translate-x-full")}>
+  <div className={cn('fixed inset-y-0 right-0 w-64 bg-warm-paper dark:bg-charcoal-deep border-l border-sand-border dark:border-sand-border/30 shadow-overlay transform transition-transform duration-200 z-40', isOpen ? 'translate-x-0' : 'translate-x-full')}>
     {children}
   </div>
 );
 
-export const Toast = ({ message, type = 'info' }: { message: string, type?: 'info'|'error'|'success' }) => (
-  <div className={cn("rounded-12 p-16 shadow-md", {
-    'bg-info text-white': type === 'info',
-    'bg-error text-white': type === 'error',
-    'bg-success text-white': type === 'success',
-  })}>{message}</div>
-);
-
-export const EmptyState = ({ message, className, ...props }: { message: string; className?: string } & React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("p-32 text-center text-charcoal/50 dark:text-warm-paper/50 font-bold", className)} {...props}>{message}</div>
-);
-
 export const OfflineBanner = ({ message, className, ...props }: { message: string; className?: string } & React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("bg-warning text-charcoal font-bold p-8 text-center rounded-12", className)} {...props}>{message}</div>
+  <div className={cn('bg-warning text-charcoal font-bold p-3 text-center rounded-control text-xs', className)} {...props}>{message}</div>
 );
 
 export const UpdateBanner = ({ message }: { message: string }) => (
-  <div className="bg-info text-white font-bold p-8 text-center rounded-12">{message}</div>
+  <div className="bg-info text-white font-bold p-3 text-center rounded-control text-xs">{message}</div>
 );

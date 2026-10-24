@@ -6,6 +6,11 @@ import React from 'react';
 import { KeystoneBadge } from '../src/components/KeystoneBadge';
 import { VisitorCard, VisitorCardProps } from '../src/components/VisitorCard';
 
+/** Share-back lives in a bottom sheet (D-UI-REDESIGN); open it before using the form. */
+function openShareSheet() {
+  fireEvent.click(screen.getByRole('button', { name: /share your details back/i }));
+}
+
 describe('F12: Visitor Card UI Component', () => {
   const publishedCardData: VisitorCardProps['data'] = {
     cardId: 'OB-ABC123-E0001',
@@ -75,28 +80,36 @@ describe('F12: Visitor Card UI Component', () => {
   });
 
   describe('AC-1: Layout per Reference Screen 1', () => {
-    it('renders arch header, keystone badge at crown, photo, name, designation, company, branch, and verified chip', () => {
+    // D-UI-REDESIGN: the arch header and keystone crown became a straight brand band with a span line and a keystone tag.
+    it('renders the brand header, logo, photo, name, designation, company, branch and verified tag', () => {
       render(<VisitorCard data={publishedCardData} />);
 
-      // Arch header & branding
-      expect(screen.getByTestId('arch-header')).toBeDefined();
+      expect(screen.getByTestId('card-header')).toBeDefined();
       expect(screen.getByAltText(/acme steels logo/i)).toBeDefined();
-
-      // Keystone badge at crown
-      expect(screen.getByTestId('crown-keystone')).toBeDefined();
-
-      // Cardholder details
-      expect(screen.getByText('Sneha Reddy')).toBeDefined();
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Sneha Reddy');
       expect(screen.getByText('Senior Sales Executive')).toBeDefined();
-      expect(screen.getByText('Acme Steels')).toBeDefined();
-      expect(screen.getByText('Headquarters Branch')).toBeDefined();
+      expect(screen.getByText(/Acme Steels · Headquarters Branch/)).toBeDefined();
 
-      // Photo
       const photo = screen.getByAltText(/sneha reddy/i);
       expect(photo.getAttribute('src')).toBe('https://cdn.onebridge.in/photos/sneha.jpg');
 
-      // Verified chip
-      expect(screen.getByTestId('verified-chip')).toBeDefined();
+      expect(screen.getByTestId('verified-tag')).toBeDefined();
+      expect(screen.getByRole('img', { name: /verified business/i })).toBeDefined();
+    });
+
+    it('never truncates the name and puts readable text on the brand band', () => {
+      render(<VisitorCard data={{ ...publishedCardData!, templateId: 'bridge-orange' }} />);
+      const heading = screen.getByRole('heading', { level: 1 });
+      expect(heading.className).not.toContain('truncate');
+      // Orange is a fill, never under white text (AGENTS.md).
+      expect(heading.parentElement?.className).toContain('text-charcoal');
+    });
+
+    it('shows only the contact tiles that have a target, sized equally', () => {
+      render(<VisitorCard data={{ ...publishedCardData!, actions: { ...publishedCardData!.actions, directionsUrl: undefined } }} />);
+      const nav = screen.getByRole('navigation', { name: /quick contact actions/i });
+      expect(nav.querySelectorAll('a')).toHaveLength(2);
+      expect((nav as HTMLElement).style.gridTemplateColumns).toBe('repeat(2, minmax(0, 1fr))');
     });
   });
 
@@ -169,7 +182,7 @@ describe('F12: Visitor Card UI Component', () => {
   });
 
   describe('AC-7: All UI States per Specification Section 7', () => {
-    it('renders loading skeleton with bridge-span arch shimmer', () => {
+    it('renders the loading skeleton', () => {
       render(<VisitorCard state="loading" />);
       expect(screen.getByTestId('visitor-card-skeleton')).toBeDefined();
     });
@@ -216,11 +229,12 @@ describe('F12: Visitor Card UI Component', () => {
   });
 
   describe('AC-8 & F13: Interactive Share-Back Panel Container', () => {
-    it('renders arched-top share-back container with all form fields and privacy link', () => {
+    it('keeps the form closed until the visitor asks, then shows every field and the privacy link', () => {
       render(<VisitorCard data={publishedCardData} />);
-      const sharebackPanel = screen.getByTestId('shareback-panel');
-      expect(sharebackPanel).toBeDefined();
-      expect(screen.getByText('Share your details')).toBeDefined();
+      expect(screen.getByTestId('shareback-panel')).toBeDefined();
+      expect(screen.queryByLabelText(/your name/i)).toBeNull();
+      openShareSheet();
+      expect(screen.getByRole('dialog', { name: 'Share your details' })).toBeDefined();
       expect(screen.getByLabelText(/your name/i)).toBeDefined();
       expect(screen.getByLabelText(/mobile number/i)).toBeDefined();
       expect(screen.getByLabelText(/email address/i)).toBeDefined();
@@ -236,6 +250,7 @@ describe('F12: Visitor Card UI Component', () => {
     it('validates required fields (name, phone, consent) before submit (AC-1)', async () => {
       const onSharebackSubmit = vi.fn();
       render(<VisitorCard data={publishedCardData} onSharebackSubmit={onSharebackSubmit} />);
+      openShareSheet();
 
       const submitBtn = screen.getByRole('button', { name: /send contact/i });
 
@@ -258,7 +273,7 @@ describe('F12: Visitor Card UI Component', () => {
       expect(onSharebackSubmit).not.toHaveBeenCalled();
     });
 
-    it('submits valid share-back and displays arc success animation (AC-2, AC-7)', async () => {
+    it('submits valid share-back and shows the span connection confirmation (AC-2, AC-7)', async () => {
       const onSharebackSubmit = vi.fn().mockResolvedValue({ success: true });
       render(
         <VisitorCard
@@ -268,6 +283,7 @@ describe('F12: Visitor Card UI Component', () => {
           sourceTag="brochure"
         />
       );
+      openShareSheet();
 
       fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Ravi Kumar' } });
       fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: '+919123456789' } });
@@ -292,11 +308,10 @@ describe('F12: Visitor Card UI Component', () => {
         });
       });
 
-      // Shows arc success state
+      // Confirmation with the span connection animation (a fade under reduced motion, tokens.css)
       await waitFor(() => {
         const successState = screen.getByTestId('shareback-success');
-        expect(successState).toBeDefined();
-        expect(successState.className).toContain('animate-arc-success');
+        expect(successState.querySelector('.animate-span-fill')).not.toBeNull();
         expect(screen.getByText(/details shared/i)).toBeDefined();
         expect(screen.getByText(/your details have been shared with sneha reddy/i)).toBeDefined();
       });
@@ -308,37 +323,41 @@ describe('F12: Visitor Card UI Component', () => {
       expect(screen.getByRole('button', { name: /send contact/i })).toBeDefined();
     });
 
-    it('automatically dismisses success state after 3 seconds (AC-7)', async () => {
+    it('keeps the confirmation on screen until the visitor closes it (AC-7: clear confirmation)', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
       try {
         const onSharebackSubmit = vi.fn().mockResolvedValue({ success: true });
         render(<VisitorCard data={publishedCardData} onSharebackSubmit={onSharebackSubmit} />);
+        openShareSheet();
 
         fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Ravi Kumar' } });
         fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: '+919123456789' } });
         fireEvent.click(screen.getByLabelText(/i agree to share my details/i));
+        fireEvent.click(screen.getByRole('button', { name: /send contact/i }));
 
-        const submitBtn = screen.getByRole('button', { name: /send contact/i });
-        fireEvent.click(submitBtn);
-
-        // Allow promise microtasks to resolve so state changes to 'success'
         await act(async () => {
           await vi.advanceTimersByTimeAsync(10);
         });
-
         expect(screen.getByTestId('shareback-success')).toBeDefined();
 
-        // Advance timers by 3000ms
         await act(async () => {
-          await vi.advanceTimersByTimeAsync(3000);
+          await vi.advanceTimersByTimeAsync(10000);
         });
+        expect(screen.getByTestId('shareback-success')).toBeDefined();
 
-        // Success state is automatically dismissed
-        expect(screen.queryByTestId('shareback-success')).toBeNull();
-        expect(screen.getByRole('button', { name: /send contact/i })).toBeDefined();
+        fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+        expect(screen.queryByRole('dialog')).toBeNull();
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    it('closes the sheet with Escape', () => {
+      render(<VisitorCard data={publishedCardData} />);
+      openShareSheet();
+      expect(screen.getByRole('dialog')).toBeDefined();
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('displays error banner if submission fails or rate limited', async () => {
@@ -347,6 +366,7 @@ describe('F12: Visitor Card UI Component', () => {
         message: 'Too many submissions. Please try again later.',
       });
       render(<VisitorCard data={publishedCardData} onSharebackSubmit={onSharebackSubmit} />);
+      openShareSheet();
 
       fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Ravi Kumar' } });
       fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: '+919123456789' } });
@@ -366,6 +386,7 @@ describe('F12: Visitor Card UI Component', () => {
       Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
 
       render(<VisitorCard data={publishedCardData} onSharebackSubmit={onSharebackSubmit} />);
+      openShareSheet();
 
       fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Ravi Kumar' } });
       fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: '+919123456789' } });
@@ -412,6 +433,19 @@ describe('F12: Visitor Card UI Component', () => {
       const { container: inactiveContainer } = render(<VisitorCard state="inactive" companyName="Acme Steels" />);
       const inactiveResults = await axe(inactiveContainer);
       expect(inactiveResults.violations).toEqual([]);
+    });
+
+    it('satisfies axe with the share-back sheet open', async () => {
+      const { container } = render(<VisitorCard data={publishedCardData} />);
+      openShareSheet();
+      const results = await axe(container);
+      expect(results.violations).toEqual([]);
+    });
+
+    it('renders a not-found state with no personal data', () => {
+      render(<VisitorCard state="not_found" />);
+      expect(screen.getByText('This card link does not exist')).toBeDefined();
+      expect(screen.queryByText('Sneha Reddy')).toBeNull();
     });
   });
 });
