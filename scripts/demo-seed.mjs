@@ -80,6 +80,75 @@ const PEOPLE = [
   { title: 'Business development', name: 'Arjun Mehta', phone: '9876501234', email: 'arjun@sahyadristeel.example', branch: 'nashik', template: 'keystone-dark', bio: 'New dealers and builders in Nashik, Dhule and Jalgaon.', extra: ['products'], draft: true },
 ];
 
+// F26 public company page content. Images are left out so the demo needs no external hosts.
+const COMPANY_PAGE = {
+  about:
+    'Sahyadri Steel Works supplies TMT rebars, structural steel and cut-and-bend services to builders and EPC contractors across Maharashtra. Three locations, same-week delivery.',
+  website: 'https://sahyadristeel.example',
+  socialLinks: { linkedin: 'https://www.linkedin.com/company/sahyadri-steel-example' },
+  products: [
+    { id: 'tmt-550d', name: 'FE 550D TMT rebars', category: 'Rebars', description: '8 mm to 32 mm, IS 1786 certified. Mill test certificate with every load.', price: '₹54,000 / MT' },
+    { id: 'tmt-500d', name: 'FE 500D TMT rebars', category: 'Rebars', description: 'For residential projects up to G+12.', price: '₹52,500 / MT' },
+    { id: 'angles', name: 'Structural angles and channels', category: 'Structural steel', description: 'Mild steel, cut to length at our Chakan works.', price: '₹58,500 / MT' },
+    { id: 'beams', name: 'ISMB beams', category: 'Structural steel', description: '100 mm to 600 mm, IS 2062 grade E250.', priceOnRequest: true },
+    { id: 'binding-wire', name: 'Binding wire', category: 'Accessories', description: '18 and 20 gauge, 25 kg coils.', price: '₹72 / kg' },
+    { id: 'couplers', name: 'Rebar couplers', category: 'Accessories', description: 'Threaded couplers for 16 mm to 40 mm bars.', priceOnRequest: true },
+  ],
+  services: [
+    { id: 'delivery', name: 'Site delivery across Maharashtra', description: 'Same-week dispatch for orders above 10 MT.' },
+    { id: 'bbs', name: 'Bar bending schedules', description: 'Cut and bend to drawing at our Chakan works.' },
+    { id: 'testing', name: 'Third-party testing', description: 'NABL lab reports arranged on request.' },
+  ],
+  portfolio: [
+    { id: 'metro', title: 'Pune Metro, Line 3 viaduct', client: 'Infrastructure EPC contractor', description: 'Supplied 2,400 MT of FE 550D rebars over 14 months with cut-and-bend at our works.' },
+    { id: 'hinjewadi', title: 'Hinjewadi IT park, Phase 2', client: 'Commercial developer', description: 'Structural steel and rebars for four G+10 towers.' },
+  ],
+  clientLogos: [
+    { id: 'c1', name: 'Mehta Builders' },
+    { id: 'c2', name: 'Shaikh Infra Projects' },
+    { id: 'c3', name: 'Wagh Constructions' },
+    { id: 'c4', name: 'Jadhav Developers' },
+  ],
+  documents: [{ id: 'brochure', title: 'Product brochure 2026', url: 'https://sahyadristeel.example/brochure-2026.pdf', sizeBytes: 2_400_000 }],
+};
+
+/** Fills the public company page (F26) through the APIs, if it is still empty. */
+async function seedCompanyPage(T, orgId) {
+  const current = await call('GET', `${CARDS}/company-profile`, T);
+  if (current.products.length > 0) return false;
+  await call('PATCH', `${ORGANIZATION}/orgs/${orgId}`, {
+    ...T,
+    body: { about: COMPANY_PAGE.about, website: COMPANY_PAGE.website, socialLinks: COMPANY_PAGE.socialLinks },
+  });
+  const [summaries, branches] = await Promise.all([
+    call('GET', `${CARDS}/cards`, T).then((r) => r.items || []),
+    call('GET', `${ORGANIZATION}/orgs/${orgId}/branches`, T).then((r) => (Array.isArray(r) ? r : r.items || [])),
+  ]);
+  const seatOf = (name) => {
+    const c = summaries.find((x) => x.name === name);
+    return c ? c.seatId || c.id : undefined;
+  };
+  const branchSeats = {};
+  const chakan = branches.find((b) => /chakan/i.test(b.name));
+  const nashik = branches.find((b) => /nashik/i.test(b.name));
+  if (chakan && seatOf('Meera Iyer')) branchSeats[chakan.id] = seatOf('Meera Iyer');
+  if (nashik && seatOf('Vikas Shinde')) branchSeats[nashik.id] = seatOf('Vikas Shinde');
+  await call('PUT', `${CARDS}/company-profile`, {
+    ...T,
+    body: {
+      seoIndexable: true,
+      products: COMPANY_PAGE.products,
+      services: COMPANY_PAGE.services,
+      portfolio: COMPANY_PAGE.portfolio,
+      clientLogos: COMPANY_PAGE.clientLogos,
+      documents: COMPANY_PAGE.documents,
+      directory: { enabled: true, seatIds: [] },
+      enquiryRouting: { defaultSeatId: seatOf('Rohit Deshmukh'), branchSeats },
+    },
+  });
+  return true;
+}
+
 const LEADS = [
   { person: 1, name: 'Rahul Mehta', phone: '9822099999', company: 'Mehta Builders', note: 'Need 40 MT of 12 mm for a G+7 project', sourceTag: 'pune_expo_2026' },
   { person: 1, name: 'Sneha Wagh', phone: '9767012345', company: 'Wagh Constructions', sourceTag: 'pune_expo_2026' },
@@ -94,7 +163,9 @@ async function main() {
   const existing = me.activeTenant?.tenantId || me.activeTenant?.id;
   if (existing) {
     const org = await call('GET', `${ORGANIZATION}/orgs/${existing}`, { token, tenantId: existing });
-    log(`Demo company already exists: ${org.name} (${org.businessId}). Nothing to do.`);
+    const filled = await seedCompanyPage({ token, tenantId: existing }, existing).catch((err) => log(`Company page skipped: ${err.message}`));
+    log(`Demo company already exists: ${org.name} (${org.businessId}).${filled ? ' Filled in its company page.' : ' Nothing to do.'}`);
+    log(`Company page: ${WEB_PUBLIC}/${org.slug}`);
     return;
   }
 
@@ -157,14 +228,28 @@ async function main() {
     (err) => log(`Event QR skipped: ${err.message}`)
   );
 
-  // Card views and contact saves through the analytics ingestion path.
+  // Card views and contact saves through the analytics ingestion path, spread over the last
+  // four weeks (busier recently) so the dashboard trend and the "vs previous 14 days" change are real.
   const events = [];
+  const DAY = 86_400_000;
+  const now = Date.now();
+  let seed = 42;
+  const rand = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
   cards
     .filter((c) => !c.draft)
     .forEach((c, i) => {
-      const views = [42, 31, 18, 12, 9, 7, 5][i] ?? 3;
-      for (let v = 0; v < views; v++) events.push({ eventType: 'card_viewed', cardId: c.id, slug: c.slug, source: v % 3 === 0 ? 'qr' : 'link' });
-      for (let s = 0; s < Math.round(views / 4); s++) events.push({ eventType: 'contact_saved', cardId: c.id, slug: c.slug });
+      const weight = [1.0, 1.35, 0.6, 0.4, 0.3, 0.25, 0.18][i] ?? 0.15;
+      for (let day = 27; day >= 0; day--) {
+        const recent = day < 14 ? 1.2 : 0.85;
+        const weekday = new Date(now - day * DAY).getDay();
+        const base = (weekday === 0 ? 0.4 : 1) * 2.6 * weight * recent;
+        const views = Math.max(0, Math.round(base + (rand() - 0.5) * 2 * weight));
+        for (let v = 0; v < views; v++) {
+          const timestamp = new Date(now - day * DAY - Math.floor(rand() * 8) * 3_600_000).toISOString();
+          events.push({ eventType: 'card_viewed', cardId: c.id, slug: c.slug, source: rand() < 0.4 ? 'qr' : 'link', timestamp });
+          if (rand() < 0.26) events.push({ eventType: 'contact_saved', cardId: c.id, slug: c.slug, timestamp });
+        }
+      }
     });
   for (let i = 0; i < events.length; i += 100) {
     await call('POST', `${CARDS}/analytics/events`, { body: events.slice(i, i + 100) });
@@ -187,9 +272,20 @@ async function main() {
   }
   log(`Created ${leadCount} share-back leads`);
 
+  await seedCompanyPage(T, org.id)
+    .then(() => log('Filled in the company page'))
+    .catch((err) => log(`Company page skipped: ${err.message}`));
+
+  // A company page enquiry about a product, so the company_enquiry source shows up in leads.
+  await call('POST', `${CARDS}/public/o/${org.slug}/enquiry`, {
+    origin: WEB_PUBLIC,
+    body: { name: 'Nikhil Pawar', phone: '9970012345', company: 'Pawar Realty', message: 'Rates for 60 MT, delivery to Wakad', productId: 'tmt-550d', consent: true, turnstileToken: 'demo' },
+  }).catch((err) => log(`Company enquiry skipped: ${err.message}`));
+
   log('Done.');
   log(`Dashboard: sign in with ${OWNER_PHONE} and code ${OTP}`);
   log(`Visitor card: ${WEB_PUBLIC}/c/${cards[1].slug}`);
+  log(`Company page: ${WEB_PUBLIC}/${org.slug}`);
 }
 
 main().catch((err) => {
