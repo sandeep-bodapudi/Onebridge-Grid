@@ -10,6 +10,19 @@ describe('BrandKitFeature Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(apiClient, 'listCardSummaries').mockResolvedValue([
+      {
+        id: 'OB-ALPHA1-E0001',
+        seatId: 'OB-ALPHA1-E0001',
+        slug: 'acme/ob-alpha1-e0001',
+        status: 'published',
+        templateId: 'classic-charcoal',
+        name: 'Sneha Reddy',
+        designation: 'Sales lead',
+        publicUrl: 'https://cards.example/c/acme/ob-alpha1-e0001',
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
   });
 
   it('renders loading skeleton then loads brand kit and field locks', async () => {
@@ -28,10 +41,12 @@ describe('BrandKitFeature Component', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByText('Brand kit and card locks')).toBeTruthy();
+    expect(screen.getByText('Brand kit')).toBeTruthy();
     expect(screen.getAllByText('Company logo').length).toBeGreaterThan(0);
-    expect(screen.getByText('Brand colours')).toBeTruthy();
-    expect(screen.getByText('Live digital card preview')).toBeTruthy();
+    expect(screen.getAllByText('Brand colours').length).toBeGreaterThan(0);
+    expect(screen.getByText('Card preview')).toBeTruthy();
+    // The preview uses a real card from the company, not placeholder text
+    expect(screen.getByTestId('preview-card-name').textContent).toBe('Sneha Reddy');
   });
 
   it('renders employee view with locked fields notice', async () => {

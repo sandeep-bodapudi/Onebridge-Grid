@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import { AuditLogFeature } from './AuditLogFeature';
+import type { PaginatedSeats } from '@onebridge/api-contracts';
 import { apiClient } from '../../api-client';
 
 describe('AuditLogFeature Component', () => {
@@ -46,6 +47,38 @@ describe('AuditLogFeature Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Names come from the seat holder's card.
+    const seatPage: PaginatedSeats = {
+      items: [
+        {
+          id: 'OB-7KQ2MX-E0001',
+          tenantId,
+          title: 'Founder',
+          personId: '01JD2XPER00000000000000001',
+          status: 'active',
+          isReadOnly: false,
+          createdAt: '2026-10-10T10:00:00.000Z',
+          updatedAt: '2026-10-10T10:00:00.000Z',
+        },
+      ],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    };
+    vi.spyOn(apiClient, 'listSeats').mockResolvedValue(seatPage);
+    vi.spyOn(apiClient, 'listCardSummaries').mockResolvedValue([
+      {
+        id: 'OB-7KQ2MX-E0001',
+        seatId: 'OB-7KQ2MX-E0001',
+        slug: 'acme/ob-7kq2mx-e0001',
+        status: 'published',
+        templateId: 'classic-charcoal',
+        name: 'Priya Kulkarni',
+        designation: 'Founder',
+        publicUrl: 'https://cards.example/c/acme/ob-7kq2mx-e0001',
+        updatedAt: '2026-10-10T10:00:00.000Z',
+      },
+    ]);
   });
 
   it('loads and displays audit logs for admin role', async () => {
@@ -61,9 +94,14 @@ describe('AuditLogFeature Component', () => {
       tenantId,
       expect.objectContaining({ limit: 50, offset: 0 })
     );
-    expect(screen.getByText('Audit trail')).toBeTruthy();
-    expect(screen.getByText('branch.created')).toBeTruthy();
-    expect(screen.getByText('BR-001')).toBeTruthy();
+    expect(screen.getByText('Audit log')).toBeTruthy();
+    // A readable sentence with the person's name, not an event code or IDs
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const row = screen.getByText('added the branch', { exact: false }).closest('li') as HTMLElement;
+    expect(row.textContent).toContain('Priya Kulkarni added the branch Bengaluru HQ');
+    expect(row.textContent).not.toContain('01JD2XPER00000000000000001');
   });
 
   it('triggers filter query when filter is applied', async () => {

@@ -102,7 +102,7 @@ describe('F12: Web-Public Visitor Page, Metadata, vCard and Revalidate', () => {
     expect(meta.openGraph?.title).toBe('Sneha Reddy | Acme Steels');
   });
 
-  it('renders neutral unactivated state when slug does not exist with zero PII', async () => {
+  it('renders a neutral not-found state when the slug does not exist, with zero PII', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 404,
@@ -112,7 +112,7 @@ describe('F12: Web-Public Visitor Page, Metadata, vCard and Revalidate', () => {
     const jsx = await VisitorCardPage({ params: { org: 'non-existent', person: 'card' } });
     const { container } = render(jsx);
 
-    expect(screen.getByText('This card is not active yet')).toBeDefined();
+    expect(screen.getByText('This card link does not exist')).toBeDefined();
     expect(container.querySelector('script[type="application/ld+json"]')).toBeNull();
   });
 

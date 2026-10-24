@@ -3,6 +3,8 @@
 import React, { useEffect } from 'react';
 import { VisitorCard, type VisitorCardData, type VisitorCardProps, type SharebackSubmitData } from '@onebridge/ui-kit';
 
+import { useSearchParams } from 'next/navigation';
+
 export interface VisitorCardClientProps {
   card?: VisitorCardData;
   state?: VisitorCardProps['state'];
@@ -20,6 +22,23 @@ export function VisitorCardClient({
   source,
   sourceTag,
 }: VisitorCardClientProps) {
+  let querySource: 'qr' | 'nfc' | 'link' | undefined;
+  let queryTag: string | undefined;
+
+  try {
+    const searchParams = useSearchParams();
+    const raw = searchParams?.get('source');
+    if (raw === 'qr' || raw === 'nfc' || raw === 'link') {
+      querySource = raw;
+    }
+    queryTag = searchParams?.get('src') || searchParams?.get('sourceTag') || undefined;
+  } catch {
+    // Fallback for environments without navigation context
+  }
+
+  const effectiveSource = source || querySource || 'link';
+  const effectiveSourceTag = sourceTag || queryTag;
+
   const sendAnalytics = (type: string, metadata?: Record<string, unknown>) => {
     try {
       fetch('/api/analytics', {
@@ -29,6 +48,7 @@ export function VisitorCardClient({
           type,
           cardId: card?.cardId,
           slug: card?.slug,
+          tenantId: card?.company?.id,
           metadata,
           timestamp: new Date().toISOString(),
         }),
@@ -54,8 +74,8 @@ export function VisitorCardClient({
         body: JSON.stringify({
           slug: card?.slug,
           ...data,
-          source: data.source || source,
-          sourceTag: data.sourceTag || sourceTag,
+          source: data.source || effectiveSource,
+          sourceTag: data.sourceTag || effectiveSourceTag,
         }),
       });
 
@@ -68,8 +88,8 @@ export function VisitorCardClient({
       }
 
       sendAnalytics('shareback_submitted', {
-        source: data.source || source,
-        sourceTag: data.sourceTag || sourceTag,
+        source: data.source || effectiveSource,
+        sourceTag: data.sourceTag || effectiveSourceTag,
       });
       return { success: true };
     } catch (err: unknown) {
@@ -87,8 +107,8 @@ export function VisitorCardClient({
       state={state}
       companyName={companyName}
       offboardedDetails={offboardedDetails}
-      source={source}
-      sourceTag={sourceTag}
+      source={effectiveSource}
+      sourceTag={effectiveSourceTag}
       onSaveContact={({ cardId, slug }) => sendAnalytics('contact_saved', { cardId, slug })}
       onCtaClick={(cta) => sendAnalytics('cta_clicked', { cta })}
       onSharebackSubmit={handleSharebackSubmit}

@@ -24,12 +24,9 @@ test.describe('E2E Login Flow - Seeded Owner with MFA (AC-8, AC-9)', () => {
     // 4. Verify OTP step is presented
     await expect(page.getByRole('heading', { name: 'Enter 6-Digit Code' })).toBeVisible();
 
-    // 5. Submit dev fake OTP ('123456')
-    const codeInput = page.getByPlaceholder('123456');
-    await codeInput.fill('123456');
-
-    const verifyOtpButton = page.getByRole('button', { name: 'Verify & Continue' });
-    await verifyOtpButton.click();
+    // 5. Enter the dev fake OTP ('123456'). Filling the first box spreads the code across all six
+    //    (the same path SMS autofill takes), and a complete code submits on its own.
+    await page.getByLabel('Digit 1').fill('123456');
 
     // 6. Assert MFA Challenge step is rendered
     await expect(page.getByRole('heading', { name: 'Two-Factor Authentication' })).toBeVisible();

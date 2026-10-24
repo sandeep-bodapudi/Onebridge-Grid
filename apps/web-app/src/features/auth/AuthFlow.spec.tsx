@@ -41,7 +41,16 @@ describe('AuthFlow UI Component States', () => {
   it('renders OTP verify state with code input', () => {
     render(<AuthFlow labels={testLabels} initialStep="otp_verify" />);
     expect(screen.getByTestId('otp-verify-form')).toBeDefined();
-    expect(screen.getByPlaceholderText('6-digit code')).toBeDefined();
+    expect(screen.getByRole('group', { name: 'One-time verification code' })).toBeDefined();
+    expect(screen.getAllByLabelText(/^Digit \d$/)).toHaveLength(6);
+  });
+
+  it('spreads a full code typed or autofilled into the first box and submits it', () => {
+    let submitted = '';
+    render(<AuthFlow labels={testLabels} initialStep="otp_verify" onVerifyOtp={(c) => (submitted = c)} />);
+    fireEvent.change(screen.getByLabelText('Digit 1'), { target: { value: '123456' } });
+    expect((screen.getByLabelText('Digit 6') as HTMLInputElement).value).toBe('6');
+    expect(submitted).toBe('123456');
   });
 
   it('renders wrong code state', () => {
@@ -98,20 +107,18 @@ describe('AuthFlow UI Component States', () => {
       />
     );
 
-    // Initial state: countdown is 30s and resend button is disabled
-    expect(screen.getByText('Resend code in (30s)')).toBeDefined();
-    const resendBtn = screen.getByRole('button', { name: 'Resend OTP' }) as HTMLButtonElement;
-    expect(resendBtn.disabled).toBe(true);
+    // Initial state: a countdown, and no resend button yet
+    expect(screen.getByText('Resend code in 30s')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Resend code' })).toBeNull();
 
-    // Advance 30 seconds
-    act(() => {
-      vi.advanceTimersByTime(30000);
-    });
+    // The countdown ticks once a second
+    for (let i = 0; i < 30; i++) {
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+    }
 
-    expect(screen.getByText('Resend code in (0s)')).toBeDefined();
-    expect(resendBtn.disabled).toBe(false);
-
-    // Click resend
+    const resendBtn = screen.getByRole('button', { name: 'Resend code' });
     fireEvent.click(resendBtn);
     expect(resendCalled).toBe(true);
 

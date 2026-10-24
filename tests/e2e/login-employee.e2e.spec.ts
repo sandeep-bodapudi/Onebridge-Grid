@@ -23,12 +23,9 @@ test.describe('E2E Login Flow - Seeded Employee', () => {
     // 4. Verify OTP step is presented
     await expect(page.getByRole('heading', { name: 'Enter 6-Digit Code' })).toBeVisible();
 
-    // 5. Submit dev fake OTP ('123456')
-    const codeInput = page.getByPlaceholder('123456');
-    await codeInput.fill('123456');
-
-    const verifyButton = page.getByRole('button', { name: 'Verify & Continue' });
-    await verifyButton.click();
+    // 5. Enter the dev fake OTP ('123456'). Filling the first box spreads the code across all six
+    //    (the same path SMS autofill takes), and a complete code submits on its own.
+    await page.getByLabel('Digit 1').fill('123456');
 
     // 6. Assert dashboard transition
     await page.waitForURL('**/dashboard');
@@ -87,6 +84,8 @@ test.describe('E2E Login Flow - Seeded Employee', () => {
     expect(indexedDbDatabases.some((name) => name.toLowerCase().includes('token'))).toBe(false);
 
     // 8. Test sign out
+    // Sign out lives in the user menu (desktop and mobile).
+    await page.getByTestId('user-menu-button').click();
     const signOutButton = page.getByTestId('logout-button');
     await signOutButton.click();
     await page.waitForURL('**/login');

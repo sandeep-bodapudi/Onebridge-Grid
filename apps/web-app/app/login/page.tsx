@@ -7,25 +7,25 @@ import { apiClient } from '../../src/api-client';
 
 const labels: AuthFlowLabels = {
   title: 'Sign in to OneBridge',
-  phoneLabel: 'Mobile Phone Number',
-  phonePlaceholder: '+91 98765 43210',
+  phoneLabel: 'Mobile phone number',
+  phonePlaceholder: '98765 43210',
   consentLabel: 'I agree to the Terms of Service & Privacy Policy',
-  sendOtpButton: 'Send Verification Code',
-  verifyOtpTitle: 'Enter 6-Digit Code',
+  sendOtpButton: 'Send verification code',
+  verifyOtpTitle: 'Enter 6-digit code',
   codePlaceholder: '123456',
-  verifyButton: 'Verify & Continue',
+  verifyButton: 'Verify & continue',
   resendCountdownText: 'Resend code in',
-  resendButton: 'Resend OTP',
+  resendButton: 'Resend code',
   wrongCodeError: 'Invalid verification code. Please check and try again.',
-  lockedError: 'Account Locked',
-  lockedDescription: 'Too many failed attempts. Please try again later.',
-  expiredError: 'Code Expired',
-  mfaSetupTitle: 'Setup Two-Factor Authentication',
-  mfaSecretLabel: 'Authenticator Secret',
-  mfaChallengeTitle: 'Two-Factor Authentication',
-  sessionExpiredTitle: 'Session Expired',
+  lockedError: 'Account locked',
+  lockedDescription: 'Too many failed attempts. Please try again after 15 minutes.',
+  expiredError: 'Code expired',
+  mfaSetupTitle: 'Set up two-factor authentication',
+  mfaSecretLabel: 'Authenticator secret',
+  mfaChallengeTitle: 'Two-factor authentication',
+  sessionExpiredTitle: 'Session expired',
   sessionExpiredDescription: 'Your session has expired. Please sign in again.',
-  reloginButton: 'Sign In Again',
+  reloginButton: 'Sign in again',
   offlineNotice: 'You are currently offline.',
   emptySessionsText: 'No active sessions found.',
 };
@@ -89,6 +89,24 @@ export default function LoginPage() {
     }
   };
 
+  // Hosted prototype: one tap signs in as the fictional demo owner (fake OTP provider, D-DEMO-HOSTING).
+  const demoPhone = process.env.NEXT_PUBLIC_DEMO_PHONE;
+  const demoCode = process.env.NEXT_PUBLIC_DEMO_OTP || '123456';
+  const handleDemoSignIn = async () => {
+    if (!demoPhone) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      await apiClient.requestOtp(demoPhone);
+      const res = await apiClient.verifyOtp(demoPhone, demoCode);
+      if (res.status === 'authenticated') router.push('/dashboard');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Could not open the demo. Try again in a moment.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleVerifyMfa = async (code: string) => {
     setIsLoading(true);
     setErrorMessage(null);
@@ -104,23 +122,33 @@ export default function LoginPage() {
   };
 
   return (
-    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ maxWidth: '440px', width: '100%' }}>
+    <main className="min-h-screen flex items-center justify-center p-4 md:p-8 bg-sand/30 dark:bg-charcoal-deep text-charcoal dark:text-warm-paper">
+      <div className="w-full max-w-4xl">
         {errorMessage && (
           <div
             data-testid="auth-error-banner"
-            style={{
-              padding: '0.75rem 1rem',
-              marginBottom: '1rem',
-              backgroundColor: '#FEE2E2',
-              color: '#B91C1C',
-              borderRadius: '8px',
-              fontSize: '14px',
-            }}
+            role="alert"
+            className="mb-4 px-4 py-3 rounded-panel bg-error/10 text-sm border border-error/40"
           >
             {errorMessage}
           </div>
         )}
+        {demoPhone && step === 'otp_entry' ? (
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 rounded-panel border border-sand-border dark:border-sand-border/30 bg-warm-paper dark:bg-charcoal">
+            <p className="text-sm">
+              <span className="font-bold">Prototype demo.</span> Sign in as the owner of Sahyadri Steel Works, a fictional company.
+            </p>
+            <button
+              type="button"
+              onClick={handleDemoSignIn}
+              disabled={isLoading}
+              data-testid="demo-sign-in"
+              className="shrink-0 min-h-[44px] px-4 rounded-control bg-charcoal text-warm-paper dark:bg-warm-paper dark:text-charcoal text-sm font-bold disabled:opacity-50"
+            >
+              Open the demo company
+            </button>
+          </div>
+        ) : null}
         <AuthFlow
           step={step}
           labels={labels}

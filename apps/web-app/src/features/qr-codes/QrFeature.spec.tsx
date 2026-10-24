@@ -55,9 +55,12 @@ describe('QrFeature Component', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByText('Default Card Link')).toBeTruthy();
+    // The main card QR is shown large with its short link; event QRs are listed below it
+    expect(screen.getByTestId('primary-qr').textContent).toContain('Default Card Link');
+    expect(screen.getByTestId('primary-qr').textContent).toContain('https://1b.co/r/dflt1234');
     expect(screen.getByText('Expo 2026 Hall 4 Standee')).toBeTruthy();
-    expect(screen.getAllByText('Download QR').length).toBe(2);
+    expect(screen.getAllByText('Download QR').length).toBe(1);
+    expect(screen.getByText('Download PNG')).toBeTruthy();
   });
 
   it('renders empty state when no tags exist', async () => {
@@ -110,14 +113,13 @@ describe('QrFeature Component', () => {
     });
 
     // Click Add new QR tag button
-    const addBtn = screen.getByText('+ Add new QR tag');
-    fireEvent.click(addBtn);
-
-    const sourceInput = screen.getByPlaceholderText(/Expo 2026/i);
-    fireEvent.change(sourceInput, { target: { value: 'newsletter' } });
+    fireEvent.click(screen.getByText('Add QR for an event or place'));
 
     const labelInput = screen.getByPlaceholderText(/Exhibition Hall B/i);
     fireEvent.change(labelInput, { target: { value: 'Monthly Newsletter' } });
+
+    const sourceInput = screen.getByPlaceholderText(/expo_2026/i);
+    fireEvent.change(sourceInput, { target: { value: 'newsletter' } });
 
     const submitBtn = screen.getByText('Create QR tag');
     await act(async () => {
@@ -163,8 +165,8 @@ describe('QrFeature Component', () => {
       await Promise.resolve();
     });
 
-    const downloadBtn = screen.getByText('Download QR');
-    fireEvent.click(downloadBtn);
+    // A single QR is the main one: "More formats" opens the download options
+    fireEvent.click(screen.getByText('More formats'));
 
     const modalDownloadBtn = screen.getByRole('button', { name: /Download file/i });
     fireEvent.click(modalDownloadBtn);

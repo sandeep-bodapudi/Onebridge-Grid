@@ -1,6 +1,7 @@
 import React from 'react';
 import '@onebridge/ui-kit/src/styles/tokens.css';
 import type { Metadata, Viewport } from 'next';
+import { fontManrope, fontNoto } from './fonts';
 
 export const metadata: Metadata = {
   title: 'OneBridge Grid | Verified Digital Business Card',
@@ -23,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${fontManrope.variable} ${fontNoto.variable}`}>
       <head>
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
       </head>

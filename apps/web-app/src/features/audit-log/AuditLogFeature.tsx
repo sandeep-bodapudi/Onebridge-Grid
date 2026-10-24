@@ -14,6 +14,9 @@ export interface AuditLogFeatureProps {
   tenantId: string;
   userRole?: 'owner' | 'admin' | 'employee';
   labels?: Partial<AuditLogViewerLabels>;
+  /** The signed-in person, so their own changes show their name. */
+  selfPersonId?: string;
+  selfName?: string;
   className?: string;
 }
 
@@ -21,8 +24,11 @@ export const AuditLogFeature: React.FC<AuditLogFeatureProps> = ({
   tenantId,
   userRole = 'admin',
   labels,
+  selfPersonId,
+  selfName,
   className,
 }) => {
+  const [actorNames, setActorNames] = useState<Record<string, string>>({});
   const [entries, setEntries] = useState<AuditLogItem[]>([]);
   const [total, setTotal] = useState(0);
   const [limit] = useState(50);
@@ -85,6 +91,30 @@ export const AuditLogFeature: React.FC<AuditLogFeatureProps> = ({
     fetchLogs(filters, offset);
   }, [fetchLogs, filters, offset]);
 
+  // Person ID → name: people are known by the name on their seat's card.
+  useEffect(() => {
+    if (!tenantId) return;
+    let cancelled = false;
+    (async () => {
+      const [seatPage, cards] = await Promise.all([
+        apiClient.listSeats(tenantId, { limit: 100 }).catch(() => ({ items: [] as Array<{ id: string; personId?: string | null }> })),
+        apiClient.listCardSummaries(tenantId).catch(() => []),
+      ]);
+      if (cancelled) return;
+      const nameBySeat = new Map(cards.map((c) => [c.seatId || c.id, c.name]));
+      const names: Record<string, string> = {};
+      for (const seat of seatPage.items || []) {
+        const name = nameBySeat.get(seat.id);
+        if (seat.personId && name) names[seat.personId] = name;
+      }
+      if (selfPersonId && selfName) names[selfPersonId] = names[selfPersonId] || selfName;
+      setActorNames(names);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, selfPersonId, selfName]);
+
   const handleFilterChange = (newFilters: AuditLogFilters) => {
     setFilters(newFilters);
     setOffset(0);
@@ -134,6 +164,7 @@ export const AuditLogFeature: React.FC<AuditLogFeatureProps> = ({
         isOffline={isOffline}
         error={error}
         filters={filters}
+        actorNames={actorNames}
         onFilterChange={handleFilterChange}
         onExportCsv={handleExportCsv}
         onPageChange={handlePageChange}

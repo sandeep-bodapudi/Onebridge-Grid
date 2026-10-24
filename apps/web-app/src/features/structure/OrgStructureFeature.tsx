@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import type { Branch, Department, Team, OrgChartNode } from '@onebridge/api-contracts';
-import { OrgStructure } from '@onebridge/ui-kit';
+import { OrgStructure, type NewBranchInput, type NewDepartmentInput, type NewTeamInput } from '@onebridge/ui-kit';
 import { apiClient } from '../../api-client';
 
 export interface OrgStructureFeatureProps {
@@ -31,6 +31,7 @@ export const OrgStructureFeature: React.FC<OrgStructureFeatureProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!tenantId) return;
@@ -80,6 +81,24 @@ export const OrgStructureFeature: React.FC<OrgStructureFeatureProps> = ({
       setError(err instanceof Error ? err.message : 'Failed to seed default departments');
     }
   };
+
+  const run = async (action: () => Promise<unknown>, fallback: string) => {
+    setActionError(null);
+    try {
+      await action();
+      await loadData();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : fallback);
+      throw err;
+    }
+  };
+
+  const handleCreateBranch = (input: NewBranchInput) =>
+    run(() => apiClient.createBranch(tenantId, input), 'Could not add the branch. Check the address and try again.');
+  const handleCreateDepartment = (input: NewDepartmentInput) =>
+    run(() => apiClient.createDepartment(tenantId, input), 'Could not add the department.');
+  const handleCreateTeam = (input: NewTeamInput) =>
+    run(() => apiClient.createTeam(tenantId, input), 'Could not add the team.');
 
   const handleArchiveBranch = async (branchId: string) => {
     try {
@@ -131,7 +150,8 @@ export const OrgStructureFeature: React.FC<OrgStructureFeatureProps> = ({
     return (
       <div
         data-testid="org-structure-error"
-        className="p-16 rounded-16 bg-error/10 text-error font-bold text-center"
+        role="alert"
+        className="px-4 py-3 rounded-panel border border-error/40 bg-error/10 text-sm"
       >
         {error}
       </div>
@@ -147,6 +167,10 @@ export const OrgStructureFeature: React.FC<OrgStructureFeatureProps> = ({
       plan={plan}
       isLoading={isLoading}
       isOffline={isOffline}
+      error={actionError}
+      onCreateBranch={onAddBranchClick ? undefined : handleCreateBranch}
+      onCreateDepartment={onAddDepartmentClick ? undefined : handleCreateDepartment}
+      onCreateTeam={onAddTeamClick ? undefined : handleCreateTeam}
       onAddBranch={onAddBranchClick}
       onAddDepartment={onAddDepartmentClick}
       onAddTeam={onAddTeamClick}

@@ -10,6 +10,19 @@ describe('SeatsFeature Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(apiClient, 'listCardSummaries').mockResolvedValue([
+      {
+        id: 'OB-7KQ2MX-E0001',
+        seatId: 'OB-7KQ2MX-E0001',
+        slug: 'acme/ob-7kq2mx-e0001',
+        status: 'published',
+        templateId: 'classic-charcoal',
+        name: 'Vikram Malhotra',
+        designation: 'Managing Director',
+        publicUrl: 'https://cards.example/c/acme/ob-7kq2mx-e0001',
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
   });
 
   it('renders loading state then empty state when no seats exist', async () => {
@@ -25,7 +38,7 @@ describe('SeatsFeature Component', () => {
     });
 
     expect(screen.getByTestId('seats-empty-state')).toBeTruthy();
-    expect(screen.getByText('No seats configured yet')).toBeTruthy();
+    expect(screen.getByText('No seats yet')).toBeTruthy();
   });
 
   it('renders seats cards, over-limit read-only banner, and vacant seat', async () => {
@@ -87,5 +100,9 @@ describe('SeatsFeature Component', () => {
     expect(screen.getByTestId('readonly-badge-OB-7KQ2MX-E0003')).toBeTruthy();
     expect(screen.getByText('Managing Director')).toBeTruthy();
     expect(screen.getByText('Account Executive')).toBeTruthy();
+    // The person's name comes from their card, never their person ID or a made-up URL
+    expect(screen.getByText('Vikram Malhotra')).toBeTruthy();
+    expect(document.body.textContent).not.toContain('person_vikram');
+    expect(document.body.textContent).not.toContain('onebridge.in/c/OB-7KQ2MX-E0001');
   });
 });

@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import type { Seat, Branch, Department, Team } from '@onebridge/api-contracts';
-import { SeatsManagement, type SeatItem } from '@onebridge/ui-kit';
+import type { Seat, Branch, Department, Team, CardSummary } from '@onebridge/api-contracts';
+import { SeatsManagement, type SeatItem, type NewSeatInput } from '@onebridge/ui-kit';
 import { apiClient } from '../../api-client';
 
 export interface SeatsFeatureProps {
   tenantId: string;
   plan?: 'starter' | 'business' | 'enterprise';
   maxSeats?: number;
+  /** Opens the card editor for a seat (the dashboard switches to Cards). */
+  onEditCard?: (seatId: string) => void;
   className?: string;
 }
 
@@ -16,6 +18,7 @@ export const SeatsFeature: React.FC<SeatsFeatureProps> = ({
   tenantId,
   plan = 'starter',
   maxSeats,
+  onEditCard,
   className,
 }) => {
   const [seats, setSeats] = useState<SeatItem[]>([]);
@@ -32,12 +35,14 @@ export const SeatsFeature: React.FC<SeatsFeatureProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const [fetchedSeats, fetchedBranches, fetchedDepts, fetchedTeams] = await Promise.all([
+      const [fetchedSeats, fetchedBranches, fetchedDepts, fetchedTeams, cards] = await Promise.all([
         apiClient.listSeats(tenantId).catch(() => ({ items: [], total: 0 })),
         apiClient.listBranches(tenantId, true).catch(() => [] as Branch[]),
         apiClient.listDepartments(tenantId, undefined, true).catch(() => [] as Department[]),
         apiClient.listTeams(tenantId).catch(() => [] as Team[]),
+        apiClient.listCardSummaries(tenantId).catch(() => [] as CardSummary[]),
       ]);
+      const cardBySeat = new Map(cards.map((c) => [c.seatId || c.id, c]));
 
       const items = (fetchedSeats.items || []).map((s: Seat): SeatItem => ({
         id: s.id,
@@ -51,6 +56,9 @@ export const SeatsFeature: React.FC<SeatsFeatureProps> = ({
         status: s.status,
         isReadOnly: s.isReadOnly ?? false,
         cardBinding: s.cardBinding,
+        displayName: cardBySeat.get(s.id)?.name || undefined,
+        cardStatus: cardBySeat.get(s.id)?.status,
+        cardPublicUrl: cardBySeat.get(s.id)?.publicUrl,
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
       }));
@@ -84,19 +92,29 @@ export const SeatsFeature: React.FC<SeatsFeatureProps> = ({
     };
   }, [loadData]);
 
-  const handleCreateSeat = async (dto: {
-    title: string;
-    branchId?: string;
-    departmentId?: string;
-    teamId?: string;
-    personId?: string;
-    managerSeatId?: string;
-  }) => {
+  const handleCreateSeat = async (input: NewSeatInput) => {
+    const { name, phone, email, ...dto } = input;
     try {
-      await apiClient.createSeat(tenantId, dto);
+      const seat = await apiClient.createSeat(tenantId, dto);
+      if (name || phone || email) {
+        // The cards service creates the draft card from seat.created; fill in the person's details.
+        const card = await apiClient.getCard(seat.id, tenantId);
+        await apiClient.updateCard(
+          card.id,
+          {
+            sections: card.sections.map((section) =>
+              section.type === 'about'
+                ? { ...section, content: { ...section.content, name, designation: dto.title, phone, email } }
+                : section
+            ),
+          },
+          tenantId
+        );
+      }
       await loadData();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create seat');
+      setError(err instanceof Error ? err.message : 'Could not add the seat. Try again.');
+      throw err;
     }
   };
 
@@ -144,6 +162,7 @@ export const SeatsFeature: React.FC<SeatsFeatureProps> = ({
         onAssignPerson={handleAssignPerson}
         onUpdateStatus={handleUpdateStatus}
         onArchiveSeat={handleArchiveSeat}
+        onEditCard={onEditCard}
       />
     </div>
   );

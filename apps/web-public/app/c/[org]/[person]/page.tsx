@@ -1,5 +1,5 @@
 import { cardsServiceUrl } from '../../../../lib/cards-service';
-import React from 'react';
+import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { type VisitorCardData, type VisitorCardProps } from '@onebridge/ui-kit';
 import type { PublicCardResponse } from '@onebridge/api-contracts';
@@ -15,12 +15,8 @@ interface PageProps {
     org: string;
     person: string;
   };
-  searchParams?: {
-    source?: string;
-    src?: string;
-  };
+  searchParams?: Record<string, string | string[] | undefined>;
 }
-
 
 async function fetchCardData(slug: string): Promise<PublicCardResponse | null> {
   try {
@@ -82,24 +78,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function VisitorCardPage({ params, searchParams }: PageProps) {
+export default async function VisitorCardPage({ params }: PageProps) {
   const slugPath = `${params.org}/${params.person}`;
   const card = await fetchCardData(slugPath);
-
-  const rawSource = searchParams?.source;
-  const source = rawSource === 'nfc' || rawSource === 'qr' || rawSource === 'link' ? rawSource : 'link';
-  const sourceTag = searchParams?.src;
 
   if (!card) {
     // If slug not found in system
     return (
-      <main style={{ padding: '24px', width: '100%', maxWidth: '440px', boxSizing: 'border-box' }}>
-        <VisitorCardClient
-          state="unactivated"
-          companyName="OneBridge Grid"
-          source={source}
-          sourceTag={sourceTag}
-        />
+      <main className="w-full">
+        <Suspense fallback={null}>
+          <VisitorCardClient
+            state="not_found"
+            companyName="OneBridge Grid"
+          />
+        </Suspense>
       </main>
     );
   }
@@ -123,21 +115,22 @@ export default async function VisitorCardPage({ params, searchParams }: PageProp
   }
 
   return (
-    <main style={{ padding: '24px 16px', width: '100%', maxWidth: '440px', boxSizing: 'border-box' }}>
+    <main className="w-full">
       {structuredData && (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       )}
-      <VisitorCardClient
-        card={card as unknown as VisitorCardData}
-        state={card.status === 'published' ? 'ready' : (card.status as VisitorCardProps['state'])}
-        companyName={card.company?.name}
-        offboardedDetails={card.offboardedDetails}
-        source={source}
-        sourceTag={sourceTag}
-      />
+      <Suspense fallback={null}>
+        <VisitorCardClient
+          card={card as unknown as VisitorCardData}
+          state={card.status === 'published' ? 'ready' : (card.status as VisitorCardProps['state'])}
+          companyName={card.company?.name}
+          offboardedDetails={card.offboardedDetails}
+        />
+      </Suspense>
     </main>
   );
 }
+

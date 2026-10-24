@@ -28,6 +28,9 @@ import type {
   Card,
   CardTemplate,
   UpdateCardRequest,
+  CardSummary,
+  OverviewStats,
+  LeadSummary,
 } from '@onebridge/api-contracts';
 
 export interface AuthState {
@@ -1022,6 +1025,27 @@ export const apiClient = {
     return this.cardsRequest<Card>(`/cards/${encodeURIComponent(cardId)}/approve`, { method: 'POST' }, tenantId, 'Could not approve the card');
   },
 
+  /** Card summaries (name, status, public URL) for every card in the company. */
+  async listCardSummaries(tenantId?: string): Promise<CardSummary[]> {
+    const data = await this.cardsRequest<{ items: CardSummary[] }>('/cards', { method: 'GET' }, tenantId, 'Could not load cards');
+    return data.items || [];
+  },
+
+  async getOverviewStats(tenantId?: string): Promise<OverviewStats> {
+    return this.cardsRequest<OverviewStats>('/stats/overview', { method: 'GET' }, tenantId, 'Could not load the overview');
+  },
+
+  /** Prototype read-only leads list (flag demo_leads_panel); owners and admins only. */
+  async listLeads(tenantId?: string): Promise<LeadSummary[]> {
+    const data = await this.cardsRequest<{ items: LeadSummary[] }>('/leads', { method: 'GET' }, tenantId, 'Could not load leads');
+    return data.items || [];
+  },
+
+  /** True when the hosted prototype shows the read-only leads list. */
+  leadsPanelEnabled(): boolean {
+    return process.env.NEXT_PUBLIC_DEMO_LEADS_PANEL === 'true';
+  },
+
   /** Public visitor page for a card (apps/web-public). */
   publicCardUrl(cardSlug: string): string {
     return `${WEB_PUBLIC_URL}/c/${cardSlug}`;
@@ -1055,6 +1079,17 @@ export const apiClient = {
     } finally {
       URL.revokeObjectURL(objectUrl);
     }
+  },
+
+  /** Fetches a protected image (QR preview) with the access token and returns an object URL. */
+  async fetchProtectedObjectUrl(url: string, tenantId?: string): Promise<string> {
+    const headers: Record<string, string> = {};
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    const activeTenant = tenantId || inMemoryActiveTenantId;
+    if (activeTenant) headers['X-Tenant-Id'] = activeTenant;
+    const res = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+    if (!res.ok) throw new Error('Could not load the QR code');
+    return URL.createObjectURL(await res.blob());
   },
 
   getStandeeUrl(tenantId: string, branchId?: string, template: 'a4' | 'a5' = 'a4'): string {

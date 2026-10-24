@@ -19,7 +19,7 @@ export interface QrFeatureProps {
 export const QrFeature: React.FC<QrFeatureProps> = ({
   tenantId,
   cardId,
-  cardName = 'Digital Business Card',
+  cardName = 'this card',
   userRole = 'admin',
   className,
 }) => {
@@ -107,6 +107,11 @@ export const QrFeature: React.FC<QrFeatureProps> = ({
     );
   };
 
+  const getPreviewImage = useCallback(
+    (qrId: string) => apiClient.fetchProtectedObjectUrl(apiClient.getQrAssetUrl(cardId, qrId, 'png', 360, undefined, tenantId), tenantId),
+    [cardId, tenantId]
+  );
+
   const handleDownloadAsset = (
     qrId: string,
     format: 'png' | 'svg' | 'pdf',
@@ -114,7 +119,9 @@ export const QrFeature: React.FC<QrFeatureProps> = ({
     template?: 'a4' | 'a5'
   ) => {
     const downloadUrl = apiClient.getQrAssetUrl(cardId, qrId, format, size, template, tenantId);
-    const filename = `${cardId}-${qrId}${template ? `-${template}` : ''}.${format}`;
+    const safeName = (cardName || cardId).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const item = items.find((i) => i.id === qrId);
+    const filename = `${safeName}-qr${item && item.source !== 'default' ? `-${item.source}` : ''}${template ? `-${template}` : ''}.${format}`;
     apiClient.downloadProtectedFile(downloadUrl, filename, tenantId).catch((err: unknown) => {
       setError(err instanceof Error ? err.message : 'Could not download the file. Try again.');
     });
@@ -132,6 +139,7 @@ export const QrFeature: React.FC<QrFeatureProps> = ({
         onCreateTag={handleCreateTag}
         onUpdateTag={handleUpdateTag}
         onDownloadAsset={handleDownloadAsset}
+        getPreviewImage={getPreviewImage}
         isAdmin={isAdmin}
       />
     </div>

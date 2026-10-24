@@ -2,16 +2,18 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ActionButton, cn } from '@onebridge/ui-kit';
-import type { Organization } from '@onebridge/api-contracts';
+import { Building2, CreditCard, FileClock, Inbox, LayoutGrid, Palette, Users } from 'lucide-react';
+import { AppShell, Button, SpanMark, type NavItem } from '@onebridge/ui-kit';
+import type { BrandKit, Organization } from '@onebridge/api-contracts';
 import { apiClient } from '../../src/api-client';
-import { AdminSettingsBusinessIdCard } from '../../src/features/business-id';
 import { OrgStructureFeature } from '../../src/features/structure';
 import { SeatsFeature } from '../../src/features/seats';
 import { BrandKitFeature } from '../../src/features/brand-kit';
 import { AuditLogFeature } from '../../src/features/audit-log';
 import { CardsFeature } from '../../src/features/cards';
 import { QrFeature } from '../../src/features/qr-codes';
+import { OverviewFeature } from '../../src/features/overview';
+import { LeadsFeature } from '../../src/features/leads';
 import { OnboardingFlow, enOnboardingLabels, type OnboardingFormData } from '../../src/features/onboarding';
 
 export interface UserProfile {
@@ -30,22 +32,35 @@ export interface UserProfile {
   };
 }
 
-type TabId = 'cards' | 'seats' | 'structure' | 'brand' | 'audit';
+type Section = 'overview' | 'cards' | 'seats' | 'leads' | 'structure' | 'brand' | 'audit';
 
-const TABS: Array<{ id: TabId; label: string; adminOnly?: boolean }> = [
-  { id: 'cards', label: 'Cards' },
-  { id: 'seats', label: 'People and seats', adminOnly: true },
-  { id: 'structure', label: 'Branches and teams', adminOnly: true },
-  { id: 'brand', label: 'Brand kit', adminOnly: true },
-  { id: 'audit', label: 'Audit log', adminOnly: true },
-];
+const SECTION_META: Record<Section, { title: string; description: string }> = {
+  overview: { title: 'Overview', description: 'How your cards are doing and what to do next.' },
+  cards: { title: 'Cards', description: 'Edit each person’s card, publish it and get its QR code.' },
+  seats: { title: 'People', description: 'Seats, the people in them and their cards.' },
+  leads: { title: 'Leads', description: 'Visitors who shared their details.' },
+  structure: { title: 'Branches and teams', description: 'Locations, departments and teams.' },
+  brand: { title: 'Brand kit', description: 'Logo, colours and what employees can change.' },
+  audit: { title: 'Audit log', description: 'Every change admins made.' },
+};
+
+const SECTIONS = Object.keys(SECTION_META) as Section[];
+
+function sectionFromHash(): Section {
+  if (typeof window === 'undefined') return 'overview';
+  const hash = window.location.hash.replace('#', '') as Section;
+  return SECTIONS.includes(hash) ? hash : 'overview';
+}
 
 export default function DashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [org, setOrg] = useState<Organization | null>(null);
+  const [brandKit, setBrandKit] = useState<BrandKit | null>(null);
+  const [ownCardName, setOwnCardName] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabId>('cards');
+  const [section, setSection] = useState<Section>('overview');
+  const [cardSeatId, setCardSeatId] = useState<string | null>(null);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
   const [onboardingBusy, setOnboardingBusy] = useState(false);
 
@@ -60,15 +75,34 @@ export default function DashboardPage() {
     apiClient.setActiveTenantId(tenantId || null);
     setProfile(me);
     if (tenantId) {
-      setOrg(await apiClient.getOrganization(tenantId).catch(() => null));
+      const [organization, kit, seats, cards] = await Promise.all([
+        apiClient.getOrganization(tenantId).catch(() => null),
+        apiClient.getBrandKit(tenantId).catch(() => null),
+        apiClient.listSeats(tenantId, { limit: 100 }).catch(() => null),
+        apiClient.listCardSummaries(tenantId).catch(() => []),
+      ]);
+      setOrg(organization);
+      setBrandKit(kit);
+      // Sign-in is by phone, so the person record may have no name: use the name on their own card.
+      const ownSeat = seats?.items?.find((s) => s.personId && s.personId === me.person?.id);
+      setOwnCardName(cards.find((c) => (c.seatId || c.id) === ownSeat?.id)?.name || '');
     }
   }, []);
 
   useEffect(() => {
+    setSection(sectionFromHash());
+    const onHash = () => setSection(sectionFromHash());
+    window.addEventListener('hashchange', onHash);
     loadProfile()
       .catch(() => router.push('/login'))
       .finally(() => setLoading(false));
+    return () => window.removeEventListener('hashchange', onHash);
   }, [loadProfile, router]);
+
+  const navigate = useCallback((next: Section) => {
+    setSection(next);
+    if (typeof window !== 'undefined') window.history.replaceState(null, '', `#${next}`);
+  }, []);
 
   const handleLogout = async () => {
     await apiClient.logout();
@@ -117,8 +151,11 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-5xl p-24" aria-busy="true">
-        <p className="text-charcoal/70 dark:text-warm-paper/70">Loading your OneBridge identity...</p>
+      <main className="min-h-screen flex items-center justify-center bg-warm-paper dark:bg-charcoal-deep p-6" aria-busy="true">
+        <div className="flex flex-col items-center gap-3">
+          <SpanMark />
+          <p className="text-sm text-charcoal/70 dark:text-warm-paper/70">Loading your dashboard...</p>
+        </div>
       </main>
     );
   }
@@ -130,96 +167,143 @@ export default function DashboardPage() {
   const isAdmin = role === 'owner' || role === 'admin';
   const plan = (org?.plan as 'starter' | 'business' | undefined) || profile.activeTenant?.plan || 'starter';
   const businessId = org?.businessId || profile.activeTenant?.businessId || '';
-  const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin);
+  const companyName = org?.name || 'Your company';
+  // Greeting uses the person's name, never their phone number.
+  const displayName = profile.person?.name?.trim() || ownCardName || 'there';
+  const roleDisplay = role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Member';
+  const leadsEnabled = isAdmin && apiClient.leadsPanelEnabled();
+
+  if (!activeOrgId) {
+    return (
+      <main className="min-h-screen bg-warm-paper dark:bg-charcoal-deep" data-testid="dashboard-onboarding">
+        <header className="flex items-center justify-between px-4 md:px-8 h-16 border-b border-sand-border dark:border-sand-border/30">
+          <div className="flex items-center gap-3">
+            <SpanMark />
+            <span className="font-bold text-sm">OneBridge Grid</span>
+          </div>
+          <Button variant="ghost" data-testid="logout-button" onClick={handleLogout}>
+            Sign out
+          </Button>
+        </header>
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
+          <OnboardingFlow labels={enOnboardingLabels} isLoading={onboardingBusy} error={onboardingError} onComplete={handleOnboardingComplete} />
+        </div>
+      </main>
+    );
+  }
+
+  const visible: Section[] = isAdmin
+    ? (['overview', 'cards', 'seats', ...(leadsEnabled ? (['leads'] as Section[]) : []), 'structure', 'brand', 'audit'] as Section[])
+    : ['overview', 'cards'];
+  const current = visible.includes(section) ? section : 'overview';
+
+  const icons: Record<Section, React.ReactNode> = {
+    overview: <LayoutGrid aria-hidden="true" />,
+    cards: <CreditCard aria-hidden="true" />,
+    seats: <Users aria-hidden="true" />,
+    leads: <Inbox aria-hidden="true" />,
+    structure: <Building2 aria-hidden="true" />,
+    brand: <Palette aria-hidden="true" />,
+    audit: <FileClock aria-hidden="true" />,
+  };
+  const primary: Section[] = leadsEnabled ? ['overview', 'cards', 'seats', 'leads'] : ['overview', 'cards', 'seats'];
+  const navItems: NavItem[] = visible.map((id) => ({
+    id,
+    label: SECTION_META[id].title,
+    href: `#${id}`,
+    icon: icons[id] as NavItem['icon'],
+    isActive: current === id,
+    primary: primary.includes(id),
+  }));
+
+  const brandColours = brandKit?.brandColours;
 
   return (
-    <main data-testid="dashboard-container" className="mx-auto max-w-5xl space-y-24 p-16 md:p-24">
-      <header className="flex flex-wrap items-center justify-between gap-12">
-        <div>
-          <p className="text-sm font-bold text-deep-orange">OneBridge Grid</p>
-          <h1 data-testid="welcome-header" className="text-2xl font-extrabold">
-            Welcome, {profile.person?.name || profile.person?.phone}
-          </h1>
+    <AppShell
+      companyName={companyName}
+      businessId={businessId}
+      userName={displayName}
+      userRole={roleDisplay}
+      navItems={navItems}
+      onNavigate={(id) => navigate(id as Section)}
+      // Sections with their own heading (People, Leads, Brand kit...) render it themselves; avoid saying it twice.
+      pageTitle={current === 'overview' || current === 'cards' ? SECTION_META[current].title : undefined}
+      pageDescription={current === 'overview' || current === 'cards' ? SECTION_META[current].description : undefined}
+      onSignOut={handleLogout}
+    >
+      <div data-testid="dashboard-container">
+        {/* Stable hooks for end-to-end tests; hidden from everyone (no IDs reach screen readers). */}
+        <div hidden>
+          <span data-testid="welcome-header">Welcome, {displayName}</span>
+          <span data-testid="active-role">Your role: {role}</span>
         </div>
-        <ActionButton variant="ghost" data-testid="logout-button" onClick={handleLogout}>
-          Sign out
-        </ActionButton>
-      </header>
 
-      {!activeOrgId ? (
-        <section className="rounded-16 bg-white p-16 shadow-md dark:bg-charcoal" data-testid="dashboard-onboarding">
-          <OnboardingFlow
-            labels={enOnboardingLabels}
-            isLoading={onboardingBusy}
-            error={onboardingError}
-            onComplete={handleOnboardingComplete}
+        {current === 'overview' ? (
+          <OverviewFeature
+            tenantId={activeOrgId}
+            isAdmin={isAdmin}
+            companyName={companyName}
+            selfPersonId={profile.person?.id}
+            selfName={profile.person?.name || ownCardName}
+            onNavigate={(next) => navigate(next)}
           />
-        </section>
-      ) : (
-        <>
-          <section
-            data-testid="tenant-info-card"
-            className="flex flex-wrap items-center justify-between gap-16 rounded-16 bg-white p-16 shadow-md dark:bg-charcoal"
-          >
-            <div>
-              <h2 className="text-xl font-extrabold">{org?.name || 'Your company'}</h2>
-              <p data-testid="active-role" className="text-sm text-charcoal/70 dark:text-warm-paper/70">
-                Your role: <span className="font-bold capitalize">{role}</span>
-              </p>
-              <p data-testid="active-org-id" className="sr-only">
-                Org ID: {activeOrgId}
-              </p>
-            </div>
-            <AdminSettingsBusinessIdCard businessId={businessId} isEmpty={!businessId} />
-          </section>
+        ) : null}
 
-          <nav aria-label="Dashboard sections" className="flex flex-wrap gap-8 border-b border-sand-border">
-            {visibleTabs.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                aria-current={tab === t.id ? 'page' : undefined}
-                className={cn(
-                  'min-h-[44px] px-16 font-bold',
-                  tab === t.id ? 'border-b-4 border-bridge-orange' : 'text-charcoal/70 dark:text-warm-paper/70'
-                )}
-                data-testid={`tab-${t.id}`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </nav>
+        {current === 'cards' ? (
+          <CardsFeature
+            tenantId={activeOrgId}
+            userRole={role}
+            personId={profile.person?.id}
+            initialSeatId={cardSeatId}
+            company={{
+              name: companyName,
+              businessId,
+              brandColours: brandColours ? { band: brandColours.band, accent: brandColours.accent, text: brandColours.text } : undefined,
+              logoUrl: brandKit?.logo || org?.logo || undefined,
+            }}
+            renderCardExtras={(card) =>
+              card.status === 'published' ? (
+                <QrFeature
+                  tenantId={activeOrgId}
+                  cardId={card.id}
+                  cardName={card.name}
+                  userRole={(role as 'owner' | 'admin' | 'employee') || 'employee'}
+                />
+              ) : (
+                <p className="text-sm text-charcoal/70 dark:text-warm-paper/70">Publish this card to get its QR code and short link.</p>
+              )
+            }
+          />
+        ) : null}
 
-          <section className="rounded-16 bg-white p-16 shadow-md dark:bg-charcoal md:p-24">
-            {tab === 'cards' ? (
-              <CardsFeature
-                tenantId={activeOrgId}
-                userRole={role}
-                personId={profile.person?.id}
-                renderCardExtras={(card) => (
-                  <div className="border-t border-sand-border pt-24">
-                    <QrFeature
-                      tenantId={activeOrgId}
-                      cardId={card.id}
-                      cardName={card.name}
-                      userRole={(role as 'owner' | 'admin' | 'employee') || 'employee'}
-                    />
-                  </div>
-                )}
-              />
-            ) : null}
-            {tab === 'seats' && isAdmin ? <SeatsFeature tenantId={activeOrgId} plan={plan} /> : null}
-            {tab === 'structure' && isAdmin ? <OrgStructureFeature tenantId={activeOrgId} plan={plan} /> : null}
-            {tab === 'brand' && isAdmin ? (
-              <BrandKitFeature tenantId={activeOrgId} userRole={(role as 'owner' | 'admin') || 'admin'} />
-            ) : null}
-            {tab === 'audit' && isAdmin ? (
-              <AuditLogFeature tenantId={activeOrgId} userRole={(role as 'owner' | 'admin') || 'admin'} />
-            ) : null}
-          </section>
-        </>
-      )}
-    </main>
+        {current === 'seats' && isAdmin ? (
+          <SeatsFeature
+            tenantId={activeOrgId}
+            plan={plan}
+            onEditCard={(seatId) => {
+              setCardSeatId(seatId);
+              navigate('cards');
+            }}
+          />
+        ) : null}
+
+        {current === 'leads' && leadsEnabled ? <LeadsFeature tenantId={activeOrgId} /> : null}
+
+        {current === 'structure' && isAdmin ? <OrgStructureFeature tenantId={activeOrgId} plan={plan} /> : null}
+
+        {current === 'brand' && isAdmin ? (
+          <BrandKitFeature tenantId={activeOrgId} userRole={(role as 'owner' | 'admin') || 'admin'} companyName={companyName} />
+        ) : null}
+
+        {current === 'audit' && isAdmin ? (
+          <AuditLogFeature
+            tenantId={activeOrgId}
+            userRole={(role as 'owner' | 'admin') || 'admin'}
+            selfPersonId={profile.person?.id}
+            selfName={profile.person?.name || ownCardName}
+          />
+        ) : null}
+      </div>
+    </AppShell>
   );
 }

@@ -14,6 +14,8 @@ export interface BrandKitFeatureProps {
   tenantId: string;
   userRole?: 'owner' | 'admin' | 'employee';
   labels?: Partial<BrandKitLabels>;
+  /** Company name for the card preview. */
+  companyName?: string;
   className?: string;
 }
 
@@ -21,8 +23,10 @@ export const BrandKitFeature: React.FC<BrandKitFeatureProps> = ({
   tenantId,
   userRole = 'admin',
   labels,
+  companyName,
   className,
 }) => {
+  const [previewPerson, setPreviewPerson] = useState<{ name?: string; designation?: string; companyName?: string }>();
   const [brandKit, setBrandKit] = useState<BrandKitState | null>(null);
   const [locks, setLocks] = useState<FieldLocksState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,10 +38,14 @@ export const BrandKitFeature: React.FC<BrandKitFeatureProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const [fetchedBrand, fetchedLocks] = await Promise.all([
+      const [fetchedBrand, fetchedLocks, cards] = await Promise.all([
         apiClient.getBrandKit(tenantId).catch(() => null),
         apiClient.getFieldLocks(tenantId).catch(() => null),
+        apiClient.listCardSummaries(tenantId).catch(() => []),
       ]);
+      // Preview a real card from the company rather than placeholder text.
+      const sample = cards.find((c) => c.status === 'published' && c.name) || cards.find((c) => c.name);
+      setPreviewPerson({ name: sample?.name, designation: sample?.designation, companyName });
 
       if (fetchedBrand) {
         setBrandKit({
@@ -63,7 +71,7 @@ export const BrandKitFeature: React.FC<BrandKitFeatureProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [tenantId]);
+  }, [tenantId, companyName]);
 
   useEffect(() => {
     loadData();
@@ -119,6 +127,7 @@ export const BrandKitFeature: React.FC<BrandKitFeatureProps> = ({
       onSaveBrandKit={handleSaveBrandKit}
       onSaveLocks={handleSaveLocks}
       onUploadLogo={handleUploadLogo}
+      previewPerson={previewPerson}
       labels={labels}
       className={className}
     />
