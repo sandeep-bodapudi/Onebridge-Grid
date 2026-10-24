@@ -2018,6 +2018,78 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
+  /cards:
+    get:
+      summary: List card summaries for the caller's company (dashboard People, Cards and Audit views)
+      description: One row per card, with the display name and public URL taken from the card itself, so the dashboard never shows raw seat or person IDs.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: X-Tenant-Id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CardSummary'
+        '401':
+          description: Missing or invalid access token
+
+  /stats/overview:
+    get:
+      summary: Dashboard overview numbers (cards by status, views, saves, QR scans, leads)
+      description: Views, saves and scans come from the buffered analytics events (Step 3); full analytics arrive in Step 8.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: X-Tenant-Id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverviewStats'
+
+  /leads:
+    get:
+      summary: Read-only list of share-back leads (prototype, flag demo_leads_panel)
+      description: Owners and admins only. Returns 404 unless the DEMO_LEADS_PANEL flag is on. Full leads management is outside F13.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: X-Tenant-Id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeadSummary'
+        '403':
+          description: Caller is not an owner or admin
+        '404':
+          description: Leads panel is not enabled
+
   /cards/templates:
     get:
       summary: List the 8 premium card templates (F10 AC-2)
@@ -3030,6 +3102,53 @@ components:
         content:
           type: object
           additionalProperties: true
+    CardSummary:
+      type: object
+      required: [id, slug, status, templateId, name, designation, publicUrl, updatedAt]
+      properties:
+        id: { type: string, description: Card ID (equals the seat ID) }
+        seatId: { type: string }
+        slug: { type: string }
+        status: { type: string, enum: [draft, pending_approval, published, inactive] }
+        templateId: { type: string }
+        name: { type: string, description: Display name from the card's about section; empty if not filled in }
+        designation: { type: string }
+        publicUrl: { type: string, format: uri }
+        updatedAt: { type: string, format: date-time }
+
+    OverviewStats:
+      type: object
+      required: [cards, views, saves, qrScans, leads]
+      properties:
+        cards:
+          type: object
+          required: [total, published, draft, pendingApproval]
+          properties:
+            total: { type: integer }
+            published: { type: integer }
+            draft: { type: integer }
+            pendingApproval: { type: integer }
+        views: { type: integer }
+        saves: { type: integer }
+        qrScans: { type: integer }
+        leads: { type: integer }
+
+    LeadSummary:
+      type: object
+      required: [id, cardId, source, name, phone, createdAt]
+      properties:
+        id: { type: string }
+        cardId: { type: string }
+        ownerName: { type: string, description: Name on the card that received the lead }
+        source: { type: string }
+        sourceTag: { type: string }
+        name: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        company: { type: string }
+        note: { type: string }
+        createdAt: { type: string, format: date-time }
+
     Card:
       type: object
       required: [id, tenantId, ownerType, ownerId, slug, templateId, status, language, sections, verifiedBadge, approvalRequired, aggregateVersion, createdAt, updatedAt]

@@ -175,6 +175,9 @@ export class SeatsService {
         title: seat.title,
         personId: seat.personId,
         status: seat.status,
+        branchId: seat.branchId,
+        departmentId: seat.departmentId,
+        teamId: seat.teamId,
       },
     });
 

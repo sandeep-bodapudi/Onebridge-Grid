@@ -48,6 +48,9 @@ export type SharebackRequest = components['schemas']['SharebackRequest'];
 export type SharebackResponse = components['schemas']['SharebackResponse'];
 
 export type Card = components['schemas']['Card'];
+export type CardSummary = components['schemas']['CardSummary'];
+export type OverviewStats = components['schemas']['OverviewStats'];
+export type LeadSummary = components['schemas']['LeadSummary'];
 export type CardSection = components['schemas']['CardSection'];
 export type CardSectionType = components['schemas']['CardSectionType'];
 export type CardTemplate = components['schemas']['CardTemplate'];

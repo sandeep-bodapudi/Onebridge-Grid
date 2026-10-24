@@ -8,14 +8,14 @@ export interface CardTemplateDefinition {
 
 /** AC-2: 8 premium templates. */
 export const CARD_TEMPLATE_CATALOG: CardTemplateDefinition[] = [
-  { id: 'classic-charcoal', name: 'Classic Charcoal', description: 'Deep charcoal band, warm paper content area.' },
-  { id: 'bridge-orange', name: 'Bridge Orange', description: 'Bridge orange fill accents, charcoal text (never orange on white).' },
-  { id: 'arch-minimal', name: 'Arch Minimal', description: 'White background, arch-shaped header, minimal ornamentation.' },
-  { id: 'keystone-dark', name: 'Keystone Dark', description: 'Dark mode first, keystone badge crown.' },
-  { id: 'paper-light', name: 'Paper Light', description: 'Warm paper background, soft shadow cards.' },
-  { id: 'enterprise-blue', name: 'Enterprise Blue', description: 'Muted blue band for regulated-industry customers.' },
-  { id: 'grid-mono', name: 'Grid Mono', description: 'Monochrome, grid-aligned, dense information layout.' },
-  { id: 'sand-warm', name: 'Sand Warm', description: 'Sand band, rounded corners, friendly tone.' },
+  { id: 'classic-charcoal', name: 'Company colour', description: 'Your brand colour across the header, warm paper below.' },
+  { id: 'bridge-orange', name: 'Bridge orange', description: 'OneBridge orange header with charcoal text.' },
+  { id: 'arch-minimal', name: 'Span minimal', description: 'Light header with a thin brand-colour stripe. Quiet and clean.' },
+  { id: 'keystone-dark', name: 'Night', description: 'Dark card with a brand-colour stripe.' },
+  { id: 'paper-light', name: 'Sand', description: 'Soft sand header, charcoal text.' },
+  { id: 'enterprise-blue', name: 'Enterprise blue', description: 'Muted blue header for banks, insurance and healthcare.' },
+  { id: 'grid-mono', name: 'Grid mono', description: 'Charcoal header with an orange span line. Square corners.' },
+  { id: 'sand-warm', name: 'Deck', description: 'Sand header under a solid brand-colour deck.' },
 ];
 
 export function listCardTemplates(): CardTemplateDefinition[] {

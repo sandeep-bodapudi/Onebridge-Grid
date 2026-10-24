@@ -361,7 +361,14 @@ export class CardsService {
       updatedAt: now,
     };
 
-    return TenantContext.run(tenantId, () => this.cardRepo.save(updated));
+    const saved = await TenantContext.run(tenantId, () => this.cardRepo.save(updated));
+    // A published card is live: refresh its cached visitor page so edits show straight away.
+    if (saved.status === 'published') {
+      await this.revalidationNotifier
+        .revalidateCard({ cardId: saved.id, slug: saved.slug, tenantId: saved.tenantId })
+        .catch(() => undefined);
+    }
+    return saved;
   }
 
   /**

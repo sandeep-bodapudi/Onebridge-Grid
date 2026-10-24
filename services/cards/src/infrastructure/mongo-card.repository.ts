@@ -32,8 +32,23 @@ export class MongoCardRepository extends TenantScopedRepository<CardDoc> {
    * before querying any tenant-scoped read models or child entities.
    */
   async findBySlugGlobal(slug: string): Promise<CardProps | null> {
-    const doc = await this.collection.findOne({ slug } as unknown as Parameters<typeof this.collection.findOne>[0]);
+    if (!slug || typeof slug !== 'string') return null;
+    const doc = await this.collection.findOne({ slug: String(slug) } as unknown as Parameters<typeof this.collection.findOne>[0]);
     return doc ? (doc as unknown as CardProps) : null;
+  }
+
+  /**
+   * Card lookup by ID across tenants for telemetry ingestion.
+   */
+  async findByIdGlobal(id: string): Promise<CardProps | null> {
+    if (!id || typeof id !== 'string') return null;
+    const doc = await this.collection.findOne({ id: String(id) } as unknown as Parameters<typeof this.collection.findOne>[0]);
+    return doc ? (doc as unknown as CardProps) : null;
+  }
+
+  async listByTenant(): Promise<CardProps[]> {
+    const docs = await this.find({} as unknown as Parameters<typeof this.find>[0]);
+    return docs as unknown as CardProps[];
   }
 
   async listPublishedByTenant(): Promise<CardProps[]> {

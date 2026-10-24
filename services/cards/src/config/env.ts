@@ -18,6 +18,10 @@ export interface CardsEnvConfig {
   identityApiUrl?: string;
   /** Service key for identity's /internal endpoints. Must equal identity's INTERNAL_SERVICE_KEY. */
   internalServiceKey?: string;
+  /** Flag demo_leads_panel: exposes the read-only GET /leads list used by the hosted prototype. Off unless DEMO_LEADS_PANEL=true. */
+  demoLeadsPanel?: boolean;
+  /** Call web-public's signed /api/revalidate outside production too (hosted demo runs `next start`, so ISR caches pages). */
+  revalidateWebPublic?: boolean;
 }
 
 export function loadAndValidateEnv(): CardsEnvConfig {
@@ -33,6 +37,8 @@ export function loadAndValidateEnv(): CardsEnvConfig {
     mongoUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/onebridge_dev',
     webPublicUrl: process.env.WEB_PUBLIC_URL || 'http://localhost:3001',
     shortLinkBaseUrl: process.env.SHORT_LINK_BASE_URL || 'https://obg.in',
+    demoLeadsPanel: process.env.DEMO_LEADS_PANEL === 'true',
+    revalidateWebPublic: process.env.REVALIDATE_WEB_PUBLIC === 'true',
     revalidationSigningSecret:
       process.env.REVALIDATION_SIGNING_SECRET || 'test-revalidation-signing-secret-at-least-32-chars',
   };

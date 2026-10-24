@@ -46,6 +46,12 @@ jobs:
       - name: Build Workspace Packages
         run: pnpm -r --filter "./packages/**" --if-present run build
 
+      - name: Build Web Public
+        run: pnpm --filter @onebridge/web-public build
+
+      - name: Check Visitor Page JS & LCP Budgets (CI Gate Condition 2)
+        run: pnpm run check:budgets
+
       - name: Typecheck
         run: pnpm run typecheck
 

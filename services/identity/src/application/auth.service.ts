@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { FakeOtpSender, FakeEventBus, ProblemException } from '@onebridge/shared';
+import { FakeOtpSender, FakeEventBus, ProblemException, normalizePhoneToE164 } from '@onebridge/shared';
 import { OtpService } from './otp.service.js';
 import { TokenService } from './token.service.js';
 import { MfaService } from './mfa.service.js';
@@ -88,12 +88,24 @@ export class AuthService {
     this.oauthVerifier = config.oauthVerifier;
   }
 
+  /**
+   * One person per phone number: "98220 12345", "09822012345" and "+919822012345"
+   * must all reach the same account (ADR-0002 point 4: default +91).
+   */
+  private toE164(phone: string): string {
+    try {
+      return normalizePhoneToE164(phone);
+    } catch {
+      return phone; // OtpService rejects malformed numbers with a proper 400
+    }
+  }
+
   async requestOtp(phone: string, ipAddress: string) {
-    return this.otpService.requestOtp(phone, ipAddress);
+    return this.otpService.requestOtp(this.toE164(phone), ipAddress);
   }
 
   async verifyOtp(phone: string, code: string, deviceLabel: string, ipAddress: string) {
-    return this.verifyOtpAndLogin(phone, code, deviceLabel, ipAddress);
+    return this.verifyOtpAndLogin(this.toE164(phone), code, deviceLabel, ipAddress);
   }
 
   async loginWithOAuth(

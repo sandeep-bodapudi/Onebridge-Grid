@@ -380,6 +380,57 @@ export interface paths {
       };
     };
   };
+  "/internal/memberships/role": {
+    /**
+     * Caller's role in a company (service-to-service; D-SERVICE-AUTH)
+     * @description Used by organization and cards to authorise a request after verifying the identity access token locally. Requires x-service-key; user tokens are rejected with 403.
+     */
+    get: {
+      parameters: {
+        query: {
+          personId: string;
+          tenantId: string;
+        };
+        header: {
+          "x-service-key": string;
+        };
+      };
+      responses: {
+        /** @description The person's role in the company */
+        200: {
+          content: {
+            "application/json": {
+              /** @enum {string} */
+              role: "super_admin" | "owner" | "admin" | "branch_manager" | "department_manager" | "team_lead" | "employee" | "viewer";
+              scope?: {
+                branchId?: string;
+                departmentId?: string;
+                teamId?: string;
+              };
+            };
+          };
+        };
+        /** @description personId or tenantId missing */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Missing or invalid service key */
+        401: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description The person is not a member of the company */
+        404: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
   "/orgs/{tenantId}/branches": {
     /** List Branches */
     get: {
@@ -1755,6 +1806,82 @@ export interface paths {
       };
     };
   };
+  "/cards": {
+    /**
+     * List card summaries for the caller's company (dashboard People, Cards and Audit views)
+     * @description One row per card, with the display name and public URL taken from the card itself, so the dashboard never shows raw seat or person IDs.
+     */
+    get: {
+      parameters: {
+        header: {
+          "X-Tenant-Id": string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              items: components["schemas"]["CardSummary"][];
+            };
+          };
+        };
+        /** @description Missing or invalid access token */
+        401: {
+          content: never;
+        };
+      };
+    };
+  };
+  "/stats/overview": {
+    /**
+     * Dashboard overview numbers (cards by status, views, saves, QR scans, leads)
+     * @description Views, saves and scans come from the buffered analytics events (Step 3); full analytics arrive in Step 8.
+     */
+    get: {
+      parameters: {
+        header: {
+          "X-Tenant-Id": string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["OverviewStats"];
+          };
+        };
+      };
+    };
+  };
+  "/leads": {
+    /**
+     * Read-only list of share-back leads (prototype, flag demo_leads_panel)
+     * @description Owners and admins only. Returns 404 unless the DEMO_LEADS_PANEL flag is on. Full leads management is outside F13.
+     */
+    get: {
+      parameters: {
+        header: {
+          "X-Tenant-Id": string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              items: components["schemas"]["LeadSummary"][];
+            };
+          };
+        };
+        /** @description Caller is not an owner or admin */
+        403: {
+          content: never;
+        };
+        /** @description Leads panel is not enabled */
+        404: {
+          content: never;
+        };
+      };
+    };
+  };
   "/cards/templates": {
     /** List the 8 premium card templates (F10 AC-2) */
     get: {
@@ -2597,6 +2724,49 @@ export interface components {
       content: {
         [key: string]: unknown;
       };
+    };
+    CardSummary: {
+      /** @description Card ID (equals the seat ID) */
+      id: string;
+      seatId?: string;
+      slug: string;
+      /** @enum {string} */
+      status: "draft" | "pending_approval" | "published" | "inactive";
+      templateId: string;
+      /** @description Display name from the card's about section; empty if not filled in */
+      name: string;
+      designation: string;
+      /** Format: uri */
+      publicUrl: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    OverviewStats: {
+      cards: {
+        total: number;
+        published: number;
+        draft: number;
+        pendingApproval: number;
+      };
+      views: number;
+      saves: number;
+      qrScans: number;
+      leads: number;
+    };
+    LeadSummary: {
+      id: string;
+      cardId: string;
+      /** @description Name on the card that received the lead */
+      ownerName?: string;
+      source: string;
+      sourceTag?: string;
+      name: string;
+      phone: string;
+      email?: string;
+      company?: string;
+      note?: string;
+      /** Format: date-time */
+      createdAt: string;
     };
     Card: {
       /** @example OB-7KQ2MX-E0001 */

@@ -236,6 +236,8 @@ components:
             branchId: { type: string }
             name: { type: string }
             managerPersonId: { type: string }
+            address: { type: string, description: "One-line postal address, for card Directions" }
+            mapPin: { type: object, properties: { lat: { type: number }, lng: { type: number } } }
         aggregateVersion: { type: integer }
     BranchUpdatedEvent:
       type: object
@@ -254,6 +256,9 @@ components:
             orgId: { type: string }
             branchId: { type: string }
             updatedFields: { type: object }
+            name: { type: string }
+            address: { type: string, description: "One-line postal address after the update" }
+            mapPin: { type: object, properties: { lat: { type: number }, lng: { type: number } } }
         aggregateVersion: { type: integer }
     BranchArchivedEvent:
       type: object
@@ -460,6 +465,9 @@ components:
             title: { type: string }
             personId: { type: string }
             status: { type: string }
+            branchId: { type: string }
+            departmentId: { type: string }
+            teamId: { type: string }
         aggregateVersion: { type: integer }
     SeatUpdatedEvent:
       type: object

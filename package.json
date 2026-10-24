@@ -9,6 +9,7 @@
     "test": "cross-env NODE_OPTIONS=--max-old-space-size=4096 pnpm -r --workspace-concurrency=1 --if-present run test && vitest run tests/check-no-echo-scripts.spec.ts tests/workspace.spec.ts",
     "test:e2e": "playwright test",
     "check:scripts": "node scripts/check-no-echo-scripts.mjs",
+    "check:budgets": "node scripts/check-public-budgets.mjs",
     "contracts:gen": "pnpm -r --if-present run contracts:gen"
   },
   "devDependencies": {

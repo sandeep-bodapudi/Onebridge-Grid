@@ -56,7 +56,7 @@ export class MongoPersonRepository implements IPersonRepository {
   }
 
   private toDoc(person: Person): MongoPersonDoc {
-    return {
+    const doc: MongoPersonDoc = {
       userId: person.userId,
       phone: person.phone,
       email: person.email,
@@ -70,6 +70,12 @@ export class MongoPersonRepository implements IPersonRepository {
       createdAt: person.createdAt,
       updatedAt: person.updatedAt,
     };
+    // The driver stores undefined as null, and null counts for the sparse
+    // unique indexes: a second phone-only person would collide on email: null.
+    for (const key of ['phone', 'email', 'name'] as const) {
+      if (doc[key] === undefined || doc[key] === null) delete doc[key];
+    }
+    return doc;
   }
 
   async create(person: Omit<Person, 'createdAt' | 'updatedAt'>): Promise<Person> {

@@ -146,7 +146,9 @@ export class NestOrganizationController {
     const creatorPersonId =
       req?.user?.via === 'token'
         ? req.user.personId
-        : body.creatorPersonId || (req?.headers?.['x-user-id'] as string) || req?.user?.personId;
+        : body.creatorPersonId ||
+          (req?.headers?.['x-user-id'] as string) ||
+          (req?.user?.personId && req.user.personId !== 'system' ? req.user.personId : undefined);
 
     if (!creatorPersonId || !creatorPersonId.trim()) {
       throw new BadRequestException({

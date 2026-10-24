@@ -13,6 +13,7 @@ import { CardsEnvConfig, loadAndValidateEnv } from './config/env.js';
 import { MongoCardRepository } from './infrastructure/mongo-card.repository.js';
 import { MongoShortLinkRepository } from './infrastructure/mongo-short-link.repository.js';
 import { MongoLeadRepository } from './infrastructure/mongo-lead.repository.js';
+import { MongoAnalyticsEventRepository } from './infrastructure/mongo-analytics-event.repository.js';
 import {
   MongoOrgReadModelRepository,
   MongoSeatReadModelRepository,
@@ -33,10 +34,12 @@ import { CardsService } from './application/cards.service.js';
 import { ShortLinkService } from './application/short-link.service.js';
 import { SharebackService } from './application/shareback.service.js';
 import { ReadModelSyncService } from './application/read-model-sync.service.js';
+import { DashboardService } from './application/dashboard.service.js';
 import { CardsController } from './presentation/cards.controller.js';
 import { ShortLinkController } from './presentation/short-link.controller.js';
 import { AnalyticsStubController } from './presentation/analytics-stub.controller.js';
 import { PublicCardsController } from './presentation/public-cards.controller.js';
+import { DashboardController } from './presentation/dashboard.controller.js';
 import { TenantAuthGuard, REQUEST_AUTHENTICATOR } from './presentation/guards/tenant-auth.guard.js';
 import { createRequestAuthenticator, resolveServiceJwtSecret, RequestAuthenticator } from '@onebridge/shared';
 
@@ -64,6 +67,7 @@ export class CardsModule implements OnModuleInit {
     @Optional() private readonly orgReadModelRepo?: MongoOrgReadModelRepository,
     @Optional() private readonly seatReadModelRepo?: MongoSeatReadModelRepository,
     @Optional() private readonly branchReadModelRepo?: MongoBranchReadModelRepository,
+    @Optional() private readonly analyticsEventRepo?: MongoAnalyticsEventRepository,
     @Optional() private readonly readModelSync?: ReadModelSyncService,
     @Optional() @Inject('EVENT_BUS') private readonly eventBus?: PublishableEventBus
   ) {}
@@ -76,6 +80,7 @@ export class CardsModule implements OnModuleInit {
       if (this.orgReadModelRepo) await this.orgReadModelRepo.createIndexes();
       if (this.seatReadModelRepo) await this.seatReadModelRepo.createIndexes();
       if (this.branchReadModelRepo) await this.branchReadModelRepo.createIndexes();
+      if (this.analyticsEventRepo) await this.analyticsEventRepo.createIndexes();
     } catch (err: unknown) {
       console.error('[CardsModule] Failed to ensure database indexes:', err);
     }
@@ -106,7 +111,7 @@ export class CardsModule implements OnModuleInit {
       provide: 'REVALIDATION_NOTIFIER',
       useValue:
         options.revalidationNotifier ||
-        (config.nodeEnv === 'production'
+        (config.nodeEnv === 'production' || config.revalidateWebPublic
           ? new HttpRevalidationNotifier(config.webPublicUrl, config.revalidationSigningSecret)
           : new FakeRevalidationNotifier()),
     };
@@ -181,6 +186,14 @@ export class CardsModule implements OnModuleInit {
       useFactory: () => {
         if (!options.connectionHandle) throw new Error('MongoConnectionHandle is required for MongoBranchReadModelRepository');
         return new MongoBranchReadModelRepository(options.connectionHandle);
+      },
+    };
+
+    const analyticsEventRepoProvider = {
+      provide: MongoAnalyticsEventRepository,
+      useFactory: () => {
+        if (!options.connectionHandle) throw new Error('MongoConnectionHandle is required for MongoAnalyticsEventRepository');
+        return new MongoAnalyticsEventRepository(options.connectionHandle);
       },
     };
 
@@ -302,6 +315,25 @@ export class CardsModule implements OnModuleInit {
       ],
     };
 
+    const dashboardServiceProvider = {
+      provide: DashboardService,
+      useFactory: (
+        cardRepo: MongoCardRepository,
+        leadRepo: MongoLeadRepository,
+        analyticsRepo: MongoAnalyticsEventRepository,
+        keyVault: KeyVaultProvider
+      ) =>
+        new DashboardService(
+          cardRepo,
+          leadRepo,
+          analyticsRepo,
+          keyVault,
+          config.webPublicUrl || 'https://grid.onebridge.in',
+          config.demoLeadsPanel === true
+        ),
+      inject: [MongoCardRepository, MongoLeadRepository, MongoAnalyticsEventRepository, 'KEY_VAULT_PROVIDER'],
+    };
+
     // D-SERVICE-AUTH: verifies identity access tokens and resolves the caller's role.
     const requestAuthenticatorProvider = {
       provide: REQUEST_AUTHENTICATOR,
@@ -317,7 +349,7 @@ export class CardsModule implements OnModuleInit {
 
     return {
       module: CardsModule,
-      controllers: [CardsController, ShortLinkController, AnalyticsStubController, PublicCardsController],
+      controllers: [CardsController, DashboardController, ShortLinkController, AnalyticsStubController, PublicCardsController],
       providers: [
         envProvider,
         eventBusProvider,
@@ -333,10 +365,12 @@ export class CardsModule implements OnModuleInit {
         orgReadModelRepoProvider,
         seatReadModelRepoProvider,
         branchReadModelRepoProvider,
+        analyticsEventRepoProvider,
         shortLinkServiceProvider,
         cardsServiceProvider,
         sharebackServiceProvider,
         readModelSyncProvider,
+        dashboardServiceProvider,
         requestAuthenticatorProvider,
         TenantAuthGuard,
       ],
@@ -351,6 +385,7 @@ export class CardsModule implements OnModuleInit {
         MongoOrgReadModelRepository,
         MongoSeatReadModelRepository,
         MongoBranchReadModelRepository,
+        MongoAnalyticsEventRepository,
         'EVENT_BUS',
         'KEY_VAULT_PROVIDER',
         'RATE_LIMITER',

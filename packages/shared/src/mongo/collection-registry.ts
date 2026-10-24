@@ -105,6 +105,11 @@ export const KNOWN_COLLECTIONS: Record<string, CollectionMetadata> = {
     classification: 'tenant-scoped',
     description: 'Immutable short link codes and QR targets (obg.in/<8 char>) per F11',
   },
+  analytics_events: {
+    name: 'analytics_events',
+    classification: 'tenant-scoped',
+    description: 'Buffered visitor telemetry and scan events awaiting Step 8 analytics ingestion pipeline',
+  },
 };
 
 export const ALLOWLISTED_GLOBAL_COLLECTIONS = Object.values(KNOWN_COLLECTIONS)

@@ -28,6 +28,14 @@ import { MongoAuditRepository } from '../infrastructure/mongo-audit.repository.j
 import { MongoOrganizationRepository } from '../infrastructure/mongo-organization.repository.js';
 import { CounterService } from './counter.service.js';
 
+/** One-line postal address for read models and card Directions links. */
+export function formatAddress(address: BranchProps['address'] | undefined): string | undefined {
+  if (!address) return undefined;
+  const a = address as unknown as Record<string, unknown>;
+  const parts = [a.line1, a.line2, a.city, a.state, a.pincode].filter((p) => typeof p === 'string' && p.trim());
+  return parts.length ? parts.join(', ') : undefined;
+}
+
 @Injectable()
 export class OrgStructureService {
   constructor(
@@ -113,6 +121,8 @@ export class OrgStructureService {
         branchId,
         name: branch.name,
         managerPersonId: branch.managerPersonId,
+        address: formatAddress(branch.address),
+        mapPin: branch.mapPin,
       },
     });
 
@@ -165,6 +175,9 @@ export class OrgStructureService {
         orgId: tenantId,
         branchId,
         updatedFields: dto,
+        name: updated.name,
+        address: formatAddress(updated.address),
+        mapPin: updated.mapPin,
       },
     });
 
