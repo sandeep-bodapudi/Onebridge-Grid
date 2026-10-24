@@ -35,6 +35,9 @@ import { ShortLinkService } from './application/short-link.service.js';
 import { SharebackService } from './application/shareback.service.js';
 import { ReadModelSyncService } from './application/read-model-sync.service.js';
 import { DashboardService } from './application/dashboard.service.js';
+import { CompanyProfileService } from './application/company-profile.service.js';
+import { MongoCompanyProfileRepository } from './infrastructure/mongo-company-profile.repository.js';
+import { CompanyProfileController, PublicCompaniesController } from './presentation/company-profile.controller.js';
 import { CardsController } from './presentation/cards.controller.js';
 import { ShortLinkController } from './presentation/short-link.controller.js';
 import { AnalyticsStubController } from './presentation/analytics-stub.controller.js';
@@ -69,6 +72,7 @@ export class CardsModule implements OnModuleInit {
     @Optional() private readonly branchReadModelRepo?: MongoBranchReadModelRepository,
     @Optional() private readonly analyticsEventRepo?: MongoAnalyticsEventRepository,
     @Optional() private readonly readModelSync?: ReadModelSyncService,
+    @Optional() private readonly companyProfileRepo?: MongoCompanyProfileRepository,
     @Optional() @Inject('EVENT_BUS') private readonly eventBus?: PublishableEventBus
   ) {}
 
@@ -81,6 +85,7 @@ export class CardsModule implements OnModuleInit {
       if (this.seatReadModelRepo) await this.seatReadModelRepo.createIndexes();
       if (this.branchReadModelRepo) await this.branchReadModelRepo.createIndexes();
       if (this.analyticsEventRepo) await this.analyticsEventRepo.createIndexes();
+      if (this.companyProfileRepo) await this.companyProfileRepo.createIndexes();
     } catch (err: unknown) {
       console.error('[CardsModule] Failed to ensure database indexes:', err);
     }
@@ -334,6 +339,46 @@ export class CardsModule implements OnModuleInit {
       inject: [MongoCardRepository, MongoLeadRepository, MongoAnalyticsEventRepository, 'KEY_VAULT_PROVIDER'],
     };
 
+    const companyProfileRepoProvider = {
+      provide: MongoCompanyProfileRepository,
+      useFactory: () => {
+        if (!options.connectionHandle) throw new Error('MongoConnectionHandle is required for MongoCompanyProfileRepository');
+        return new MongoCompanyProfileRepository(options.connectionHandle);
+      },
+    };
+
+    const companyProfileServiceProvider = {
+      provide: CompanyProfileService,
+      useFactory: (
+        profileRepo: MongoCompanyProfileRepository,
+        cardRepo: MongoCardRepository,
+        orgRepo: MongoOrgReadModelRepository,
+        seatRepo: MongoSeatReadModelRepository,
+        branchRepo: MongoBranchReadModelRepository,
+        analyticsRepo: MongoAnalyticsEventRepository,
+        sharebackService: SharebackService
+      ) =>
+        new CompanyProfileService(
+          profileRepo,
+          cardRepo,
+          orgRepo,
+          seatRepo,
+          branchRepo,
+          analyticsRepo,
+          sharebackService,
+          config.webPublicUrl || 'https://grid.onebridge.in'
+        ),
+      inject: [
+        MongoCompanyProfileRepository,
+        MongoCardRepository,
+        MongoOrgReadModelRepository,
+        MongoSeatReadModelRepository,
+        MongoBranchReadModelRepository,
+        MongoAnalyticsEventRepository,
+        SharebackService,
+      ],
+    };
+
     // D-SERVICE-AUTH: verifies identity access tokens and resolves the caller's role.
     const requestAuthenticatorProvider = {
       provide: REQUEST_AUTHENTICATOR,
@@ -349,7 +394,7 @@ export class CardsModule implements OnModuleInit {
 
     return {
       module: CardsModule,
-      controllers: [CardsController, DashboardController, ShortLinkController, AnalyticsStubController, PublicCardsController],
+      controllers: [CardsController, DashboardController, ShortLinkController, AnalyticsStubController, PublicCardsController, CompanyProfileController, PublicCompaniesController],
       providers: [
         envProvider,
         eventBusProvider,
@@ -371,6 +416,8 @@ export class CardsModule implements OnModuleInit {
         sharebackServiceProvider,
         readModelSyncProvider,
         dashboardServiceProvider,
+        companyProfileRepoProvider,
+        companyProfileServiceProvider,
         requestAuthenticatorProvider,
         TenantAuthGuard,
       ],
@@ -379,6 +426,7 @@ export class CardsModule implements OnModuleInit {
         ShortLinkService,
         SharebackService,
         ReadModelSyncService,
+        CompanyProfileService,
         MongoCardRepository,
         MongoShortLinkRepository,
         MongoLeadRepository,

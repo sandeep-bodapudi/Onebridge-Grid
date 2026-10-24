@@ -20,6 +20,13 @@ export class MongoOrgReadModelRepository extends TenantScopedRepository<OrgReadM
   }
 
   /** Upserts only if `model.aggregateVersion` is newer than the stored one (ADR-0003 point 3). Returns true if applied. */
+  /** Public company page (F26): find a company by its public address across tenants. */
+  async findBySlugGlobal(slug: string): Promise<OrgReadModel | null> {
+    if (!slug || typeof slug !== 'string') return null;
+    const doc = await this.collection.findOne({ slug: String(slug) } as unknown as Parameters<typeof this.collection.findOne>[0]);
+    return doc ? (doc as unknown as OrgReadModel) : null;
+  }
+
   async upsertIfNewer(model: OrgReadModel): Promise<boolean> {
     const activeTenantId = this.getActiveTenantId();
     const existing = await this.findByTenantId(model.tenantId);
@@ -41,6 +48,7 @@ export class MongoOrgReadModelRepository extends TenantScopedRepository<OrgReadM
 
   async createIndexes(): Promise<void> {
     await this.collection.createIndex({ id: 1 }, { unique: true });
+    await this.collection.createIndex({ slug: 1 });
   }
 }
 
@@ -60,6 +68,11 @@ export class MongoSeatReadModelRepository extends TenantScopedRepository<SeatRea
     const filter = { id: seatId } as unknown as Parameters<SeatRepoBase['findOne']>[0];
     const doc = await this.findOne(filter);
     return doc ? (doc as unknown as SeatReadModel) : null;
+  }
+
+  async listByTenant(): Promise<SeatReadModel[]> {
+    const docs = await this.find({} as unknown as Parameters<SeatRepoBase['find']>[0]);
+    return docs as unknown as SeatReadModel[];
   }
 
   async upsertIfNewer(model: SeatReadModel): Promise<boolean> {
@@ -103,6 +116,11 @@ export class MongoBranchReadModelRepository extends TenantScopedRepository<Branc
     const filter = { id: branchId } as unknown as Parameters<BranchRepoBase['findOne']>[0];
     const doc = await this.findOne(filter);
     return doc ? (doc as unknown as BranchReadModel) : null;
+  }
+
+  async listByTenant(): Promise<BranchReadModel[]> {
+    const docs = await this.find({} as unknown as Parameters<BranchRepoBase['find']>[0]);
+    return docs as unknown as BranchReadModel[];
   }
 
   async upsertIfNewer(model: BranchReadModel): Promise<boolean> {

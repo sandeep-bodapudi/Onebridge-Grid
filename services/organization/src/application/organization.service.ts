@@ -203,6 +203,10 @@ export class OrganizationService {
         creatorPersonId: dto.creatorPersonId,
         name: saved.name,
         slug: saved.slug,
+        plan: saved.plan,
+        industry: saved.industry,
+        city: saved.city,
+        website: saved.website,
       },
     });
 

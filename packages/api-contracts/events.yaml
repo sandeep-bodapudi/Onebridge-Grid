@@ -123,6 +123,15 @@ components:
               type: string
             slug:
               type: string
+            plan:
+              type: string
+              description: starter or business (for the public company page catalogue limit)
+            industry:
+              type: string
+            city:
+              type: string
+            website:
+              type: string
         aggregateVersion:
           type: integer
     OrgUpdatedEvent:

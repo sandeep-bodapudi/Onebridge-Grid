@@ -110,6 +110,11 @@ export const KNOWN_COLLECTIONS: Record<string, CollectionMetadata> = {
     classification: 'tenant-scoped',
     description: 'Buffered visitor telemetry and scan events awaiting Step 8 analytics ingestion pipeline',
   },
+  company_profiles: {
+    name: 'company_profiles',
+    classification: 'tenant-scoped',
+    description: 'Public company page settings (F26): catalogue, services, portfolio, documents, directory, enquiry routing, SEO',
+  },
 };
 
 export const ALLOWLISTED_GLOBAL_COLLECTIONS = Object.values(KNOWN_COLLECTIONS)

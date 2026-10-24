@@ -2090,6 +2090,138 @@ paths:
         '404':
           description: Leads panel is not enabled
 
+  /company-profile:
+    get:
+      summary: Company page settings (F26) for the caller's company
+      description: Catalogue, services, portfolio, client logos, documents, people directory, enquiry routing and the search-engine setting. Profile text (about, website, social links) lives on the organization (PATCH /orgs/{id}).
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: X-Tenant-Id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyProfileSettings'
+    put:
+      summary: Replace the company page settings (owners and admins)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: X-Tenant-Id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyProfileSettings'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyProfileSettings'
+        '400':
+          description: Invalid item (for example a video that is not YouTube or Vimeo, or a document over 25 MB)
+        '403':
+          description: Caller is not an owner or admin
+        '422':
+          description: Over the plan's catalogue limit (50 items on Starter)
+
+  /public/o/{slug}:
+    get:
+      summary: Public company page (F26)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: query
+          name: branch
+          description: Focus a branch (standee QR codes for a branch)
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicCompanyProfile'
+        '404':
+          description: No company with this address
+
+  /public/o/{slug}/view:
+    post:
+      summary: Count a company page view (no visitor data; the company comes from the address)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                branchId: { type: string }
+      responses:
+        '202':
+          description: Counted
+        '404':
+          description: No company with this address
+
+  /public/o/{slug}/enquiry:
+    post:
+      summary: Send an enquiry to the company (creates an encrypted lead, source company_enquiry)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyEnquiryRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharebackResponse'
+        '400':
+          description: Missing name, phone or consent
+        '404':
+          description: No company with this address
+        '429':
+          description: Too many enquiries from this device
+
+  /public/o/{slug}/documents/{documentId}:
+    get:
+      summary: Download a company document (counts the download, then redirects to the file)
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: path
+          name: documentId
+          required: true
+          schema: { type: string }
+      responses:
+        '302':
+          description: Redirect to the document
+        '404':
+          description: Unknown document
+
   /cards/templates:
     get:
       summary: List the 8 premium card templates (F10 AC-2)
@@ -3102,6 +3234,155 @@ components:
         content:
           type: object
           additionalProperties: true
+    CatalogueItem:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string, maxLength: 120 }
+        category: { type: string, maxLength: 60 }
+        description: { type: string, maxLength: 500 }
+        price: { type: string, maxLength: 40, description: Display price, e.g. "₹54,000 / MT" }
+        priceOnRequest: { type: boolean }
+        imageUrl: { type: string, format: uri }
+
+    CompanyServiceItem:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string, maxLength: 120 }
+        description: { type: string, maxLength: 500 }
+
+    PortfolioItem:
+      type: object
+      required: [id, title]
+      properties:
+        id: { type: string }
+        title: { type: string, maxLength: 120 }
+        client: { type: string, maxLength: 120 }
+        description: { type: string, maxLength: 800 }
+        imageUrls: { type: array, maxItems: 8, items: { type: string, format: uri } }
+        videoUrl: { type: string, format: uri, description: YouTube or Vimeo only }
+
+    ClientLogo:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string, maxLength: 80 }
+        imageUrl: { type: string, format: uri }
+
+    CompanyDocument:
+      type: object
+      required: [id, title, url]
+      properties:
+        id: { type: string }
+        title: { type: string, maxLength: 120 }
+        url: { type: string, format: uri, description: A PDF (https) }
+        sizeBytes: { type: integer, maximum: 26214400 }
+
+    CompanyProfileSettings:
+      type: object
+      required: [seoIndexable, products, services, portfolio, clientLogos, documents, directory, enquiryRouting]
+      properties:
+        seoIndexable: { type: boolean, description: Let search engines list the page }
+        products: { type: array, items: { $ref: '#/components/schemas/CatalogueItem' } }
+        services: { type: array, items: { $ref: '#/components/schemas/CompanyServiceItem' } }
+        portfolio: { type: array, items: { $ref: '#/components/schemas/PortfolioItem' } }
+        clientLogos: { type: array, items: { $ref: '#/components/schemas/ClientLogo' } }
+        documents: { type: array, items: { $ref: '#/components/schemas/CompanyDocument' } }
+        directory:
+          type: object
+          required: [enabled, seatIds]
+          properties:
+            enabled: { type: boolean }
+            seatIds: { type: array, items: { type: string }, description: People shown; empty means every published card }
+        enquiryRouting:
+          type: object
+          required: [branchSeats]
+          properties:
+            defaultSeatId: { type: string, description: Who receives general enquiries; defaults to the first published card }
+            branchSeats: { type: object, additionalProperties: { type: string }, description: Branch ID to the seat that receives that branch's enquiries }
+        limits:
+          type: object
+          readOnly: true
+          properties:
+            maxProducts: { type: integer, nullable: true, description: 50 on Starter, null for unlimited }
+
+    PublicCompanyProfile:
+      type: object
+      required: [status, company, seoIndexable, branches, people, products, services, portfolio, clientLogos, documents]
+      properties:
+        status: { type: string, enum: [active, lapsed], description: A lapsed plan shows the basic profile only }
+        company:
+          type: object
+          required: [name, slug, businessId, verifiedBadge]
+          properties:
+            name: { type: string }
+            slug: { type: string }
+            businessId: { type: string }
+            verifiedBadge: { type: boolean }
+            logo: { type: string }
+            brandColours: { $ref: '#/components/schemas/BrandColours' }
+            industry: { type: string }
+            city: { type: string }
+            about: { type: string }
+            website: { type: string }
+            gstin: { type: string }
+            socialLinks: { $ref: '#/components/schemas/SocialLinks' }
+        seoIndexable: { type: boolean }
+        focusBranchId: { type: string }
+        branches:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: { type: string }
+              name: { type: string }
+              address: { type: string }
+              directionsUrl: { type: string }
+        people:
+          type: array
+          items:
+            type: object
+            required: [name, designation, cardUrl]
+            properties:
+              name: { type: string }
+              designation: { type: string }
+              branchName: { type: string }
+              photoUrl: { type: string }
+              cardUrl: { type: string }
+        products: { type: array, items: { $ref: '#/components/schemas/CatalogueItem' } }
+        services: { type: array, items: { $ref: '#/components/schemas/CompanyServiceItem' } }
+        portfolio: { type: array, items: { $ref: '#/components/schemas/PortfolioItem' } }
+        clientLogos: { type: array, items: { $ref: '#/components/schemas/ClientLogo' } }
+        documents:
+          type: array
+          items:
+            type: object
+            required: [id, title, downloadUrl]
+            properties:
+              id: { type: string }
+              title: { type: string }
+              sizeBytes: { type: integer }
+              downloadUrl: { type: string }
+
+    CompanyEnquiryRequest:
+      type: object
+      required: [name, phone, consent]
+      properties:
+        name: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        company: { type: string }
+        message: { type: string, maxLength: 1000 }
+        productId: { type: string, description: Enquiry about this catalogue item }
+        branchId: { type: string, description: Route to this branch's contact }
+        consent: { type: boolean }
+        turnstileToken: { type: string }
+
     CardSummary:
       type: object
       required: [id, slug, status, templateId, name, designation, publicUrl, updatedAt]
@@ -3115,6 +3396,29 @@ components:
         designation: { type: string }
         publicUrl: { type: string, format: uri }
         updatedAt: { type: string, format: date-time }
+        stats:
+          $ref: '#/components/schemas/CardStats'
+
+    CardStats:
+      type: object
+      description: Results for one card over the last 14 days (from the buffered analytics events, Step 3).
+      required: [views, saves, leads, daily]
+      properties:
+        views: { type: integer }
+        saves: { type: integer }
+        leads: { type: integer }
+        daily:
+          type: array
+          description: Card views per day, oldest first (14 entries)
+          items: { type: integer }
+
+    DailyCount:
+      type: object
+      required: [date, views, saves]
+      properties:
+        date: { type: string, format: date, description: Calendar day in UTC }
+        views: { type: integer }
+        saves: { type: integer }
 
     OverviewStats:
       type: object
@@ -3132,6 +3436,33 @@ components:
         saves: { type: integer }
         qrScans: { type: integer }
         leads: { type: integer }
+        period:
+          type: object
+          description: The last 14 days compared with the 14 days before.
+          required: [days, views, saves, leads, previousViews, previousSaves, previousLeads]
+          properties:
+            days: { type: integer, example: 14 }
+            views: { type: integer }
+            saves: { type: integer }
+            leads: { type: integer }
+            previousViews: { type: integer }
+            previousSaves: { type: integer }
+            previousLeads: { type: integer }
+        daily:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyCount'
+        topCards:
+          type: array
+          description: Cards with the most views in the last 14 days (up to 5)
+          items:
+            type: object
+            required: [id, name, designation, views]
+            properties:
+              id: { type: string }
+              name: { type: string }
+              designation: { type: string }
+              views: { type: integer }
 
     LeadSummary:
       type: object

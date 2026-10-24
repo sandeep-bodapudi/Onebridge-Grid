@@ -17,6 +17,15 @@ export interface OrgReadModel {
   brandColours?: { band: string; accent?: string; text: string };
   verifiedBadge: boolean;
   cardApprovalRequired?: boolean; // Company setting (AC-8)
+  /** Public company page (F26): profile fields mirrored from the organization. */
+  plan?: string;
+  planStatus?: 'active' | 'lapsed';
+  industry?: string;
+  city?: string;
+  about?: string;
+  website?: string;
+  gstin?: string;
+  socialLinks?: Record<string, string>;
   aggregateVersion: number;
   updatedAt: string;
 }

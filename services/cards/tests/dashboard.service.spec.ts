@@ -56,9 +56,12 @@ describe('DashboardService (card summaries, overview, prototype leads list)', ()
       priya.status = 'published';
       await cardRepo.save(priya);
       await cardRepo.save(createDraftCard({ tenantId: TENANT_A, seatId: 'OB-AAAAAA-E0002', slug: 'acme/ob-aaaaaa-e0002', verifiedBadge: false }, NOW));
-      await analyticsRepo.save(createAnalyticsEvent({ tenantId: TENANT_A, eventType: 'card_viewed', cardId: priya.id }));
-      await analyticsRepo.save(createAnalyticsEvent({ tenantId: TENANT_A, eventType: 'card_viewed', cardId: priya.id }));
-      await analyticsRepo.save(createAnalyticsEvent({ tenantId: TENANT_A, eventType: 'contact_saved', cardId: priya.id }));
+      // Two views and a save today, one view yesterday, one view in the previous 14-day period.
+      await analyticsRepo.save(createAnalyticsEvent({ tenantId: TENANT_A, eventType: 'card_viewed', cardId: priya.id, timestamp: '2026-10-24T09:00:00.000Z' }));
+      await analyticsRepo.save(createAnalyticsEvent({ tenantId: TENANT_A, eventType: 'card_viewed', cardId: priya.id, timestamp: '2026-10-24T09:30:00.000Z' }));
+      await analyticsRepo.save(createAnalyticsEvent({ tenantId: TENANT_A, eventType: 'contact_saved', cardId: priya.id, timestamp: '2026-10-24T09:31:00.000Z' }));
+      await analyticsRepo.save(createAnalyticsEvent({ tenantId: TENANT_A, eventType: 'card_viewed', cardId: priya.id, timestamp: '2026-10-23T18:00:00.000Z' }));
+      await analyticsRepo.save(createAnalyticsEvent({ tenantId: TENANT_A, eventType: 'card_viewed', cardId: priya.id, timestamp: '2026-10-05T12:00:00.000Z' }));
 
       const leadId = '01JLEAD0000000000000000001';
       const { kid, key } = await keyVault.getTenantKey(TENANT_A);
@@ -88,7 +91,7 @@ describe('DashboardService (card summaries, overview, prototype leads list)', ()
   });
 
   const service = (leadsPanel = true) =>
-    new DashboardService(cardRepo, leadRepo, analyticsRepo, keyVault, 'https://cards.example/', leadsPanel);
+    new DashboardService(cardRepo, leadRepo, analyticsRepo, keyVault, 'https://cards.example/', leadsPanel, () => new Date(NOW));
 
   it('lists card summaries with names and public URLs, only for the caller company', async () => {
     const items = await service().listCardSummaries(TENANT_A);
@@ -100,17 +103,27 @@ describe('DashboardService (card summaries, overview, prototype leads list)', ()
       publicUrl: 'https://cards.example/c/acme/ob-aaaaaa-e0001',
     });
     expect(items[1].name).toBe('');
+    // Results for the last 14 days, with views per day (oldest first)
+    expect(items[0].stats).toMatchObject({ views: 3, saves: 1, leads: 1 });
+    expect(items[0].stats?.daily).toHaveLength(14);
+    expect(items[0].stats?.daily.slice(-2)).toEqual([1, 2]);
+    expect(items[1].stats).toMatchObject({ views: 0, saves: 0, leads: 0 });
   });
 
   it('counts cards by status, buffered analytics events and leads', async () => {
     const stats = await service().getOverviewStats(TENANT_A);
-    expect(stats).toEqual({
+    expect(stats).toMatchObject({
       cards: { total: 2, published: 1, draft: 1, pendingApproval: 0 },
-      views: 2,
+      views: 4,
       saves: 1,
       qrScans: 0,
       leads: 1,
+      period: { days: 14, views: 3, saves: 1, leads: 1, previousViews: 1, previousSaves: 0, previousLeads: 0 },
+      topCards: [{ id: 'OB-AAAAAA-E0001', name: 'Priya Kulkarni', designation: 'Founder', views: 3 }],
     });
+    expect(stats.daily).toHaveLength(14);
+    expect(stats.daily?.[0].date).toBe('2026-10-11');
+    expect(stats.daily?.[13]).toEqual({ date: '2026-10-24', views: 2, saves: 1 });
     const other = await service().getOverviewStats(TENANT_B);
     expect(other.leads).toBe(0);
     expect(other.views).toBe(0);

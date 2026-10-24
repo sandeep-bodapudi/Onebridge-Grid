@@ -82,6 +82,15 @@ export class MongoAnalyticsEventRepository extends TenantScopedRepository<Analyt
     return { views, saves };
   }
 
+  /** Views and saves since a time (ISO), for the dashboard trend and per-card numbers. */
+  async listEngagementSince(sinceIso: string): Promise<Array<Pick<AnalyticsEventProps, 'eventType' | 'cardId' | 'timestamp'>>> {
+    const docs = await this.find(
+      { eventType: { $in: ['card_viewed', 'contact_saved'] }, timestamp: { $gte: sinceIso } } as unknown as Parameters<typeof this.find>[0],
+      { projection: { eventType: 1, cardId: 1, timestamp: 1 } }
+    );
+    return docs as unknown as Array<Pick<AnalyticsEventProps, 'eventType' | 'cardId' | 'timestamp'>>;
+  }
+
   async getTenantOverviewMetrics(): Promise<{ views: number; saves: number; qrScans: number }> {
     const [views, saves, qrScans] = await Promise.all([
       this.countByTenantAndType('card_viewed'),

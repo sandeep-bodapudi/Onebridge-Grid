@@ -61,7 +61,7 @@ describe('ADR-0003: Cards read-model sync (direct, no HTTP)', () => {
   });
 
   it('org.created seeds the org read model', async () => {
-    await bus.publish(evt('org.created', { orgId: TENANT, businessId: 'OB-AAAAAA', name: 'Initial Name', slug: 'initial-slug' }, 1));
+    await bus.publish(evt('org.created', { orgId: TENANT, businessId: 'OB-AAAAAA', name: 'Initial Name', slug: 'initial-slug', plan: 'business', industry: 'Manufacturing', city: 'Pune' }, 1));
 
     const model = await TenantContext.run(TENANT, () => orgRepo.findByTenantId(TENANT));
     expect(model?.name).toBe('Initial Name');
@@ -96,6 +96,10 @@ describe('ADR-0003: Cards read-model sync (direct, no HTTP)', () => {
     expect(model?.logo).toBe('https://cdn/logo.png');
     expect(model?.brandColours?.band).toBe('#1F4E9A');
     expect(model?.name).toBe('Renamed Co');
+    // Company page fields (F26) survive a branding change.
+    expect(model?.plan).toBe('business');
+    expect(model?.industry).toBe('Manufacturing');
+    expect(model?.city).toBe('Pune');
   });
 
   it('branch.created then branch.archived updates the branch read model status', async () => {

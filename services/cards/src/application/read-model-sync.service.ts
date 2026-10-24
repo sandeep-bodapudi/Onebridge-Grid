@@ -80,6 +80,18 @@ export class ReadModelSyncService {
       // org.updated may patch display name via updatedFields without repeating it top-level.
       if (updatedFields?.name) merged.name = updatedFields.name as string;
 
+      // F26 public company page fields: kept from earlier events unless this one changes them.
+      const pick = <T,>(key: string): T | undefined =>
+        (updatedFields?.[key] as T | undefined) ?? (payload[key] as T | undefined) ?? ((existing as unknown as Record<string, unknown> | null)?.[key] as T | undefined);
+      merged.plan = pick<string>('plan');
+      merged.planStatus = pick<'active' | 'lapsed'>('planStatus');
+      merged.industry = pick<string>('industry');
+      merged.city = pick<string>('city');
+      merged.about = pick<string>('about');
+      merged.website = pick<string>('website');
+      merged.gstin = pick<string>('gstin');
+      merged.socialLinks = pick<Record<string, string>>('socialLinks');
+
       await this.orgReadModelRepo.upsertIfNewer(merged);
     });
   }
@@ -102,6 +114,8 @@ export class ReadModelSyncService {
     await this.withTenant(tenantId, async () => {
       const existing = await this.orgReadModelRepo.findByTenantId(tenantId);
       const merged: OrgReadModel = {
+        // Keep every other field (including the F26 company page fields); branding only changes logo and colours.
+        ...(existing ?? {}),
         tenantId,
         businessId: (payload.businessId as string) ?? existing?.businessId ?? '',
         name: existing?.name ?? '',

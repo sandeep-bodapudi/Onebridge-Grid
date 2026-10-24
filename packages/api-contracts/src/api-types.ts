@@ -1882,6 +1882,165 @@ export interface paths {
       };
     };
   };
+  "/company-profile": {
+    /**
+     * Company page settings (F26) for the caller's company
+     * @description Catalogue, services, portfolio, client logos, documents, people directory, enquiry routing and the search-engine setting. Profile text (about, website, social links) lives on the organization (PATCH /orgs/{id}).
+     */
+    get: {
+      parameters: {
+        header: {
+          "X-Tenant-Id": string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["CompanyProfileSettings"];
+          };
+        };
+      };
+    };
+    /** Replace the company page settings (owners and admins) */
+    put: {
+      parameters: {
+        header: {
+          "X-Tenant-Id": string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CompanyProfileSettings"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["CompanyProfileSettings"];
+          };
+        };
+        /** @description Invalid item (for example a video that is not YouTube or Vimeo, or a document over 25 MB) */
+        400: {
+          content: never;
+        };
+        /** @description Caller is not an owner or admin */
+        403: {
+          content: never;
+        };
+        /** @description Over the plan's catalogue limit (50 items on Starter) */
+        422: {
+          content: never;
+        };
+      };
+    };
+  };
+  "/public/o/{slug}": {
+    /** Public company page (F26) */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Focus a branch (standee QR codes for a branch) */
+          branch?: string;
+        };
+        path: {
+          slug: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["PublicCompanyProfile"];
+          };
+        };
+        /** @description No company with this address */
+        404: {
+          content: never;
+        };
+      };
+    };
+  };
+  "/public/o/{slug}/view": {
+    /** Count a company page view (no visitor data; the company comes from the address) */
+    post: {
+      parameters: {
+        path: {
+          slug: string;
+        };
+      };
+      requestBody?: {
+        content: {
+          "application/json": {
+            branchId?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Counted */
+        202: {
+          content: never;
+        };
+        /** @description No company with this address */
+        404: {
+          content: never;
+        };
+      };
+    };
+  };
+  "/public/o/{slug}/enquiry": {
+    /** Send an enquiry to the company (creates an encrypted lead, source company_enquiry) */
+    post: {
+      parameters: {
+        path: {
+          slug: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CompanyEnquiryRequest"];
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": components["schemas"]["SharebackResponse"];
+          };
+        };
+        /** @description Missing name, phone or consent */
+        400: {
+          content: never;
+        };
+        /** @description No company with this address */
+        404: {
+          content: never;
+        };
+        /** @description Too many enquiries from this device */
+        429: {
+          content: never;
+        };
+      };
+    };
+  };
+  "/public/o/{slug}/documents/{documentId}": {
+    /** Download a company document (counts the download, then redirects to the file) */
+    get: {
+      parameters: {
+        path: {
+          slug: string;
+          documentId: string;
+        };
+      };
+      responses: {
+        /** @description Redirect to the document */
+        302: {
+          content: never;
+        };
+        /** @description Unknown document */
+        404: {
+          content: never;
+        };
+      };
+    };
+  };
   "/cards/templates": {
     /** List the 8 premium card templates (F10 AC-2) */
     get: {
@@ -2725,6 +2884,135 @@ export interface components {
         [key: string]: unknown;
       };
     };
+    CatalogueItem: {
+      id: string;
+      name: string;
+      category?: string;
+      description?: string;
+      /** @description Display price */
+      price?: string;
+      priceOnRequest?: boolean;
+      /** Format: uri */
+      imageUrl?: string;
+    };
+    CompanyServiceItem: {
+      id: string;
+      name: string;
+      description?: string;
+    };
+    PortfolioItem: {
+      id: string;
+      title: string;
+      client?: string;
+      description?: string;
+      imageUrls?: string[];
+      /**
+       * Format: uri
+       * @description YouTube or Vimeo only
+       */
+      videoUrl?: string;
+    };
+    ClientLogo: {
+      id: string;
+      name: string;
+      /** Format: uri */
+      imageUrl?: string;
+    };
+    CompanyDocument: {
+      id: string;
+      title: string;
+      /**
+       * Format: uri
+       * @description A PDF (https)
+       */
+      url: string;
+      sizeBytes?: number;
+    };
+    CompanyProfileSettings: {
+      /** @description Let search engines list the page */
+      seoIndexable: boolean;
+      products: components["schemas"]["CatalogueItem"][];
+      services: components["schemas"]["CompanyServiceItem"][];
+      portfolio: components["schemas"]["PortfolioItem"][];
+      clientLogos: components["schemas"]["ClientLogo"][];
+      documents: components["schemas"]["CompanyDocument"][];
+      directory: {
+        enabled: boolean;
+        /** @description People shown; empty means every published card */
+        seatIds: string[];
+      };
+      enquiryRouting: {
+        /** @description Who receives general enquiries; defaults to the first published card */
+        defaultSeatId?: string;
+        /** @description Branch ID to the seat that receives that branch's enquiries */
+        branchSeats: {
+          [key: string]: string;
+        };
+      };
+      limits?: {
+        /** @description 50 on Starter */
+        readonly maxProducts?: number | null;
+      };
+    };
+    PublicCompanyProfile: {
+      /**
+       * @description A lapsed plan shows the basic profile only
+       * @enum {string}
+       */
+      status: "active" | "lapsed";
+      company: {
+        name: string;
+        slug: string;
+        businessId: string;
+        verifiedBadge: boolean;
+        logo?: string;
+        brandColours?: components["schemas"]["BrandColours"];
+        industry?: string;
+        city?: string;
+        about?: string;
+        website?: string;
+        gstin?: string;
+        socialLinks?: components["schemas"]["SocialLinks"];
+      };
+      seoIndexable: boolean;
+      focusBranchId?: string;
+      branches: {
+          id: string;
+          name: string;
+          address?: string;
+          directionsUrl?: string;
+        }[];
+      people: {
+          name: string;
+          designation: string;
+          branchName?: string;
+          photoUrl?: string;
+          cardUrl: string;
+        }[];
+      products: components["schemas"]["CatalogueItem"][];
+      services: components["schemas"]["CompanyServiceItem"][];
+      portfolio: components["schemas"]["PortfolioItem"][];
+      clientLogos: components["schemas"]["ClientLogo"][];
+      documents: {
+          id: string;
+          title: string;
+          sizeBytes?: number;
+          downloadUrl: string;
+        }[];
+    };
+    CompanyEnquiryRequest: {
+      name: string;
+      phone: string;
+      email?: string;
+      company?: string;
+      message?: string;
+      /** @description Enquiry about this catalogue item */
+      productId?: string;
+      /** @description Route to this branch's contact */
+      branchId?: string;
+      consent: boolean;
+      turnstileToken?: string;
+    };
     CardSummary: {
       /** @description Card ID (equals the seat ID) */
       id: string;
@@ -2740,6 +3028,24 @@ export interface components {
       publicUrl: string;
       /** Format: date-time */
       updatedAt: string;
+      stats?: components["schemas"]["CardStats"];
+    };
+    /** @description Results for one card over the last 14 days (from the buffered analytics events, Step 3). */
+    CardStats: {
+      views: number;
+      saves: number;
+      leads: number;
+      /** @description Card views per day, oldest first (14 entries) */
+      daily: number[];
+    };
+    DailyCount: {
+      /**
+       * Format: date
+       * @description Calendar day in UTC
+       */
+      date: string;
+      views: number;
+      saves: number;
     };
     OverviewStats: {
       cards: {
@@ -2752,6 +3058,25 @@ export interface components {
       saves: number;
       qrScans: number;
       leads: number;
+      /** @description The last 14 days compared with the 14 days before. */
+      period?: {
+        /** @example 14 */
+        days: number;
+        views: number;
+        saves: number;
+        leads: number;
+        previousViews: number;
+        previousSaves: number;
+        previousLeads: number;
+      };
+      daily?: components["schemas"]["DailyCount"][];
+      /** @description Cards with the most views in the last 14 days (up to 5) */
+      topCards?: {
+          id: string;
+          name: string;
+          designation: string;
+          views: number;
+        }[];
     };
     LeadSummary: {
       id: string;
