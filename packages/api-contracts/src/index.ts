@@ -72,3 +72,28 @@ export type CardSectionType = components['schemas']['CardSectionType'];
 export type CardTemplate = components['schemas']['CardTemplate'];
 export type CardTemplateId = components['schemas']['CardTemplateId'];
 export type UpdateCardRequest = components['schemas']['UpdateCardRequest'];
+
+// Track B: business identity network, phase N-1 (network.yaml).
+export type { paths as NetworkPaths, components as NetworkComponents } from './network-types';
+import type { components as NC } from './network-types';
+type N = NC['schemas'];
+export type ActorRef = N['ActorRef'];
+export type ActorSummary = N['ActorSummary'];
+export type MyProfile = N['MyProfile'];
+export type ProfileUpdate = N['ProfileUpdate'];
+export type PublicMemberProfile = N['PublicMemberProfile'];
+export type WorkHistoryEntry = N['WorkHistoryEntry'];
+export type PlanUsage = N['PlanUsage'];
+export type SearchResults = N['SearchResults'];
+export type SearchHit = N['SearchHit'];
+export type Industry = N['Industry'];
+export type FollowState = N['FollowState'];
+export type Conversation = N['Conversation'];
+export type ChatMessage = N['Message'];
+export type SendMessage = N['SendMessage'];
+export type StartConversation = N['StartConversation'];
+export type RealtimeEvent = N['RealtimeEvent'];
+export type CallRequest = N['CallRequest'];
+export type CreateCallRequest = N['CreateCallRequest'];
+export type CreateReport = N['CreateReport'];
+export type PrivacySettings = N['PrivacySettings'];

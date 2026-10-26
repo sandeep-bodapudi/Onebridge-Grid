@@ -3056,7 +3056,7 @@ components:
         city: { type: string, example: "Bengaluru" }
         gstin: { type: string, example: "29ABCDE1234F1Z5" }
         slug: { type: string, example: "acme-enterprises" }
-        plan: { type: string, enum: [starter, business], default: starter }
+        plan: { type: string, enum: [free, starter, business], default: starter, description: free is the N02 network profile (no seats) }
         website: { type: string }
         creatorPersonId: { type: string, description: "Person ID of the owner/creator (optional if authenticated via Bearer/X-User-Id)" }
     UpdateOrganizationRequest:
@@ -3102,7 +3102,7 @@ components:
         brandKit: { $ref: '#/components/schemas/BrandKit' }
         fieldLocks: { $ref: '#/components/schemas/FieldLocks' }
         socialLinks: { $ref: '#/components/schemas/SocialLinks' }
-        plan: { type: string, enum: [starter, business] }
+        plan: { type: string, enum: [free, starter, business] }
         verifiedBadge: { type: boolean, default: false }
         onboardingStartedAt: { type: string, format: date-time }
         firstCardCreatedAt: { type: string, format: date-time }

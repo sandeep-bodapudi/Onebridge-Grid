@@ -2748,10 +2748,11 @@ export interface components {
       /** @example acme-enterprises */
       slug?: string;
       /**
+       * @description free is the N02 network profile (no seats)
        * @default starter
        * @enum {string}
        */
-      plan?: "starter" | "business";
+      plan?: "free" | "starter" | "business";
       website?: string;
       /** @description Person ID of the owner/creator (optional if authenticated via Bearer/X-User-Id) */
       creatorPersonId?: string;
@@ -2797,7 +2798,7 @@ export interface components {
       fieldLocks?: components["schemas"]["FieldLocks"];
       socialLinks?: components["schemas"]["SocialLinks"];
       /** @enum {string} */
-      plan: "starter" | "business";
+      plan: "free" | "starter" | "business";
       /** @default false */
       verifiedBadge?: boolean;
       /** Format: date-time */

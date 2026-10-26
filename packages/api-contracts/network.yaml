@@ -1,0 +1,1194 @@
+openapi: 3.1.0
+info:
+  title: OneBridge Grid Network API (Track B, phase N-1)
+  version: 0.1.0
+  description: >
+    Business identity network, phase N-1 (D-NETWORK, D-CONTACT). Requirements live in
+    docs/onebridge-spec-pack/docs/features/N01-N04, N08-N11. No endpoint ever returns a
+    phone number or email address of another person (D-CONTACT). Errors use
+    application/problem+json with an optional machine-readable `code`. Lists are cursor-paginated.
+    Action routes use slashes (D-F14). Write endpoints accept an Idempotency-Key header.
+
+tags:
+  - { name: profiles, description: N01 member profiles }
+  - { name: companies, description: N02 free company profiles }
+  - { name: search, description: N03 directory and search }
+  - { name: follow, description: N04 follow }
+  - { name: messaging, description: N08 real-time chat }
+  - { name: calls, description: N11 request a call }
+  - { name: moderation, description: N09 reports, blocks, appeals }
+  - { name: privacy, description: N10 privacy, export, delete, grievance }
+
+paths:
+  # ---------------------------------------------------------------- N01
+  /me/profile:
+    get:
+      tags: [profiles]
+      summary: My member profile, with completeness checklist (N01)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/MyProfile' } } } }
+    put:
+      tags: [profiles]
+      summary: Create or update my member profile (N01)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ProfileUpdate' } } }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/MyProfile' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '409': { description: Handle taken (code handle_taken), content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+
+  /me/work-history:
+    post:
+      tags: [profiles]
+      summary: Add a self-reported past role (labelled "Not verified") (N01)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/WorkHistoryInput' } } }
+      responses:
+        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/WorkHistoryEntry' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+
+  /me/work-history/{entryId}:
+    parameters: [{ in: path, name: entryId, required: true, schema: { type: string } }]
+    patch:
+      tags: [profiles]
+      summary: Edit a self-reported role, or hide or show any role (verified roles can only be hidden) (N01)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/WorkHistoryPatch' } } }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/WorkHistoryEntry' } } } }
+        '403': { description: Verified roles cannot be edited (code verified_entry), content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+    delete:
+      tags: [profiles]
+      summary: Delete a self-reported role (N01)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '204': { description: Deleted }
+        '403': { description: Verified roles cannot be deleted, only hidden (code verified_entry) }
+
+  /members/{handle}:
+    get:
+      tags: [profiles]
+      summary: A member's public profile, as the viewer is allowed to see it (N01, N10)
+      parameters: [{ in: path, name: handle, required: true, schema: { type: string } }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/PublicMemberProfile' } } } }
+        '301': { description: Old handle; Location points to the current one }
+        '404': { description: Not found, members-only and viewer signed out, blocked, suspended or deleted (same response for all, no leak) }
+
+  # ---------------------------------------------------------------- N02
+  /orgs/{orgId}/limits:
+    get:
+      tags: [companies]
+      summary: Usage against the company's plan limits (N02)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrgId' }, { $ref: '#/components/parameters/TenantHeader' }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/PlanUsage' } } } }
+
+  /orgs/access-requests:
+    post:
+      tags: [companies]
+      summary: Ask the owner of an existing company (found by GSTIN) for access (N02). The owner's identity is never revealed.
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gstin]
+              properties:
+                gstin: { type: string }
+                message: { type: string, maxLength: 500 }
+      responses:
+        '202': { description: Request sent if the company exists (same response either way) }
+
+  /orgs/{orgId}/access-requests:
+    get:
+      tags: [companies]
+      summary: Pending access requests (Owner only) (N02)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrgId' }, { $ref: '#/components/parameters/TenantHeader' }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/AccessRequest' } } } }
+
+  /orgs/{orgId}/access-requests/{requestId}/decide:
+    post:
+      tags: [companies]
+      summary: Approve (adds the requester as Admin or Employee) or decline (N02)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgId' }
+        - { in: path, name: requestId, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/TenantHeader' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [approve, decline] }
+                role: { type: string, enum: [admin, employee], default: employee }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/AccessRequest' } } } }
+
+  # ---------------------------------------------------------------- N03
+  /search:
+    get:
+      tags: [search]
+      summary: Search companies and members (N03). Never returns contact details.
+      parameters:
+        - { in: query, name: q, schema: { type: string, maxLength: 100 } }
+        - { in: query, name: type, schema: { type: string, enum: [company, member, all], default: all } }
+        - { in: query, name: industry, schema: { type: string } }
+        - { in: query, name: city, schema: { type: string } }
+        - { in: query, name: verified, schema: { type: boolean } }
+        - { in: query, name: size, schema: { type: string, description: Company size band } }
+        - { in: query, name: hasCatalogue, schema: { type: boolean } }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/SearchResults' } } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /search/suggest:
+    get:
+      tags: [search]
+      summary: Autocomplete after 2 characters (N03)
+      parameters: [{ in: query, name: q, required: true, schema: { type: string, minLength: 2, maxLength: 50 } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/SearchSuggestion' } } } }
+
+  /directory/{city}/{industry}:
+    get:
+      tags: [search]
+      summary: Directory page data for a city and industry (N03, SEO pages on web-public)
+      parameters:
+        - { in: path, name: city, required: true, schema: { type: string } }
+        - { in: path, name: industry, required: true, schema: { type: string } }
+        - { in: query, name: subCategory, schema: { type: string } }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/DirectoryPage' } } } }
+        '404': { description: Unknown city or industry }
+
+  /taxonomy/industries:
+    get:
+      tags: [search]
+      summary: Industry taxonomy maintained by ops (N03)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Industry' } } } }
+
+  # ---------------------------------------------------------------- N04
+  /follows/{targetType}/{targetId}:
+    parameters:
+      - { in: path, name: targetType, required: true, schema: { $ref: '#/components/schemas/ActorType' } }
+      - { in: path, name: targetId, required: true, schema: { type: string } }
+    put:
+      tags: [follow]
+      summary: Follow (idempotent). With X-Act-As-Company the company follows (Owner, Admin or an allowed role) (N04)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ActAsCompany' }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/FollowState' } } } }
+        '403': { description: Blocked (code blocked) or not allowed to act as the company }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      tags: [follow]
+      summary: Unfollow (idempotent) (N04)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ActAsCompany' }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/FollowState' } } } }
+
+  /companies/{companyId}/followers:
+    get:
+      tags: [follow]
+      summary: Followers of a company (Owner and Admins only) (N04)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ in: path, name: companyId, required: true, schema: { type: string } }, { $ref: '#/components/parameters/Cursor' }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ActorPage' } } } }
+
+  /members/{handle}/followers:
+    get:
+      tags: [follow]
+      summary: Followers of a member, if the member allows it (N04, N10)
+      parameters: [{ in: path, name: handle, required: true, schema: { type: string } }, { $ref: '#/components/parameters/Cursor' }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ActorPage' } } } }
+        '403': { description: Hidden by the member's privacy setting (code hidden) }
+
+  /me/following:
+    get:
+      tags: [follow]
+      summary: Who I follow (N04)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Cursor' }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ActorPage' } } } }
+
+  # ---------------------------------------------------------------- N08
+  /conversations:
+    get:
+      tags: [messaging]
+      summary: My conversations, or a company inbox with X-Act-As-Company (N08)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { in: query, name: folder, schema: { type: string, enum: [inbox, requests, done], default: inbox } }
+        - { in: query, name: assigned, schema: { type: string, enum: [me, anyone, unassigned] } }
+        - { in: query, name: q, schema: { type: string, maxLength: 100 } }
+        - { $ref: '#/components/parameters/ActAsCompany' }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ConversationPage' } } } }
+    post:
+      tags: [messaging]
+      summary: Start a conversation with a first message. Becomes a message request when the rules in N08 apply.
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ActAsCompany' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/StartConversation' } } }
+      responses:
+        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/Conversation' } } } }
+        '400': { description: Links or attachments in a message request (code request_restricted) }
+        '403': { description: Blocked (code blocked) or the receiver does not accept messages (code not_accepting) }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /conversations/{conversationId}:
+    parameters: [{ $ref: '#/components/parameters/ConversationId' }]
+    get:
+      tags: [messaging]
+      summary: One conversation (N08)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Conversation' } } } }
+        '404': { description: Not a participant (same as not found) }
+
+  /conversations/{conversationId}/messages:
+    parameters: [{ $ref: '#/components/parameters/ConversationId' }]
+    get:
+      tags: [messaging]
+      summary: Messages, newest first (N08)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Cursor' }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/MessagePage' } } } }
+    post:
+      tags: [messaging]
+      summary: Send a message. The client sends a clientMessageId so retries never duplicate (N08)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SendMessage' } } }
+      responses:
+        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+        '400': { description: Too long, too many attachments, or a request not yet accepted (code awaiting_acceptance) }
+        '403': { description: Blocked (code blocked) }
+
+  /messages/{messageId}:
+    parameters: [{ in: path, name: messageId, required: true, schema: { type: string } }]
+    patch:
+      tags: [messaging]
+      summary: Edit my message within 15 minutes (N08)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [text], properties: { text: { type: string, maxLength: 4000 } } } } }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+        '409': { description: Edit window over (code window_closed) }
+    delete:
+      tags: [messaging]
+      summary: Unsend my message within 15 minutes (N08)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+        '409': { description: Unsend window over (code window_closed) }
+
+  /conversations/{conversationId}/accept:
+    post:
+      tags: [messaging]
+      summary: Accept a message request (N08)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Conversation' } } } }
+
+  /conversations/{conversationId}/ignore:
+    post:
+      tags: [messaging]
+      summary: Ignore a message request silently (N08)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Conversation' } } } }
+
+  /conversations/{conversationId}/read:
+    post:
+      tags: [messaging]
+      summary: Mark read up to a message (N08)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [upToMessageId], properties: { upToMessageId: { type: string } } } } }
+      responses:
+        '204': { description: Marked }
+
+  /conversations/{conversationId}/status:
+    post:
+      tags: [messaging]
+      summary: Mark a company conversation open or done (N08)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }, { $ref: '#/components/parameters/ActAsCompany' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [open, done] } } } } }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Conversation' } } } }
+
+  /conversations/{conversationId}/assign:
+    post:
+      tags: [messaging]
+      summary: Assign a company conversation to a seat (Owner or Admin) (N08)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }, { $ref: '#/components/parameters/ActAsCompany' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [seatId], properties: { seatId: { type: string } } } } }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Conversation' } } } }
+
+  /conversations/{conversationId}/notes:
+    post:
+      tags: [messaging]
+      summary: Internal note on a company conversation, never shown to the other side (N08)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }, { $ref: '#/components/parameters/ActAsCompany' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [text], properties: { text: { type: string, maxLength: 2000 } } } } }
+      responses:
+        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/InternalNote' } } } }
+
+  /attachments:
+    post:
+      tags: [messaging]
+      summary: Upload an attachment (image or PDF, up to 25 MB); scanned before it can be sent (N08)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { type: object, required: [file], properties: { file: { type: string, format: binary } } }
+      responses:
+        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/Attachment' } } } }
+        '413': { description: Larger than 25 MB }
+        '415': { description: Not an image or PDF }
+
+  /realtime/ticket:
+    post:
+      tags: [messaging]
+      summary: >
+        Short-lived ticket (60 s, single use) to open the WebSocket at /realtime?ticket=<t>,
+        so the access token never travels in a URL. Server-to-client frames are RealtimeEvent.
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { content: { application/json: { schema: { type: object, required: [ticket, expiresAt], properties: { ticket: { type: string }, expiresAt: { type: string, format: date-time } } } } } }
+
+  # ---------------------------------------------------------------- N11
+  /call-requests:
+    post:
+      tags: [calls]
+      summary: Request a call from a company, an employee (through their card) or a member who allows it (N11)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateCallRequest' } } }
+      responses:
+        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/CallRequest' } } } }
+        '403': { description: Blocked, or the receiver does not take call requests (code not_accepting) }
+        '409': { description: An open request to this receiver already exists (code already_open) }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /me/call-requests:
+    get:
+      tags: [calls]
+      summary: Call requests I made (role=requester) or received (role=receiver) (N11)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { in: query, name: role, required: true, schema: { type: string, enum: [requester, receiver] } }
+        - { in: query, name: status, schema: { $ref: '#/components/schemas/CallRequestStatus' } }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/CallRequestPage' } } } }
+
+  /orgs/{orgId}/call-requests:
+    get:
+      tags: [calls]
+      summary: Call requests to the company and its employees (Owner and Admins; seats see their own) (N11)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgId' }
+        - { $ref: '#/components/parameters/TenantHeader' }
+        - { in: query, name: status, schema: { $ref: '#/components/schemas/CallRequestStatus' } }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/CallRequestPage' } } } }
+
+  /call-requests/{callRequestId}/accept:
+    post:
+      tags: [calls]
+      summary: Accept and schedule; the requester's number becomes visible to the receiver (N11)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CallRequestId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [scheduledAt], properties: { scheduledAt: { type: string, format: date-time } } } } }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/CallRequest' } } } }
+
+  /call-requests/{callRequestId}/propose:
+    post:
+      tags: [calls]
+      summary: Propose another time (N11)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CallRequestId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [proposedAt], properties: { proposedAt: { type: string, format: date-time }, note: { type: string, maxLength: 300 } } } } }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/CallRequest' } } } }
+
+  /call-requests/{callRequestId}/respond-proposal:
+    post:
+      tags: [calls]
+      summary: The requester accepts or declines a proposed time (N11)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CallRequestId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [accept], properties: { accept: { type: boolean } } } } }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/CallRequest' } } } }
+
+  /call-requests/{callRequestId}/decline:
+    post:
+      tags: [calls]
+      summary: Decline with a reason (N11)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CallRequestId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [reason], properties: { reason: { type: string, enum: [not_available, not_relevant, wrong_person, other] } } } } }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/CallRequest' } } } }
+
+  /call-requests/{callRequestId}/cancel:
+    post:
+      tags: [calls]
+      summary: The requester cancels (N11)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CallRequestId' }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/CallRequest' } } } }
+
+  /call-requests/{callRequestId}/outcome:
+    post:
+      tags: [calls]
+      summary: After the scheduled time, the receiver marks the call completed or missed (N11)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CallRequestId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [outcome], properties: { outcome: { type: string, enum: [completed, missed] } } } } }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/CallRequest' } } } }
+
+  # ---------------------------------------------------------------- N09
+  /reports:
+    post:
+      tags: [moderation]
+      summary: Report content or an account; the reporter is never revealed (N09)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateReport' } } }
+      responses:
+        '202': { description: Received }
+
+  /blocks:
+    get:
+      tags: [moderation]
+      summary: Accounts I (or my company, with X-Act-As-Company) blocked (N09)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ActAsCompany' }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Block' } } } }
+    post:
+      tags: [moderation]
+      summary: Block a member or company (both directions) (N09)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ActAsCompany' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ActorRef' } } }
+      responses:
+        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/Block' } } } }
+
+  /blocks/{blockId}:
+    delete:
+      tags: [moderation]
+      summary: Unblock (N09)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ in: path, name: blockId, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Unblocked }
+
+  /appeals:
+    post:
+      tags: [moderation]
+      summary: Appeal a moderation action once (N09)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [actionId, text], properties: { actionId: { type: string }, text: { type: string, maxLength: 2000 } } } } }
+      responses:
+        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/Appeal' } } } }
+        '409': { description: Already appealed (code already_appealed) }
+
+  /ops/moderation/queue:
+    get:
+      tags: [moderation]
+      summary: Reports grouped by target, highest priority first (ops roles, F25) (N09)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Cursor' }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ModerationQueuePage' } } } }
+
+  /ops/moderation/actions:
+    post:
+      tags: [moderation]
+      summary: Take an action; it is audited and the affected account is told the rule and how to appeal (N09)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateModerationAction' } } }
+      responses:
+        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/ModerationAction' } } } }
+
+  /ops/moderation/appeals/{appealId}/decide:
+    post:
+      tags: [moderation]
+      summary: Decide an appeal; must be a different reviewer from the original action (N09)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ in: path, name: appealId, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [decision, reason], properties: { decision: { type: string, enum: [uphold, reverse] }, reason: { type: string, maxLength: 1000 } } } } }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Appeal' } } } }
+        '409': { description: Same reviewer as the original action (code same_reviewer) }
+
+  # ---------------------------------------------------------------- N10
+  /me/privacy:
+    get:
+      tags: [privacy]
+      summary: My privacy settings (N10)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/PrivacySettings' } } } }
+    put:
+      tags: [privacy]
+      summary: Update my privacy settings (N10)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PrivacySettings' } } }
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/PrivacySettings' } } } }
+
+  /me/exports:
+    post:
+      tags: [privacy]
+      summary: Request an export of my data (ready within 72 hours, link valid 7 days) (N10)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '202': { content: { application/json: { schema: { $ref: '#/components/schemas/ExportJob' } } } }
+
+  /me/exports/{exportId}:
+    get:
+      tags: [privacy]
+      summary: Export status and download link when ready (N10)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ in: path, name: exportId, required: true, schema: { type: string } }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ExportJob' } } } }
+
+  /me/deletion:
+    post:
+      tags: [privacy]
+      summary: Schedule account deletion after a fresh one-time code; 14-day grace period (N10)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string, pattern: '^\d{6}$' } } } } }
+      responses:
+        '202': { content: { application/json: { schema: { $ref: '#/components/schemas/DeletionRequest' } } } }
+    delete:
+      tags: [privacy]
+      summary: Cancel a scheduled deletion during the grace period (N10)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/DeletionRequest' } } } }
+
+  /grievances:
+    post:
+      tags: [privacy]
+      summary: Raise a grievance with the grievance officer (DPDP, IT Rules); acknowledged within 24 hours (N10)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [category, text]
+              properties:
+                category: { type: string, enum: [privacy, data_correction, content, account, other] }
+                text: { type: string, maxLength: 3000 }
+      responses:
+        '201': { content: { application/json: { schema: { type: object, required: [id, acknowledgedBy], properties: { id: { type: string }, acknowledgedBy: { type: string, format: date-time } } } } } }
+
+components:
+  securitySchemes:
+    BearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  parameters:
+    IdempotencyKey: { in: header, name: Idempotency-Key, schema: { type: string } }
+    TenantHeader: { in: header, name: X-Tenant-Id, schema: { type: string } }
+    ActAsCompany:
+      in: header
+      name: X-Act-As-Company
+      description: Tenant ID of a company the caller acts for (checked against the caller's role in it)
+      schema: { type: string }
+    OrgId: { in: path, name: orgId, required: true, schema: { type: string } }
+    ConversationId: { in: path, name: conversationId, required: true, schema: { type: string } }
+    CallRequestId: { in: path, name: callRequestId, required: true, schema: { type: string } }
+    Cursor: { in: query, name: cursor, schema: { type: string } }
+
+  responses:
+    Problem:
+      description: Problem details
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    RateLimited:
+      description: Too many requests (code rate_limited); see retryAfterSeconds
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status, detail]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        correlationId: { type: string }
+        code: { type: string, description: Machine-readable reason, for example blocked or over_limit }
+        retryAfterSeconds: { type: integer }
+        limit: { type: integer }
+
+    ActorType: { type: string, enum: [member, company] }
+
+    ActorRef:
+      type: object
+      required: [type, id]
+      properties:
+        type: { $ref: '#/components/schemas/ActorType' }
+        id: { type: string }
+
+    ActorSummary:
+      type: object
+      description: How a member or company appears in lists. Never carries contact details.
+      required: [type, id, name, verified]
+      properties:
+        type: { $ref: '#/components/schemas/ActorType' }
+        id: { type: string }
+        handle: { type: string, description: Member handle or company slug }
+        name: { type: string }
+        headline: { type: string, description: Member headline, or company industry and city }
+        photoUrl: { type: string }
+        verified: { type: boolean, description: Company KYB verified, or member identity verified }
+
+    ActorPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ActorSummary' } }
+        nextCursor: { type: string }
+        total: { type: integer }
+
+    ProfileVisibility: { type: string, enum: [everyone, members] }
+
+    WorkHistoryInput:
+      type: object
+      required: [companyName, title, startDate]
+      properties:
+        companyName: { type: string, maxLength: 120 }
+        title: { type: string, maxLength: 120 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+
+    WorkHistoryPatch:
+      type: object
+      properties:
+        companyName: { type: string, maxLength: 120 }
+        title: { type: string, maxLength: 120 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        hidden: { type: boolean }
+
+    WorkHistoryEntry:
+      type: object
+      required: [id, source, companyName, title, startDate, verified, hidden]
+      properties:
+        id: { type: string }
+        source: { type: string, enum: [seat, self] }
+        verified: { type: boolean, description: True only for seat entries }
+        companySlug: { type: string, description: Present for companies on the network (links to their profile) }
+        companyName: { type: string }
+        title: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        hidden: { type: boolean }
+
+    ProfileUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        handle: { type: string, pattern: '^[a-z0-9][a-z0-9-]{2,39}$' }
+        headline: { type: string, maxLength: 120 }
+        photoUrl: { type: string, format: uri }
+        coverUrl: { type: string, format: uri }
+        city: { type: string, maxLength: 60 }
+        about: { type: string, maxLength: 2000 }
+        skills: { type: array, maxItems: 30, items: { type: string, maxLength: 40 } }
+        languages: { type: array, maxItems: 10, items: { type: string, maxLength: 30 } }
+        ageConfirmed: { type: boolean, description: Required true on first save (18 or older) }
+        noticeVersion: { type: string, description: Member privacy notice accepted (required on first save) }
+
+    MyProfile:
+      type: object
+      required: [personId, handle, name, visibility, indexable, workHistory, completeness]
+      properties:
+        personId: { type: string }
+        handle: { type: string }
+        name: { type: string }
+        headline: { type: string }
+        photoUrl: { type: string }
+        coverUrl: { type: string }
+        city: { type: string }
+        about: { type: string }
+        skills: { type: array, items: { type: string } }
+        languages: { type: array, items: { type: string } }
+        visibility: { $ref: '#/components/schemas/ProfileVisibility' }
+        indexable: { type: boolean }
+        workHistory: { type: array, items: { $ref: '#/components/schemas/WorkHistoryEntry' } }
+        completeness:
+          type: object
+          required: [done, missing]
+          properties:
+            done: { type: integer }
+            missing: { type: array, items: { type: string, enum: [photo, headline, city, about, skill] } }
+
+    PublicMemberProfile:
+      type: object
+      required: [handle, name, workHistory, followerCount, viewer]
+      properties:
+        handle: { type: string }
+        name: { type: string }
+        headline: { type: string }
+        photoUrl: { type: string }
+        coverUrl: { type: string }
+        city: { type: string }
+        about: { type: string }
+        skills: { type: array, items: { type: string } }
+        languages: { type: array, items: { type: string } }
+        indexable: { type: boolean }
+        workHistory: { type: array, items: { $ref: '#/components/schemas/WorkHistoryEntry' }, description: Hidden entries are omitted }
+        followerCount: { type: integer, description: Omitted when the member hides follower lists }
+        viewer:
+          type: object
+          description: What the signed-in viewer can do (all false when signed out)
+          required: [following, canMessage, canRequestCall, blocked]
+          properties:
+            following: { type: boolean }
+            canMessage: { type: boolean, description: True when a message would be delivered or become a request }
+            canRequestCall: { type: boolean }
+            blocked: { type: boolean }
+
+    PlanUsage:
+      type: object
+      required: [plan, items]
+      properties:
+        plan: { type: string, enum: [free, starter, business, enterprise] }
+        items:
+          type: array
+          items:
+            type: object
+            required: [key, used]
+            properties:
+              key: { type: string, enum: [seats, branches, posts_per_month, catalogue_items, inbox_users, call_requests_per_month, requirement_responses_per_month, relationships] }
+              used: { type: integer }
+              limit: { type: integer, description: Absent means unlimited }
+              resetsAt: { type: string, format: date-time }
+
+    AccessRequest:
+      type: object
+      required: [id, status, requester, createdAt]
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [pending, approved, declined] }
+        requester: { $ref: '#/components/schemas/ActorSummary' }
+        message: { type: string }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: string, format: date-time }
+
+    Industry:
+      type: object
+      required: [id, name, subCategories]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        nameHi: { type: string }
+        subCategories:
+          type: array
+          items: { type: object, required: [id, name], properties: { id: { type: string }, name: { type: string }, nameHi: { type: string } } }
+
+    SearchHit:
+      type: object
+      required: [actor, featured]
+      properties:
+        actor: { $ref: '#/components/schemas/ActorSummary' }
+        city: { type: string }
+        industries: { type: array, items: { type: string } }
+        snippet: { type: string, description: Matched text (catalogue item, skill or about) }
+        featured: { type: boolean, description: Paid placement; must be labelled "Featured" }
+
+    SearchResults:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/SearchHit' } }
+        nextCursor: { type: string }
+        total: { type: integer }
+
+    SearchSuggestion:
+      type: object
+      required: [kind, label]
+      properties:
+        kind: { type: string, enum: [company, member, industry, product] }
+        label: { type: string }
+        handle: { type: string }
+
+    DirectoryPage:
+      type: object
+      required: [city, industry, items]
+      properties:
+        city: { type: string }
+        industry: { $ref: '#/components/schemas/Industry' }
+        items: { type: array, items: { $ref: '#/components/schemas/SearchHit' } }
+        nextCursor: { type: string }
+        total: { type: integer }
+
+    FollowState:
+      type: object
+      required: [following, followerCount]
+      properties:
+        following: { type: boolean }
+        followerCount: { type: integer }
+
+    ConversationKind: { type: string, enum: [member_member, member_company, company_company, member_card] }
+
+    Conversation:
+      type: object
+      required: [id, kind, participants, ownership, requestState, unreadCount, updatedAt]
+      properties:
+        id: { type: string }
+        kind: { $ref: '#/components/schemas/ConversationKind' }
+        participants: { type: array, items: { $ref: '#/components/schemas/ActorSummary' } }
+        ownership: { type: string, enum: [company, members], description: Company conversations stay with the company (N08) }
+        requestState: { type: string, enum: [none, pending, accepted, ignored] }
+        status: { type: string, enum: [open, done] }
+        assignedSeatId: { type: string }
+        viaCardSeatId: { type: string, description: The employee card the visitor started from (member_card) }
+        lastMessage: { $ref: '#/components/schemas/Message' }
+        unreadCount: { type: integer }
+        updatedAt: { type: string, format: date-time }
+
+    ConversationPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Conversation' } }
+        nextCursor: { type: string }
+
+    StartConversation:
+      type: object
+      required: [to, message]
+      properties:
+        to: { $ref: '#/components/schemas/ActorRef' }
+        viaCardSeatId: { type: string, description: When contacting an employee through their company card }
+        context:
+          type: object
+          description: Optional link to what the conversation is about
+          properties:
+            kind: { type: string, enum: [product, post, requirement, call_request] }
+            id: { type: string }
+        message: { $ref: '#/components/schemas/SendMessage' }
+
+    SendMessage:
+      type: object
+      required: [clientMessageId]
+      properties:
+        clientMessageId: { type: string, description: Client-generated; repeats are de-duplicated }
+        text: { type: string, maxLength: 4000 }
+        attachmentIds: { type: array, maxItems: 10, items: { type: string } }
+        replyToMessageId: { type: string }
+
+    Message:
+      type: object
+      required: [id, conversationId, sender, createdAt, state]
+      properties:
+        id: { type: string }
+        conversationId: { type: string }
+        clientMessageId: { type: string }
+        sender: { $ref: '#/components/schemas/ActorRef' }
+        sentBySeatId: { type: string, description: For company messages, which seat wrote it (visible to the company only) }
+        text: { type: string, description: Absent when unsent }
+        attachments: { type: array, items: { $ref: '#/components/schemas/Attachment' } }
+        replyToMessageId: { type: string }
+        state: { type: string, enum: [sent, delivered, read, unsent] }
+        editedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    MessagePage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Message' } }
+        nextCursor: { type: string }
+
+    Attachment:
+      type: object
+      required: [id, kind, name, sizeBytes, status]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [image, pdf] }
+        name: { type: string }
+        sizeBytes: { type: integer, maximum: 26214400 }
+        status: { type: string, enum: [scanning, clean, blocked] }
+        url: { type: string, description: Short-lived signed URL, only when clean }
+
+    InternalNote:
+      type: object
+      required: [id, conversationId, authorSeatId, text, createdAt]
+      properties:
+        id: { type: string }
+        conversationId: { type: string }
+        authorSeatId: { type: string }
+        text: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    RealtimeEvent:
+      description: Server-to-client WebSocket frame
+      type: object
+      required: [type]
+      properties:
+        type: { type: string, enum: [message.new, message.updated, typing, read, presence, conversation.updated] }
+        conversationId: { type: string }
+        message: { $ref: '#/components/schemas/Message' }
+        actor: { $ref: '#/components/schemas/ActorRef' }
+        upToMessageId: { type: string }
+        online: { type: boolean }
+
+    CallTopic: { type: string, enum: [sales_enquiry, product_question, support, partnership, other] }
+
+    CallRequestStatus: { type: string, enum: [requested, scheduled, rescheduling, completed, missed, declined, cancelled, expired] }
+
+    CreateCallRequest:
+      type: object
+      required: [to, topic, slots, language, phone, consent]
+      properties:
+        to: { $ref: '#/components/schemas/ActorRef' }
+        viaCardSeatId: { type: string }
+        branchId: { type: string }
+        topic: { $ref: '#/components/schemas/CallTopic' }
+        slots:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items: { type: object, required: [start, end], properties: { start: { type: string, format: date-time }, end: { type: string, format: date-time } } }
+        language: { type: string, enum: [en, hi] }
+        note: { type: string, maxLength: 500 }
+        phone: { type: string, description: Requester's number, encrypted at rest; shown only to the receiver after acceptance }
+        consent: { type: boolean, description: Must be true ("Share my number with <receiver> for this call") }
+
+    CallRequest:
+      type: object
+      required: [id, status, requester, receiver, topic, slots, language, createdAt, expiresAt]
+      properties:
+        id: { type: string }
+        status: { $ref: '#/components/schemas/CallRequestStatus' }
+        requester: { $ref: '#/components/schemas/ActorSummary' }
+        receiver: { $ref: '#/components/schemas/ActorSummary' }
+        routedSeatId: { type: string }
+        topic: { $ref: '#/components/schemas/CallTopic' }
+        slots: { type: array, items: { type: object, properties: { start: { type: string, format: date-time }, end: { type: string, format: date-time } } } }
+        language: { type: string, enum: [en, hi] }
+        note: { type: string }
+        requesterPhone: { type: string, description: Only for the receiver, only after acceptance }
+        scheduledAt: { type: string, format: date-time }
+        proposedAt: { type: string, format: date-time }
+        declineReason: { type: string }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: 48 hours after creation while unanswered }
+
+    CallRequestPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/CallRequest' } }
+        nextCursor: { type: string }
+
+    ReportTarget: { type: string, enum: [member, company, post, comment, message, requirement, endorsement, call_request] }
+
+    CreateReport:
+      type: object
+      required: [targetType, targetId, reason]
+      properties:
+        targetType: { $ref: '#/components/schemas/ReportTarget' }
+        targetId: { type: string }
+        reason: { type: string, enum: [spam, fake, scam, harassment, hate_violence, sexual, misleading, intellectual_property, other] }
+        text: { type: string, maxLength: 1000 }
+
+    Block:
+      type: object
+      required: [id, blocked, createdAt]
+      properties:
+        id: { type: string }
+        blocked: { $ref: '#/components/schemas/ActorSummary' }
+        createdAt: { type: string, format: date-time }
+
+    ModerationActionType: { type: string, enum: [dismiss, remove_content, warn, restrict, suspend, ban] }
+
+    CreateModerationAction:
+      type: object
+      required: [targetType, targetId, action, reason]
+      properties:
+        targetType: { $ref: '#/components/schemas/ReportTarget' }
+        targetId: { type: string }
+        action: { $ref: '#/components/schemas/ModerationActionType' }
+        reason: { type: string, maxLength: 1000 }
+        rule: { type: string, description: Community rule broken }
+        until: { type: string, format: date-time, description: End of a restriction or suspension }
+
+    ModerationAction:
+      allOf:
+        - $ref: '#/components/schemas/CreateModerationAction'
+        - type: object
+          required: [id, reviewerId, createdAt]
+          properties:
+            id: { type: string }
+            reviewerId: { type: string }
+            createdAt: { type: string, format: date-time }
+
+    ModerationQueueItem:
+      type: object
+      required: [targetType, targetId, reportCount, priority, firstReportedAt]
+      properties:
+        targetType: { $ref: '#/components/schemas/ReportTarget' }
+        targetId: { type: string }
+        reportCount: { type: integer }
+        reasons: { type: array, items: { type: string } }
+        priority: { type: string, enum: [high, normal] }
+        accountAgeDays: { type: integer }
+        verified: { type: boolean }
+        firstReportedAt: { type: string, format: date-time }
+
+    ModerationQueuePage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ModerationQueueItem' } }
+        nextCursor: { type: string }
+
+    Appeal:
+      type: object
+      required: [id, actionId, status, createdAt]
+      properties:
+        id: { type: string }
+        actionId: { type: string }
+        status: { type: string, enum: [pending, upheld, reversed] }
+        text: { type: string }
+        decidedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    PrivacySettings:
+      type: object
+      required: [profileVisibility, indexable, appearInSearch, whoCanMessage, whoCanRequestCall, readReceipts, showOnline, showFollowLists]
+      properties:
+        profileVisibility: { $ref: '#/components/schemas/ProfileVisibility' }
+        indexable: { type: boolean, default: false }
+        appearInSearch: { type: boolean, default: true }
+        whoCanMessage: { type: string, enum: [everyone, followed_and_verified, nobody], default: everyone }
+        whoCanRequestCall: { type: string, enum: [nobody, followed, verified_companies], default: nobody }
+        readReceipts: { type: boolean, default: true }
+        showOnline: { type: boolean, default: true }
+        showFollowLists: { type: boolean, default: true }
+
+    ExportJob:
+      type: object
+      required: [id, status, requestedAt]
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [queued, ready, expired, failed] }
+        requestedAt: { type: string, format: date-time }
+        readyAt: { type: string, format: date-time }
+        downloadUrl: { type: string, description: Requires sign-in; valid 7 days }
+        expiresAt: { type: string, format: date-time }
+
+    DeletionRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [scheduled, cancelled, completed] }
+        scheduledFor: { type: string, format: date-time, description: 14 days after the request }

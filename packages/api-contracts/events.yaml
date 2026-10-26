@@ -719,5 +719,347 @@ components:
             sourceTag: { type: string }
             createdAt: { type: string, format: date-time }
         aggregateVersion: { type: integer }
-
-
+    MemberRegisteredEvent:
+      description: "N01. A person created a member profile (IDs only)."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "member.registered" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [personId]
+          properties:
+            personId: { type: string }
+        aggregateVersion: { type: integer }
+    MemberProfileUpdatedEvent:
+      description: "N01. Field names that changed, never their values."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "member.profile_updated" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [personId, changedFields]
+          properties:
+            personId: { type: string }
+            changedFields: { type: array, items: { type: string } }
+        aggregateVersion: { type: integer }
+    MemberWorkHistoryChangedEvent:
+      description: "N01. A verified (seat) or self-added entry changed."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "member.work_history_changed" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [personId, entryId, source]
+          properties:
+            personId: { type: string }
+            entryId: { type: string }
+            source: { type: string, enum: [seat, self] }
+        aggregateVersion: { type: integer }
+    OrgPlanChangedEvent:
+      description: "N02. Includes moves to and from the free plan."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "org.plan_changed" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, previousPlan, plan]
+          properties:
+            orgId: { type: string }
+            previousPlan: { type: string }
+            plan: { type: string, enum: [free, starter, business, enterprise] }
+        aggregateVersion: { type: integer }
+    OrgAccessRequestedEvent:
+      description: "N02. Someone asked the owner for access (owner notified by F22)."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "org.access_requested" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId, requestId]
+          properties:
+            orgId: { type: string }
+            requestId: { type: string }
+        aggregateVersion: { type: integer }
+    FollowCreatedEvent:
+      description: "N04."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "follow.created" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [followerType, followerId, targetType, targetId]
+          properties:
+            followerType: { type: string, enum: [member, company] }
+            followerId: { type: string }
+            targetType: { type: string, enum: [member, company] }
+            targetId: { type: string }
+            source: { type: string, enum: [profile, search, card_scan, post, other] }
+        aggregateVersion: { type: integer }
+    FollowRemovedEvent:
+      description: "N04."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "follow.removed" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [followerType, followerId, targetType, targetId]
+          properties:
+            followerType: { type: string, enum: [member, company] }
+            followerId: { type: string }
+            targetType: { type: string, enum: [member, company] }
+            targetId: { type: string }
+        aggregateVersion: { type: integer }
+    ConversationStartedEvent:
+      description: "N08. tenantId is the company for company conversations, 'global' otherwise. No message content."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "conversation.started" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [conversationId, kind, isRequest]
+          properties:
+            conversationId: { type: string }
+            kind: { type: string, enum: [member_member, member_company, company_company, member_card] }
+            isRequest: { type: boolean }
+            viaCardSeatId: { type: string }
+        aggregateVersion: { type: integer }
+    MessageSentEvent:
+      description: "N08. IDs only; drives offline notifications (F22) without content."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "message.sent" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [conversationId, messageId, senderType, senderId]
+          properties:
+            conversationId: { type: string }
+            messageId: { type: string }
+            senderType: { type: string, enum: [member, company] }
+            senderId: { type: string }
+        aggregateVersion: { type: integer }
+    ConversationAssignedEvent:
+      description: "N08. Company inbox assignment (also on reassignment after offboarding)."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "conversation.assigned" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [conversationId, seatId]
+          properties:
+            conversationId: { type: string }
+            seatId: { type: string }
+        aggregateVersion: { type: integer }
+    CallRequestCreatedEvent:
+      description: "N11. Never carries a phone number."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "call_request.created" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [callRequestId, receiverType, receiverId]
+          properties:
+            callRequestId: { type: string }
+            receiverType: { type: string, enum: [member, company] }
+            receiverId: { type: string }
+            routedSeatId: { type: string }
+        aggregateVersion: { type: integer }
+    CallRequestStatusChangedEvent:
+      description: "N11. scheduled, declined, expired, completed, missed or cancelled."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "call_request.status_changed" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [callRequestId, status]
+          properties:
+            callRequestId: { type: string }
+            status: { type: string, enum: [requested, scheduled, rescheduling, completed, missed, declined, cancelled, expired] }
+            scheduledAt: { type: string, format: date-time }
+        aggregateVersion: { type: integer }
+    ReportCreatedEvent:
+      description: "N09. Reporter is not included."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "report.created" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [reportId, targetType, targetId, reason]
+          properties:
+            reportId: { type: string }
+            targetType: { type: string }
+            targetId: { type: string }
+            reason: { type: string }
+        aggregateVersion: { type: integer }
+    ModerationActionTakenEvent:
+      description: "N09. Every service hides or limits the target accordingly."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "moderation.action_taken" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [actionId, targetType, targetId, action]
+          properties:
+            actionId: { type: string }
+            targetType: { type: string }
+            targetId: { type: string }
+            action: { type: string, enum: [dismiss, remove_content, warn, restrict, suspend, ban] }
+            until: { type: string, format: date-time }
+        aggregateVersion: { type: integer }
+    BlockChangedEvent:
+      description: "N09. A block was created or removed; every service applies it in both directions."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "block.changed" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [blockerType, blockerId, blockedType, blockedId, blocked]
+          properties:
+            blockerType: { type: string, enum: [member, company] }
+            blockerId: { type: string }
+            blockedType: { type: string, enum: [member, company] }
+            blockedId: { type: string }
+            blocked: { type: boolean }
+        aggregateVersion: { type: integer }
+    MemberPrivacyChangedEvent:
+      description: "N10. Setting names that changed."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "member.privacy_changed" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [personId, changedSettings]
+          properties:
+            personId: { type: string }
+            changedSettings: { type: array, items: { type: string } }
+        aggregateVersion: { type: integer }
+    MemberDeletionScheduledEvent:
+      description: "N10. 14-day grace period."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "member.deletion_scheduled" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [personId, scheduledFor]
+          properties:
+            personId: { type: string }
+            scheduledFor: { type: string, format: date-time }
+        aggregateVersion: { type: integer }
+    MemberDeletedEvent:
+      description: "N10. Every service erases or anonymises its data for this person."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "member.deleted" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [personId]
+          properties:
+            personId: { type: string }
+        aggregateVersion: { type: integer }
