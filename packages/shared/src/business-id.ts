@@ -24,6 +24,14 @@ export const RESERVED_SLUGS = new Set([
   'status',
   'undefined',
   'webhook',
+  // Network routes on the public site and the app (D-NETWORK): a company slug must never shadow them.
+  'directory',
+  'search',
+  'network',
+  'profile',
+  'invite',
+  'members',
+  'demo-access',
 ]);
 
 /**

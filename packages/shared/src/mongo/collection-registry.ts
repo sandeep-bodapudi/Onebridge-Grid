@@ -120,6 +120,26 @@ export const KNOWN_COLLECTIONS: Record<string, CollectionMetadata> = {
     classification: 'tenant-scoped',
     description: 'Seat invites (F14): hashed single-use token, encrypted contact, channel, expiry, status',
   },
+  member_profiles: {
+    name: 'member_profiles',
+    classification: 'global',
+    description: 'N01 member profiles. Owned by the person, not a company; no contact details (D-CONTACT)',
+  },
+  work_history: {
+    name: 'work_history',
+    classification: 'global',
+    description: 'N01 work history: verified entries from claimed seats, and self-added entries',
+  },
+  profile_org_refs: {
+    name: 'profile_org_refs',
+    classification: 'global',
+    description: 'Profiles read model: company name and slug from org.* events (ADR-0003)',
+  },
+  profile_seat_refs: {
+    name: 'profile_seat_refs',
+    classification: 'global',
+    description: 'Profiles read model: seat title and holder from seat.* events (ADR-0003)',
+  },
   notice_acceptances: {
     name: 'notice_acceptances',
     classification: 'tenant-scoped',

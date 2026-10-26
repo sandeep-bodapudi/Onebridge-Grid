@@ -802,6 +802,8 @@ components:
         about: { type: string, maxLength: 2000 }
         skills: { type: array, maxItems: 30, items: { type: string, maxLength: 40 } }
         languages: { type: array, maxItems: 10, items: { type: string, maxLength: 30 } }
+        visibility: { $ref: '#/components/schemas/ProfileVisibility' }
+        indexable: { type: boolean, description: Search-engine indexing; only honoured when visibility is everyone }
         ageConfirmed: { type: boolean, description: Required true on first save (18 or older) }
         noticeVersion: { type: string, description: Member privacy notice accepted (required on first save) }
 

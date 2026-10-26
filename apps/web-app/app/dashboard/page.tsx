@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, CreditCard, FileClock, Globe, Inbox, LayoutGrid, Palette, Users } from 'lucide-react';
+import { Building2, CircleUser, CreditCard, FileClock, Globe, Inbox, LayoutGrid, Palette, Users } from 'lucide-react';
 import { AppShell, Button, SpanMark, type NavItem } from '@onebridge/ui-kit';
 import type { BrandKit, Organization } from '@onebridge/api-contracts';
 import { apiClient } from '../../src/api-client';
@@ -193,6 +193,17 @@ export default function DashboardPage() {
           </Button>
         </header>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
+          <a
+            href="/profile"
+            data-testid="member-only-link"
+            className="mb-6 flex items-center justify-between gap-4 rounded-[14px] border border-white/10 bg-charcoal p-4 hover:border-white/25"
+          >
+            <span>
+              <span className="block font-bold text-warm-paper">Joining as a professional, not a company?</span>
+              <span className="block text-sm text-warm-paper/60">Create your personal profile. You can add a company later.</span>
+            </span>
+            <CircleUser className="w-6 h-6 shrink-0 text-warm-paper/70" aria-hidden="true" />
+          </a>
           <OnboardingFlow labels={enOnboardingLabels} isLoading={onboardingBusy} error={onboardingError} onComplete={handleOnboardingComplete} />
         </div>
       </main>
@@ -236,6 +247,7 @@ export default function DashboardPage() {
       navItems={navItems}
       onNavigate={(id) => navigate(id as Section)}
       onSignOut={handleLogout}
+      userMenuItems={[{ id: 'profile', label: 'My profile', href: '/profile', icon: <CircleUser className="w-4 h-4" aria-hidden="true" /> }]}
     >
       <div data-testid="dashboard-container">
         {/* Stable hooks for end-to-end tests; hidden from everyone (no IDs reach screen readers). */}

@@ -16,6 +16,12 @@ describe('Collection Classification Registry & Base Class Guard', () => {
       'otp_challenges',
       'issued_id_registries',
       'rate_limits',
+      // N01 (D-N01): member profiles belong to the person, not a company, so they have no tenant.
+      'member_profiles',
+      'work_history',
+      // Profiles read models of public company names and seat titles (ADR-0003).
+      'profile_org_refs',
+      'profile_seat_refs',
     ];
 
     expect(ALLOWLISTED_GLOBAL_COLLECTIONS.sort()).toEqual(expectedGlobals.sort());

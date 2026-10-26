@@ -1,5 +1,9 @@
 import type {
   CompanyProfileSettings,
+  MyProfile,
+  ProfileUpdate,
+  PublicMemberProfile,
+  WorkHistoryEntry,
   InviteRequest,
   InviteSummary,
   InvitePreview,
@@ -51,6 +55,7 @@ let inFlightRefresh: Promise<string | null> | null = null;
 
 const IDENTITY_API_URL = process.env.NEXT_PUBLIC_IDENTITY_API_URL || 'http://localhost:4001';
 const ORGANIZATION_API_URL = process.env.NEXT_PUBLIC_ORGANIZATION_API_URL || 'http://localhost:4002';
+const PROFILES_API_URL = process.env.NEXT_PUBLIC_PROFILES_API_URL || 'http://localhost:4004';
 const CARDS_API_URL = process.env.NEXT_PUBLIC_CARDS_API_URL || 'http://localhost:4003';
 // Empty means the public site shares this app's origin (single-service deployment, D-SINGLE-SERVICE).
 const WEB_PUBLIC_URL = process.env.NEXT_PUBLIC_WEB_PUBLIC_URL ?? 'http://localhost:3001';
@@ -729,6 +734,59 @@ export const apiClient = {
       throw error;
     }
     return res.json() as Promise<T>;
+  },
+
+  /** N01 profiles service request with the in-memory token (profiles are personal: no tenant header). */
+  async profilesRequest<T>(path: string, init: RequestInit, fallbackError = 'Request failed'): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (init.body) headers['Content-Type'] = 'application/json';
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    const res = await fetch(`${PROFILES_API_URL}${path}`, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> | undefined) }, credentials: 'include' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const error = new Error(err.detail || err.title || fallbackError) as Error & { code?: string; status?: number };
+      error.code = err.code;
+      error.status = res.status;
+      throw error;
+    }
+    if (res.status === 204) return undefined as T;
+    return res.json() as Promise<T>;
+  },
+
+  /** N01: my profile; rejects with code profile_missing before the first save. */
+  async getMyProfile(): Promise<MyProfile> {
+    return this.profilesRequest<MyProfile>('/me/profile', { method: 'GET' }, 'Could not load your profile');
+  },
+
+  async saveMyProfile(update: ProfileUpdate): Promise<MyProfile> {
+    return this.profilesRequest<MyProfile>('/me/profile', { method: 'PUT', body: JSON.stringify(update) }, 'Could not save your profile');
+  },
+
+  async addWorkHistory(entry: { companyName: string; title: string; startDate: string; endDate?: string }): Promise<WorkHistoryEntry> {
+    return this.profilesRequest<WorkHistoryEntry>('/me/work-history', { method: 'POST', body: JSON.stringify(entry) }, 'Could not add the role');
+  },
+
+  async updateWorkHistory(id: string, patch: Partial<{ companyName: string; title: string; startDate: string; endDate: string; hidden: boolean }>): Promise<WorkHistoryEntry> {
+    return this.profilesRequest<WorkHistoryEntry>(`/me/work-history/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) }, 'Could not update the role');
+  },
+
+  async deleteWorkHistory(id: string): Promise<void> {
+    await this.profilesRequest<void>(`/me/work-history/${encodeURIComponent(id)}`, { method: 'DELETE' }, 'Could not delete the role');
+  },
+
+  /** N01: a member's profile as the signed-in viewer may see it (null when not visible). */
+  async getMemberProfile(handle: string): Promise<PublicMemberProfile | null> {
+    try {
+      return await this.profilesRequest<PublicMemberProfile>(`/members/${encodeURIComponent(handle)}`, { method: 'GET' }, 'Could not load the profile');
+    } catch (err) {
+      if ((err as { status?: number }).status === 404) return null;
+      throw err;
+    }
+  },
+
+  /** Public member profile page (apps/web-public). */
+  publicMemberUrl(handle: string): string {
+    return `${publicBase()}/in/${handle}`;
   },
 
   /** F14: invite a person into a seat (replaces any open invite). */

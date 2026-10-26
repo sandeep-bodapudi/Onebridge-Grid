@@ -79,16 +79,17 @@ start('public site', process.execPath, [nextBin('web-public'), 'start', '-p', St
   NODE_ENV: 'production',
   PORT: String(PUBLIC_PORT),
   CARDS_SERVICE_URL: `http://127.0.0.1:${API_PORT}/cards`,
+  PROFILES_SERVICE_URL: `http://127.0.0.1:${API_PORT}/profiles`,
   // next.config is read again at start, so the asset prefix must match the build.
   ASSET_PREFIX: PUBLIC_ASSET_PREFIX,
 });
 
-const ADMIN_PATHS = [/^\/$/, /^\/(login|dashboard|demo-access|invite)(\/|$)/, /^\/api\/demo-access(\/|$)/, /^\/_next\//, /^\/fonts\//, /^\/favicon\.ico$/];
+const ADMIN_PATHS = [/^\/$/, /^\/(login|dashboard|demo-access|invite|profile|network)(\/|$)/, /^\/api\/demo-access(\/|$)/, /^\/_next\//, /^\/fonts\//, /^\/favicon\.ico$/];
 
 function route(url) {
   const pathname = url.split('?')[0];
   if (pathname === '/healthz' || pathname === '/demo/reset') return { port: API_PORT, path: url };
-  const svc = url.match(/^\/svc(\/(identity|organization|cards)(\/.*)?)$/);
+  const svc = url.match(/^\/svc(\/(identity|organization|cards|profiles)(\/.*)?)$/);
   if (svc) return { port: API_PORT, path: svc[1] };
   if (pathname.startsWith(`${PUBLIC_ASSET_PREFIX}/`)) return { port: PUBLIC_PORT, path: url.slice(PUBLIC_ASSET_PREFIX.length) };
   if (ADMIN_PATHS.some((re) => re.test(pathname))) return { port: ADMIN_PORT, path: url };

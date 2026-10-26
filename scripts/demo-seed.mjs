@@ -14,6 +14,7 @@
 const IDENTITY = process.env.IDENTITY_URL || 'http://localhost:4001';
 const ORGANIZATION = process.env.ORGANIZATION_URL || 'http://localhost:4002';
 const CARDS = process.env.CARDS_URL || 'http://localhost:4003';
+const PROFILES = process.env.PROFILES_URL || 'http://localhost:4004';
 const WEB_PUBLIC = process.env.WEB_PUBLIC_URL || 'http://localhost:3001';
 const APP_ORIGIN = process.env.APP_URL || 'http://localhost:3000';
 const OWNER_PHONE = process.env.DEMO_OWNER_PHONE || '+919988776655';
@@ -149,6 +150,71 @@ async function seedCompanyPage(T, orgId) {
   return true;
 }
 
+// N01 member profiles. All people and numbers are fictional (demo data only).
+const MEMBER_NOTICE_VERSION = 'member-notice-2026-10';
+const OWNER_PROFILE = {
+  name: 'Priya Kulkarni',
+  handle: 'priya-kulkarni',
+  headline: 'Founder and managing director, Sahyadri Steel Works',
+  city: 'Pune',
+  about: 'Second-generation steel trader. We supply TMT bars and structural steel to builders and EPC contractors across Maharashtra.',
+  skills: ['Structural steel', 'TMT rebars', 'Dealer networks', 'EPC supply'],
+  languages: ['English', 'Hindi', 'Marathi'],
+  visibility: 'everyone',
+  indexable: true,
+};
+const MEMBERS = [
+  {
+    phone: '+919700011122',
+    profile: {
+      name: 'Ravi Teja Reddy',
+      handle: 'ravi-teja-reddy',
+      headline: 'Procurement manager, infrastructure projects',
+      city: 'Hyderabad',
+      about: 'I buy structural steel, cement and fabrication services for highway and metro packages in Telangana.',
+      skills: ['Procurement', 'Vendor development', 'Structural steel'],
+      languages: ['English', 'Telugu', 'Hindi'],
+      visibility: 'everyone',
+      indexable: false,
+    },
+    history: [{ companyName: 'Deccan Infra Projects', title: 'Procurement manager', startDate: '2021-04-01' }],
+  },
+  {
+    phone: '+919700033344',
+    profile: {
+      name: 'Fatima Begum',
+      handle: 'fatima-begum',
+      headline: 'Quality engineer, precision machining',
+      city: 'Hyderabad',
+      about: 'Quality systems for CNC machining and fabrication shops. ISO 9001 lead auditor.',
+      skills: ['Quality assurance', 'ISO 9001', 'CNC machining'],
+      languages: ['English', 'Urdu', 'Telugu'],
+      visibility: 'members',
+      indexable: false,
+    },
+    history: [{ companyName: 'Balanagar Precision Works', title: 'Quality engineer', startDate: '2022-07-01' }],
+  },
+];
+
+/** Creates member profiles through the profiles API, if they do not exist yet. */
+async function seedMemberProfiles(ownerToken) {
+  const put = (token, body) => call('PUT', `${PROFILES}/me/profile`, { token, body: { ...body, ageConfirmed: true, noticeVersion: MEMBER_NOTICE_VERSION } });
+  const exists = (token) => call('GET', `${PROFILES}/me/profile`, { token }).then(() => true, () => false);
+  let created = 0;
+  if (!(await exists(ownerToken))) {
+    await put(ownerToken, OWNER_PROFILE);
+    created++;
+  }
+  for (const m of MEMBERS) {
+    const token = await signIn(m.phone);
+    if (await exists(token)) continue;
+    await put(token, m.profile);
+    for (const h of m.history) await call('POST', `${PROFILES}/me/work-history`, { token, body: h });
+    created++;
+  }
+  return created;
+}
+
 const LEADS = [
   { person: 1, name: 'Rahul Mehta', phone: '9822099999', company: 'Mehta Builders', note: 'Need 40 MT of 12 mm for a G+7 project', sourceTag: 'pune_expo_2026' },
   { person: 1, name: 'Sneha Wagh', phone: '9767012345', company: 'Wagh Constructions', sourceTag: 'pune_expo_2026' },
@@ -164,6 +230,9 @@ async function main() {
   if (existing) {
     const org = await call('GET', `${ORGANIZATION}/orgs/${existing}`, { token, tenantId: existing });
     const filled = await seedCompanyPage({ token, tenantId: existing }, existing).catch((err) => log(`Company page skipped: ${err.message}`));
+    await seedMemberProfiles(token)
+      .then((n) => n && log(`Created ${n} member profiles`))
+      .catch((err) => log(`Member profiles skipped: ${err.message}`));
     log(`Demo company already exists: ${org.name} (${org.businessId}).${filled ? ' Filled in its company page.' : ' Nothing to do.'}`);
     log(`Company page: ${WEB_PUBLIC}/${org.slug}`);
     return;
@@ -276,6 +345,10 @@ async function main() {
     .then(() => log('Filled in the company page'))
     .catch((err) => log(`Company page skipped: ${err.message}`));
 
+  await seedMemberProfiles(token)
+    .then((n) => log(`Created ${n} member profiles`))
+    .catch((err) => log(`Member profiles skipped: ${err.message}`));
+
   // A company page enquiry about a product, so the company_enquiry source shows up in leads.
   await call('POST', `${CARDS}/public/o/${org.slug}/enquiry`, {
     origin: WEB_PUBLIC,
@@ -286,6 +359,7 @@ async function main() {
   log(`Dashboard: sign in with ${OWNER_PHONE} and code ${OTP}`);
   log(`Visitor card: ${WEB_PUBLIC}/c/${cards[1].slug}`);
   log(`Company page: ${WEB_PUBLIC}/${org.slug}`);
+  log(`Member profile: ${WEB_PUBLIC}/in/${OWNER_PROFILE.handle}`);
 }
 
 main().catch((err) => {

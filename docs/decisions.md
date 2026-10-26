@@ -204,3 +204,13 @@
 - `card.approval_requested` is emitted when an employee publishes in a company that needs approval (F14 AC-4); F22 will deliver the admin notification.
 - The shared error filter now passes through RFC 7807 extension members `code`, `retryAfterSeconds` and `limit` (validated), so clients can act on them (for example `wrong_person`, `over_limit`).
 - Found while testing, to fix in F28 hardening: identity issues the fixed code 123456 for every one-time code, outside demo mode too.
+
+## D-N01: member profiles implementation
+
+- Date: 2026-10-26
+- New `services/profiles` (port 4004, `/svc/profiles` behind the proxy), started before organization in dev and demo so it receives org and seat events. Collections `member_profiles`, `work_history`, `profile_org_refs`, `profile_seat_refs` are **global**: a profile belongs to the person, not a company (approved in the collection guard test).
+- Verified roles come only from seat events: `seat.assigned`, and `seat.created` when the seat already has its person (the owner's own seat). Offboarding or a vacant seat ends the role; reassignment ends the previous holder's. Verified roles follow company renames and seat title changes, and can be hidden but never edited or deleted.
+- New profiles default to visible to signed-in members, and search-engine indexing is off unless the member turns it on and makes the profile visible to everyone. Members-only, missing and private profiles return the same 404 (no leak).
+- Handles: 3 to 40 lowercase letters, digits and hyphens; reserved words refused; old handles redirect (301) and cannot be reused by others.
+- Public pages: web-public `/in/<handle>` (server-rendered, Person structured data only when indexable); signed-in view at web-app `/network/in/<handle>`; editor at web-app `/profile`, reachable from the user menu and from onboarding for people without a company.
+- Company slugs now also reserve network routes (directory, search, network, profile, invite, members, demo-access).

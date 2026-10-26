@@ -58,7 +58,7 @@ const DEFAULTS = {
 for (const [k, v] of Object.entries(DEFAULTS)) if (!process.env[k]) process.env[k] = v;
 
 const PORT = Number(process.env.PORT || 8080);
-const TARGETS = { identity: 4001, organization: 4002, cards: 4003 };
+const TARGETS = { identity: 4001, organization: 4002, cards: 4003, profiles: 4004 };
 const apps = [];
 let mongod = null;
 let handle = null;
@@ -79,6 +79,8 @@ async function startServices() {
   const organizationEnv = await importDist('services/organization/dist/config/env.js');
   const cards = await importDist('services/cards/dist/app.js');
   const cardsEnv = await importDist('services/cards/dist/config/env.js');
+  const profiles = await importDist('services/profiles/dist/app.js');
+  const profilesEnv = await importDist('services/profiles/dist/config/env.js');
 
   handle = await shared.connectMongo(process.env.MONGODB_URI);
   const eventBus = new shared.InMemoryEventBus();
@@ -99,6 +101,15 @@ async function startServices() {
   await cardsApp.listen(TARGETS.cards, '127.0.0.1');
   apps.push(cardsApp);
 
+  // N01 member profiles (subscribes to org and seat events before organization starts).
+  const profilesApp = await profiles.createApp({
+    envConfig: { ...profilesEnv.loadAndValidateEnv(), port: TARGETS.profiles },
+    connectionHandle: handle,
+    eventBus,
+  });
+  await profilesApp.listen(TARGETS.profiles, '127.0.0.1');
+  apps.push(profilesApp);
+
   const organizationApp = await organization.createApp({
     envConfig: { ...organizationEnv.loadAndValidateEnv(), port: TARGETS.organization },
     connectionHandle: handle,
@@ -106,7 +117,7 @@ async function startServices() {
   });
   await organizationApp.listen(TARGETS.organization, '127.0.0.1');
   apps.push(organizationApp);
-  log('identity, organization and cards are running (shared event bus)');
+  log('identity, organization, cards and profiles are running (shared event bus)');
 }
 
 function proxy(req, res, port, upstreamPath) {
@@ -167,7 +178,7 @@ const router = http.createServer(async (req, res) => {
     setTimeout(() => shutdown(0), 300);
     return;
   }
-  const match = url.match(/^\/(identity|organization|cards)(\/.*)?$/);
+  const match = url.match(/^\/(identity|organization|cards|profiles)(\/.*)?$/);
   if (!match) {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ title: 'Not Found', status: 404 }));
@@ -190,6 +201,7 @@ function runSeed() {
         IDENTITY_URL: `http://127.0.0.1:${TARGETS.identity}`,
         ORGANIZATION_URL: `http://127.0.0.1:${TARGETS.organization}`,
         CARDS_URL: `http://127.0.0.1:${TARGETS.cards}`,
+        PROFILES_URL: `http://127.0.0.1:${TARGETS.profiles}`,
       },
     });
     child.on('exit', (code) => resolve(code === 0));

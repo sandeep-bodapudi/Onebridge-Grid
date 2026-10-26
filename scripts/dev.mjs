@@ -56,7 +56,7 @@ for (const [key, value] of Object.entries(DEV_DEFAULTS)) {
   if (!process.env[key]) process.env[key] = value;
 }
 
-const PORTS = { identity: 4001, organization: 4002, cards: 4003 };
+const PORTS = { identity: 4001, organization: 4002, cards: 4003, profiles: 4004 };
 
 const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/onebridge_dev';
 const isLocal = mongoUri.includes('localhost') || mongoUri.includes('127.0.0.1') || mongoUri.includes('::1');
@@ -119,7 +119,7 @@ function startNextApp(name, filter, port) {
 
 async function main() {
   runSync('Building shared packages', ['--filter', '@onebridge/shared', '--filter', '@onebridge/api-contracts', 'run', 'build']);
-  runSync('Building services', ['--filter', '@onebridge/identity', '--filter', '@onebridge/organization', '--filter', '@onebridge/cards', 'run', 'build']);
+  runSync('Building services', ['--filter', '@onebridge/identity', '--filter', '@onebridge/organization', '--filter', '@onebridge/cards', '--filter', '@onebridge/profiles', 'run', 'build']);
 
   await ensureMongo();
 
@@ -132,6 +132,8 @@ async function main() {
   const organizationEnv = await importDist('services/organization/dist/config/env.js');
   const cards = await importDist('services/cards/dist/app.js');
   const cardsEnv = await importDist('services/cards/dist/config/env.js');
+  const profiles = await importDist('services/profiles/dist/app.js');
+  const profilesEnv = await importDist('services/profiles/dist/config/env.js');
 
   mongoHandle = await shared.connectMongo(activeMongoUri);
 
@@ -157,6 +159,15 @@ async function main() {
   await cardsApp.listen(PORTS.cards);
   nestApps.push(cardsApp);
 
+  // N01 member profiles: subscribes to org and seat events, so it starts before organization too.
+  const profilesApp = await profiles.createApp({
+    envConfig: { ...profilesEnv.loadAndValidateEnv(), port: PORTS.profiles },
+    connectionHandle: mongoHandle,
+    eventBus,
+  });
+  await profilesApp.listen(PORTS.profiles);
+  nestApps.push(profilesApp);
+
   const organizationApp = await organization.createApp({
     envConfig: { ...organizationEnv.loadAndValidateEnv(), port: PORTS.organization },
     connectionHandle: mongoHandle,
@@ -177,7 +188,7 @@ async function main() {
   );
   log(`Organization seed: created ${orgSeed.created.length}, already present ${orgSeed.skipped.length}`);
 
-  log(`Services ready: identity :${PORTS.identity}, organization :${PORTS.organization}, cards :${PORTS.cards} (shared event bus)`);
+  log(`Services ready: identity :${PORTS.identity}, organization :${PORTS.organization}, cards :${PORTS.cards}, profiles :${PORTS.profiles} (shared event bus)`);
 
   startNextApp('web-app', '@onebridge/web-app', WEB_APP_PORT);
   startNextApp('web-public', '@onebridge/web-public', WEB_PUBLIC_PORT);

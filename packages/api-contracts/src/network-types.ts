@@ -1384,6 +1384,9 @@ export interface components {
       about?: string;
       skills?: string[];
       languages?: string[];
+      visibility?: components["schemas"]["ProfileVisibility"];
+      /** @description Search-engine indexing; only honoured when visibility is everyone */
+      indexable?: boolean;
       /** @description Required true on first save (18 or older) */
       ageConfirmed?: boolean;
       /** @description Member privacy notice accepted (required on first save) */

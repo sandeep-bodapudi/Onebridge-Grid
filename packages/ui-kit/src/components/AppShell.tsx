@@ -22,6 +22,8 @@ export interface AppShellProps {
   navItems: NavItem[];
   onNavigate?: (id: string) => void;
   onSignOut?: () => void;
+  /** Extra links in the user menu, above "Sign out" (for example "My profile"). */
+  userMenuItems?: Array<{ id: string; label: string; href: string; icon?: React.ReactNode }>;
   /** Kept for compatibility; pages render their own header with PageHeader. */
   pageTitle?: string;
   pageDescription?: string;
@@ -136,6 +138,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   navItems,
   onNavigate,
   onSignOut,
+  userMenuItems,
   children,
   className,
 }) => {
@@ -215,6 +218,18 @@ export const AppShell: React.FC<AppShellProps> = ({
             </div>
           </div>
           <div className="h-px bg-white/10 my-1" />
+          {userMenuItems?.map((item) => (
+            <a
+              key={item.id}
+              href={item.href}
+              role="menuitem"
+              data-testid={`user-menu-${item.id}`}
+              className="w-full flex items-center gap-2 min-h-[44px] px-3 rounded-lg text-sm font-semibold text-warm-paper hover:bg-white/5"
+            >
+              {item.icon}
+              {item.label}
+            </a>
+          ))}
           {onSignOut ? (
             <button
               type="button"
