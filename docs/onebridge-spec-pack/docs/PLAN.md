@@ -21,6 +21,19 @@ Authority order: AGENTS.md, `decisions.md`, `adr/`, `features/`, this plan, PRDs
 | 11 Public profile | F26 | Profile and enquiry work with encryption and spam protection. |
 | 12 Student plan and hardening | F27 (Should), F28 | `docs/launch-report.md` complete. Launch checklist signed. |
 
+## Track B: business identity network (added 2026-10-26, D-NETWORK)
+
+The founder approved turning OneBridge Grid into a business identity network, built **in parallel** with Steps 4 onward (Track A). Plan, validation and risks: `docs/plans/business-network-plan.md`. Launch: Hyderabad, manufacturing and services.
+
+| Network phase | Features | Exit gate |
+|---|---|---|
+| N-1 Discoverable | N01 member accounts and profiles, N02 free company profiles, N03 directory and search, N04 follow, N08 real-time chat and message requests, N11 request a call, N09 moderation basics, N10 privacy | Profiles public and searchable; report and block work; privacy settings, export and delete work; 1,000 company profiles in the launch city |
+| N-2 Alive | N05 posts and feed (with notifications from F22) | 30% of active companies post at least monthly |
+| N-3 Trusted | N06 relationships and endorsements | 25% of paying companies have a confirmed relationship |
+| N-4 Transacting | N07 requirements and matching | Requirement-to-response rate above 50% |
+
+Rules: with no public phone numbers (D-CONTACT), chat and call requests are the only way to reach anyone, so they ship in N-1. Track A billing (Step 5) is never blocked by Track B. Privacy, reporting and blocking ship in the first network release. Each N-phase starts only after its feature files and contracts are written and approved.
+
 ## Dependency notes
 - F06 creates the Business ID; F03 is the specification of the ID rules and is built together with F06.
 - F20 (artwork) before F19 (orders): orders need proofs.

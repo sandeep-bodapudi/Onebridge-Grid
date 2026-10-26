@@ -47,3 +47,24 @@ Priority / Build step / Depends on / Source
 | 11 | F26-public-company-profile.md | Must |
 | 12 | F27-student-plan.md | Should |
 | 12 | F28-hardening.md | Must |
+
+## Track B: business identity network (D-NETWORK, D-CONTACT, added 2026-10-26)
+Built in parallel with Steps 4 onward. Plan and validation: `docs/plans/business-network-plan.md`. Each file lists its open questions; those parts wait for a founder decision.
+
+| Phase | File | Priority |
+|---|---|---|
+| N-1 | N01-member-profiles.md | Must |
+| N-1 | N02-free-company-profiles.md | Must |
+| N-1 | N03-directory-search.md | Must |
+| N-1 | N04-follow.md | Must |
+| N-1 | N08-realtime-chat.md | Must |
+| N-1 | N11-request-a-call.md | Must |
+| N-1 | N09-moderation-safety.md (basics; grows each phase) | Must |
+| N-1 | N10-privacy-data-rights.md | Must |
+| N-2 | N05-posts-feed.md | Must |
+| N-3 | N06-relationships-endorsements.md | Must |
+| N-4 | N07-requirements-matching.md | Should |
+
+Track B changes two existing features: F12 (visitor card: Chat and Request a call instead of Call and WhatsApp; vCard without phone and email) and F13 (share-back becomes a call request or first chat message). Those changes are written in N11 and N08; F12 and F13 will be revised when N-1 starts.
+
+Track B also needs F22 (notifications) earlier than Step 7, because chat, call requests and follows notify people. Bring F22's in-app and push channels forward into N-1.

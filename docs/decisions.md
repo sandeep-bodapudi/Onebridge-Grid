@@ -172,3 +172,23 @@
 - Decision: the founder wants one deployable app. `scripts/single-server.mjs` runs the demo API, apps/web-app and apps/web-public as local processes behind one public port and routes by path (`/svc/*` to the API, admin paths to web-app, everything else to web-public). web-public builds with `ASSET_PREFIX=/_cards` so its `/_next` assets do not clash with the admin app. One build (`scripts/single-build.mjs`), one start command, one URL; `render.yaml` is now a single Standard service.
 - The code stays split (admin and public apps, three services) as the spec requires; only the deployment is combined. Secrets are generated per boot because the in-memory data is discarded; they are required when `MONGODB_URI` is set.
 - Supersedes the three-service layout in D-DEMO-HOSTING.
+
+## D-NETWORK: OneBridge Grid becomes a business identity network (founder decision)
+
+- Date: 2026-10-26
+- Decision: the founder approved turning the product into a platform where every business presents its identity professionally: verified company profiles, member profiles, directory and search, follow, posts and feed, verified relationships, buyer requirements and messaging. Plan and validation: `docs/plans/business-network-plan.md`.
+- Founder choices: build the network **now, in parallel** with the remaining Phase 1 core (recommended was core first); **free** basic company profiles (reverses "no free plan"); **individuals as full members** (recommended was people only as part of a company); launch in **Hyderabad, manufacturing and services**.
+- Consequences: AGENTS.md section 2 (free plan) and section 10 (out of scope) updated; PLAN.md gains Track B. Validation rates focus/runway as a critical risk and personal data and moderation as high risks; mitigations (billing never blocked, privacy and reporting in the first release, phase exit metrics) are part of the decision.
+- Open: free-tier limits and add-on prices; whether individuals ever pay.
+
+## D-CONTACT: no public phone numbers; chat and call requests (founder decision)
+
+- Date: 2026-10-26
+- Decision: phone numbers and emails are not shown publicly on profiles, cards, company pages, posts or search. People reach a company or employee through real-time chat (LinkedIn-style, with message requests for strangers) or a "Request a call" that is routed like enquiries and creates a lead. Details: `docs/plans/business-network-plan.md` section 3a.
+- Affects F12 (card buttons become Chat and Request a call; vCard drops phone and email by default) and F13 (share-back becomes call request or first message). Open: whether owners may show their number after a face-to-face scan.
+- Pricing in the plan (section 5) is a sample only; the founder will decide plans, prices and limits later.
+
+## D-NETWORK-DEFAULTS: founder accepts the recommended answers to Q-NET-1 to Q-NET-4
+
+- Date: 2026-10-26
+- No unclaimed listings at launch (Q-NET-1). Card owners may opt in to show their number only after a face-to-face QR or NFC scan, off by default (Q-NET-2). Proposed timings in N01 to N11 are accepted and stay configurable (Q-NET-3). Search uses Meilisearch for N-1 (Q-NET-4).

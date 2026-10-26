@@ -46,3 +46,31 @@
   2. Keep both shapes and document the event as having two legitimate "sub-kinds"; downstream consumers should handle both indefinitely.  
 **Blocked work:** None today (worked around defensively in F10). Should be resolved before F23 (Analytics) or F22 (Notifications) add their own consumers of this event, to avoid a third workaround being written independently.
   
+
+Q-NET-1 | N02 | 2026-10-26
+Question: Should the directory list Hyderabad businesses that have not signed up (from public data) so owners can claim them?
+Why it matters: Solves the cold start faster, but needs a legal check on using public business data and creates takedown work.
+Options (with your recommendation): (a) no unclaimed listings, grow by sign-ups and invites (recommended for launch); (b) listings from public GST and registry data after legal review.
+Blocked work: unclaimed listings in N02 and N03.
+Decision: Resolved 2026-10-26 (founder: go with recommendations): (a) no unclaimed listings at launch; the directory grows by sign-ups and invites. Revisit after a legal review.
+
+Q-NET-2 | N11, F12 | 2026-10-26
+Question: May a card owner show their phone number to people who scan their card face to face (off by default), or are numbers always private?
+Why it matters: "A scan becomes a saved contact" was the core Phase 1 promise; a saved contact without a number is weaker in person.
+Options (with your recommendation): (a) owner opt-in, number shown only after a QR or NFC scan, never in search or shared links (recommended); (b) always private, chat and call requests only.
+Blocked work: the F12 card buttons and vCard change in N11.
+Decision: Resolved 2026-10-26: (a) owner opt-in, off by default; the number is shown only after a QR or NFC scan, never in search, profiles or shared links.
+
+Q-NET-3 | N01–N11 | 2026-10-26
+Question: Confirm the proposed numbers in the network feature files: edit and unsend window 15 min, post edit window 24 h, call request expiry 48 h, requirement auto-close 30 days, export within 72 h, deletion grace 14 days, triage 24 h, appeal 7 days, plus all plan limits in plan section 5.
+Why it matters: Class C numbers (AGENTS.md section 11) must be decided by the founder.
+Options: accept the proposals for the demo and revise later (recommended), or set each now.
+Blocked work: none for building; values are configurable.
+Decision: Resolved 2026-10-26: the proposed numbers are accepted for now (configurable; plan section 5 limits stay samples to be revised).
+
+Q-NET-4 | N03 | 2026-10-26
+Question: Search engine: OpenSearch or Meilisearch?
+Why it matters: Hosting cost and operations. Meilisearch is simpler and cheaper to run at launch scale; OpenSearch scales further.
+Options: Meilisearch for N-1, revisit at 100,000 profiles (recommended); OpenSearch from the start.
+Blocked work: N03 implementation choice.
+Decision: Resolved 2026-10-26: Meilisearch for N-1; revisit at 100,000 profiles.

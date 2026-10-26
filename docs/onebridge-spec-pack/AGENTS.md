@@ -24,7 +24,7 @@ Earlier plans and month schedules are **superseded**. Follow the build order in 
 | Topic | Decision |
 |---|---|
 | Repo model | **One workspace** with strict module boundaries. Folder names match the planned repos so we can split later. This replaces the 15-repo plan. |
-| Free plan | None. Paid plans only (Starter, Business; Enterprise is contact-sales). Verified students are the only free users. |
+| Free plan | **Changed 2026-10-26 (D-NETWORK):** free basic company profiles and free personal member profiles on the business network. Seats, cards, leads, analytics and routing stay paid (Starter, Business; Enterprise is contact-sales). See `docs/plans/business-network-plan.md`. |
 | 14-day trial (OPEN-A) | Not built. Make the payment step movable behind a feature flag (`payment_after_first_card`). |
 | Student verification (OPEN-B) | Both college email OTP and college ID required. Fallback for colleges with no email domain goes to senior review. |
 | Scope cuts (OPEN-C) | Deferred: custom template builder, wallet passes, auto-translate, native NFC, SSO/SAML. |
@@ -158,7 +158,9 @@ Follow `docs/adr/ADR-0003-events-and-data-flow.md` exactly. Analytics events nev
 
 ## 10. Out of scope for Phase 1
 
-Custom template builder, Apple and Google Wallet passes, auto-translate, native mobile apps and in-app NFC read or write, CRM pipeline, connections and directory, messaging, communities, reviews, AI features, marketplace, career profiles, HRMS native connectors, enterprise SSO (SAML, org-level OIDC, SCIM), free plan (except verified students), trial. Google and Microsoft personal sign-in are in scope.
+Custom template builder, Apple and Google Wallet passes, auto-translate, native mobile apps and in-app NFC read or write, CRM pipeline, communities (groups), AI features, HRMS native connectors, enterprise SSO (SAML, org-level OIDC, SCIM), trial. Google and Microsoft personal sign-in are in scope.
+
+**Moved into scope on 2026-10-26 (D-NETWORK, business identity network, Track B):** directory and search, follow, company and member posts and feed, verified business relationships and endorsements (in place of open reviews), buyer requirements and matching (in place of a marketplace), messaging, personal member profiles with verified work history (in place of "career profiles"), and free basic profiles. Requirements live in `docs/features/N01`–`N10`; until those files exist, nothing in Track B is built.
 
 ## 11. Gap policy: what to do when something is not specified
 
