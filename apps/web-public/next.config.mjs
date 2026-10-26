@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Single-service deployment (scripts/single-server.mjs) serves this app's assets under /_cards.
+  assetPrefix: process.env.ASSET_PREFIX || undefined,
   async headers() {
     return [
       {

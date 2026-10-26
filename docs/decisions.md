@@ -165,3 +165,10 @@
 - Date: 2026-10-25
 - Decision: `/` on apps/web-app is now a public product homepage (charcoal and orange, sign-in button, "Open the demo", features, how it works, F17 pricing) instead of a redirect to sign-in. The hosted demo passcode middleware lets `/` through and still guards everything behind it.
 - It is a server component, so it draws the brand mark inline rather than importing the client-only ui-kit barrel.
+
+## D-SINGLE-SERVICE: Hosted prototype as one web service
+
+- Date: 2026-10-26
+- Decision: the founder wants one deployable app. `scripts/single-server.mjs` runs the demo API, apps/web-app and apps/web-public as local processes behind one public port and routes by path (`/svc/*` to the API, admin paths to web-app, everything else to web-public). web-public builds with `ASSET_PREFIX=/_cards` so its `/_next` assets do not clash with the admin app. One build (`scripts/single-build.mjs`), one start command, one URL; `render.yaml` is now a single Standard service.
+- The code stays split (admin and public apps, three services) as the spec requires; only the deployment is combined. Secrets are generated per boot because the in-memory data is discarded; they are required when `MONGODB_URI` is set.
+- Supersedes the three-service layout in D-DEMO-HOSTING.

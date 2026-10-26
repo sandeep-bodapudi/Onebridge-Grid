@@ -1,92 +1,20 @@
-# Hosted prototype (Phase B): three Render web services. See docs/demo/hosting.md.
-# Demo data only: the API runs the fake OTP provider (code 123456) and an in-memory
-# database that is re-seeded on every start (D-DEMO-HOSTING). Never load real customers here.
-#
-# Secrets marked `sync: false` are entered in the Render dashboard when the blueprint is applied.
+# Hosted prototype as ONE Render web service (D-SINGLE-SERVICE). See docs/demo/hosting.md.
+# The API, the admin app and the public site run behind one URL (scripts/single-server.mjs).
+# Demo data only: fake OTP (code 123456) and an in-memory database re-seeded on every start.
+# Never load real customers here.
 services:
   - type: web
-    name: onebridge-demo-api
+    name: onebridge-grid
     runtime: node
-    plan: starter
+    plan: standard # three Node processes plus an in-memory MongoDB need more than 512 MB
     region: singapore
-    buildCommand: >-
-      corepack enable && pnpm install --frozen-lockfile &&
-      pnpm --filter "@onebridge/shared" --filter "@onebridge/api-contracts" run build &&
-      pnpm --filter "@onebridge/identity" --filter "@onebridge/organization" --filter "@onebridge/cards" run build
-    startCommand: node scripts/demo-server.mjs
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && node scripts/single-build.mjs
+    startCommand: node scripts/single-server.mjs
     healthCheckPath: /healthz
     envVars:
-      - key: DEMO_MODE
-        value: "true"
-      - key: NODE_ENV
-        value: development
       - key: NODE_VERSION
         value: "22"
-      - key: APP_URL
-        value: https://onebridge-demo-app.onrender.com
-      - key: WEB_PUBLIC_URL
-        value: https://onebridge-demo-cards.onrender.com
-      - key: JWT_SECRET
-        generateValue: true
-      - key: INTERNAL_SERVICE_KEY
-        generateValue: true
-      - key: ENCRYPTION_KEY
-        sync: false # 64 hex characters: openssl rand -hex 32
-      - key: REVALIDATION_SIGNING_SECRET
-        sync: false # same value as on onebridge-demo-cards
-      - key: DEMO_RESET_KEY
-        sync: false # presenter-only key for POST /demo/reset
-      - key: DEMO_OWNER_PHONE
-        value: "+919988776655"
-      # The app proxies identity at /svc/identity, so the refresh cookie is scoped to that path.
-      - key: COOKIE_PATH
-        value: /svc/identity/auth
-
-  - type: web
-    name: onebridge-demo-app
-    runtime: node
-    plan: starter
-    region: singapore
-    buildCommand: >-
-      corepack enable && pnpm install --frozen-lockfile &&
-      pnpm --filter "@onebridge/shared" --filter "@onebridge/api-contracts" run build &&
-      pnpm --filter "@onebridge/web-app" run build
-    startCommand: pnpm --filter "@onebridge/web-app" exec next start -p $PORT
-    envVars:
-      - key: NODE_VERSION
-        value: "22"
-      # The browser only talks to this origin; /svc/* is proxied to the API (first-party refresh cookie).
-      - key: API_PROXY_TARGET
-        value: https://onebridge-demo-api.onrender.com
-      - key: NEXT_PUBLIC_IDENTITY_API_URL
-        value: /svc/identity
-      - key: NEXT_PUBLIC_ORGANIZATION_API_URL
-        value: /svc/organization
-      - key: NEXT_PUBLIC_CARDS_API_URL
-        value: /svc/cards
-      - key: NEXT_PUBLIC_WEB_PUBLIC_URL
-        value: https://onebridge-demo-cards.onrender.com
-      - key: NEXT_PUBLIC_DEMO_LEADS_PANEL
-        value: "true"
-      - key: NEXT_PUBLIC_DEMO_PHONE
-        value: "+919988776655"
       - key: DEMO_ACCESS_PASSCODE
-        sync: false # shared with invited investors and customers
-
-  - type: web
-    name: onebridge-demo-cards
-    runtime: node
-    plan: starter
-    region: singapore
-    buildCommand: >-
-      corepack enable && pnpm install --frozen-lockfile &&
-      pnpm --filter "@onebridge/shared" --filter "@onebridge/api-contracts" run build &&
-      pnpm --filter "@onebridge/web-public" run build
-    startCommand: pnpm --filter "@onebridge/web-public" exec next start -p $PORT
-    envVars:
-      - key: NODE_VERSION
-        value: "22"
-      - key: CARDS_SERVICE_URL
-        value: https://onebridge-demo-api.onrender.com/cards
-      - key: REVALIDATION_SIGNING_SECRET
-        sync: false # same value as on onebridge-demo-api
+        sync: false # optional: passcode for the dashboard; the homepage, cards and company pages stay public
+      - key: DEMO_RESET_KEY
+        sync: false # optional: presenter key for POST /demo/reset
