@@ -31,7 +31,9 @@ const run = (cmd, extra = {}) => {
 console.log(`[single-build] Public URL: ${publicUrl || '(same origin as the browser)'}`);
 run('pnpm --filter "@onebridge/shared" --filter "@onebridge/api-contracts" run build');
 run('pnpm --filter "@onebridge/identity" --filter "@onebridge/organization" --filter "@onebridge/cards" run build');
-run('pnpm --filter "@onebridge/web-app" run build');
+// Next.js must build with NODE_ENV=production: a host-level NODE_ENV=development makes the
+// prerender mix dev and prod React runtimes ("Cannot read properties of null (reading 'useContext')").
+run('pnpm --filter "@onebridge/web-app" run build', { NODE_ENV: 'production' });
 // The public site's assets are served under /_cards so they never clash with the admin app's /_next.
-run('pnpm --filter "@onebridge/web-public" run build', { ASSET_PREFIX: '/_cards' });
+run('pnpm --filter "@onebridge/web-public" run build', { NODE_ENV: 'production', ASSET_PREFIX: '/_cards' });
 console.log('[single-build] Done');
