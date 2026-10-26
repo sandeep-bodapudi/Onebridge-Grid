@@ -31,7 +31,9 @@ The prototype is **one** Render web service defined in [`render.yaml`](../../ren
    | `NODE_VERSION` | Yes | `22` |
    | `DEMO_ACCESS_PASSCODE` | Optional | Passcode for the dashboard; the homepage, cards and company pages stay public |
    | `DEMO_RESET_KEY` | Optional | Presenter key for `POST /demo/reset` |
-   | `PUBLIC_URL` | Only with a custom domain | e.g. `https://grid.onebridge.in`. Defaults to Render's own URL (`RENDER_EXTERNAL_URL`) |
+   | `PUBLIC_URL` | Recommended | The service's address, e.g. `https://onebridge-grid.onrender.com` or your custom domain. Used in QR codes, short links and vCards. Falls back to Render's `RENDER_EXTERNAL_URL` |
+
+   Do not set `NODE_ENV`: the build needs development dependencies, and the launcher sets it for each part itself.
 
    Secrets (`JWT_SECRET`, `ENCRYPTION_KEY` and the rest) are generated at every start because the data is thrown away anyway. They are required only if you point `MONGODB_URI` at a real database.
 4. Wait for `/healthz` to turn green. The first start downloads MongoDB and seeds the demo company, which takes 1–2 minutes.

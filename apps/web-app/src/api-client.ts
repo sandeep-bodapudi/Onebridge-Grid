@@ -47,7 +47,9 @@ let inFlightRefresh: Promise<string | null> | null = null;
 const IDENTITY_API_URL = process.env.NEXT_PUBLIC_IDENTITY_API_URL || 'http://localhost:4001';
 const ORGANIZATION_API_URL = process.env.NEXT_PUBLIC_ORGANIZATION_API_URL || 'http://localhost:4002';
 const CARDS_API_URL = process.env.NEXT_PUBLIC_CARDS_API_URL || 'http://localhost:4003';
-const WEB_PUBLIC_URL = process.env.NEXT_PUBLIC_WEB_PUBLIC_URL || 'http://localhost:3001';
+// Empty means the public site shares this app's origin (single-service deployment, D-SINGLE-SERVICE).
+const WEB_PUBLIC_URL = process.env.NEXT_PUBLIC_WEB_PUBLIC_URL ?? 'http://localhost:3001';
+const publicBase = (): string => WEB_PUBLIC_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
 export const apiClient = {
   getAccessToken(): string | null {
@@ -1059,7 +1061,7 @@ export const apiClient = {
 
   /** Public company page (apps/web-public). */
   publicCompanyUrl(companySlug: string): string {
-    return `${WEB_PUBLIC_URL}/${companySlug}`;
+    return `${publicBase()}/${companySlug}`;
   },
 
   /** True when the hosted prototype shows the read-only leads list. */
@@ -1069,7 +1071,7 @@ export const apiClient = {
 
   /** Public visitor page for a card (apps/web-public). */
   publicCardUrl(cardSlug: string): string {
-    return `${WEB_PUBLIC_URL}/c/${cardSlug}`;
+    return `${publicBase()}/c/${cardSlug}`;
   },
 
   /**

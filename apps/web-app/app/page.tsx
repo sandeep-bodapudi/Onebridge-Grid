@@ -33,7 +33,7 @@ function SpanMark({ className = 'w-8 h-8' }: { className?: string }) {
   );
 }
 
-const WEB_PUBLIC_URL = process.env.NEXT_PUBLIC_WEB_PUBLIC_URL || 'http://localhost:3001';
+const WEB_PUBLIC_URL = process.env.NEXT_PUBLIC_WEB_PUBLIC_URL ?? 'http://localhost:3001';
 const DEMO_COMPANY_URL = `${WEB_PUBLIC_URL}/sahyadri-steel-works`;
 
 const FEATURES = [

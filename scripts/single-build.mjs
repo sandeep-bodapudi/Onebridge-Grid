@@ -10,7 +10,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const publicUrl = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:10000').replace(/\/+$/, '');
+// Empty when unknown at build time: the browser then uses its own address (same origin).
+const publicUrl = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
 
 const env = {
   ...process.env,
@@ -27,7 +28,7 @@ const run = (cmd, extra = {}) => {
   execSync(cmd, { cwd: rootDir, stdio: 'inherit', env: { ...env, ...extra } });
 };
 
-console.log(`[single-build] Public URL: ${publicUrl}`);
+console.log(`[single-build] Public URL: ${publicUrl || '(same origin as the browser)'}`);
 run('pnpm --filter "@onebridge/shared" --filter "@onebridge/api-contracts" run build');
 run('pnpm --filter "@onebridge/identity" --filter "@onebridge/organization" --filter "@onebridge/cards" run build');
 run('pnpm --filter "@onebridge/web-app" run build');

@@ -14,6 +14,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: PUBLIC_URL
+        sync: false # recommended: this service's address, e.g. https://onebridge-grid.onrender.com (QR codes, short links)
       - key: DEMO_ACCESS_PASSCODE
         sync: false # optional: passcode for the dashboard; the homepage, cards and company pages stay public
       - key: DEMO_RESET_KEY
