@@ -108,6 +108,39 @@ export class AuthService {
     return this.verifyOtpAndLogin(this.toE164(phone), code, deviceLabel, ipAddress);
   }
 
+  /** F14: email one-time codes, so an invitee can verify the email an invite was sent to. */
+  private normaliseEmail(email: string): string {
+    const value = String(email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || value.length > 254) throw new Error('Invalid email address');
+    return value;
+  }
+
+  async requestEmailOtp(email: string, ipAddress: string) {
+    const normalised = this.normaliseEmail(email);
+    // Challenges are keyed by an identifier string; emails use an "email:" prefix so they never collide with phones.
+    return this.otpService.requestOtp(`email:${normalised}`, ipAddress, normalised);
+  }
+
+  async verifyEmailOtp(email: string, code: string, deviceLabel: string, ipAddress: string, correlationId = 'unknown'): Promise<VerifyOtpResult> {
+    const normalised = this.normaliseEmail(email);
+    await this.otpService.verifyOtp(`email:${normalised}`, code, ipAddress);
+    let person = await this.personRepo.findByEmail(normalised);
+    if (!person) {
+      const userId = `usr_${crypto.randomBytes(12).toString('hex')}`;
+      person = await this.personRepo.create({ userId, email: normalised, authProviders: ['otp'], mfa: { enabled: false } });
+      await this.eventBus.publish({
+        eventId: crypto.randomUUID(),
+        type: 'user.registered',
+        version: '1.0.0',
+        tenantId: 'global',
+        occurredAt: new Date().toISOString(),
+        correlationId,
+        payload: { userId },
+      });
+    }
+    return this.completeLogin(person, deviceLabel, ipAddress, correlationId);
+  }
+
   async loginWithOAuth(
     provider: 'google' | 'microsoft',
     idToken: string,
@@ -163,6 +196,16 @@ export class AuthService {
       });
     }
 
+    return this.completeLogin(person, deviceLabel, ipAddress, correlationId);
+  }
+
+  /** MFA checks and session issuance after a verified one-time code (phone or email). */
+  private async completeLogin(
+    person: NonNullable<Awaited<ReturnType<AuthService['personRepo']['findByPhone']>>>,
+    deviceLabel: string,
+    ipAddress: string,
+    correlationId: string
+  ): Promise<VerifyOtpResult> {
     // 3. Check MFA Requirements (AC-8: Mandatory for Owner/Admin on Business plan)
     const isOwnerOrAdmin = (person.roles || []).some(
       (r) => (r.role === 'Owner' || r.role === 'Admin') && r.plan === 'Business'

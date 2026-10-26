@@ -16,6 +16,8 @@ export async function createApp(options: OrganizationModuleOptions = {}): Promis
       identityClient: options.identityClient,
       eventBus: options.eventBus,
       requestAuthenticator: options.requestAuthenticator,
+      inviteNotifier: options.inviteNotifier,
+      keyVault: options.keyVault,
     })
   );
 

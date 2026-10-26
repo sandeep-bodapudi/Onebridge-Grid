@@ -426,7 +426,19 @@ export class CardsService {
         aggregateVersion: existing.aggregateVersion + 1,
         updatedAt: now,
       };
-      return TenantContext.run(tenantId, () => this.cardRepo.save(pending));
+      const saved = await TenantContext.run(tenantId, () => this.cardRepo.save(pending));
+      // F14 AC-4: admins are notified that a card waits for approval (delivered by F22 notifications).
+      await this.eventBus.publish({
+        eventId: ulid(),
+        type: 'card.approval_requested',
+        version: '1.0.0',
+        tenantId,
+        occurredAt: now,
+        correlationId,
+        aggregateVersion: saved.aggregateVersion,
+        payload: { cardId: saved.id, seatId: saved.ownerId, requestedBy: caller.personId },
+      });
+      return saved;
     }
 
     return this.doPublish(tenantId, existing, now, correlationId);

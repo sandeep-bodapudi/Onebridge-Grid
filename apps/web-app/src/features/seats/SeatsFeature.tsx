@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import type { Seat, Branch, Department, Team, CardSummary } from '@onebridge/api-contracts';
+import type { Seat, Branch, Department, Team, CardSummary, InviteSummary } from '@onebridge/api-contracts';
 import { SeatsManagement, type SeatItem, type NewSeatInput } from '@onebridge/ui-kit';
 import { apiClient } from '../../api-client';
+import { SeatInvitePanel } from './SeatInvitePanel';
 
 export interface SeatsFeatureProps {
   tenantId: string;
@@ -29,10 +30,12 @@ export const SeatsFeature: React.FC<SeatsFeatureProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [invites, setInvites] = useState<Map<string, InviteSummary>>(new Map());
 
-  const loadData = useCallback(async () => {
+  /** quiet: refresh without the loading skeleton (keeps the open detail panel mounted). */
+  const loadData = useCallback(async (quiet = false) => {
     if (!tenantId) return;
-    setIsLoading(true);
+    if (!quiet) setIsLoading(true);
     setError(null);
     try {
       const [fetchedSeats, fetchedBranches, fetchedDepts, fetchedTeams, cards] = await Promise.all([
@@ -42,6 +45,11 @@ export const SeatsFeature: React.FC<SeatsFeatureProps> = ({
         apiClient.listTeams(tenantId).catch(() => [] as Team[]),
         apiClient.listCardSummaries(tenantId).catch(() => [] as CardSummary[]),
       ]);
+      // F14: open invites for the people list (owners and admins only; others get none).
+      apiClient
+        .listInvites(tenantId)
+        .then((items) => setInvites(new Map(items.map((i) => [i.seatId, i]))))
+        .catch(() => setInvites(new Map()));
       const cardBySeat = new Map(cards.map((c) => [c.seatId || c.id, c]));
 
       const items = (fetchedSeats.items || []).map((s: Seat): SeatItem => ({
@@ -164,6 +172,27 @@ export const SeatsFeature: React.FC<SeatsFeatureProps> = ({
         onUpdateStatus={handleUpdateStatus}
         onArchiveSeat={handleArchiveSeat}
         onEditCard={onEditCard}
+        renderInvite={(seat) => (
+          <SeatInvitePanel
+            key={seat.id}
+            seat={seat}
+            invite={invites.get(seat.id)}
+            onSend={async (channel, contact) => {
+              const sent = await apiClient.inviteToSeat(tenantId, seat.id, { channel, contact });
+              await loadData(true);
+              return sent;
+            }}
+            onResend={async () => {
+              const sent = await apiClient.resendInvite(tenantId, seat.id);
+              await loadData(true);
+              return sent;
+            }}
+            onRevoke={async () => {
+              await apiClient.revokeInvite(tenantId, seat.id);
+              await loadData(true);
+            }}
+          />
+        )}
       />
     </div>
   );

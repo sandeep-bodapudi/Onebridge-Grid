@@ -29,3 +29,8 @@ export * from './organization.module.js';
 export * from './app.js';
 
 export * from './infrastructure/dev-seed.js';
+export * from './domain/invite.js';
+export * from './infrastructure/mongo-invite.repository.js';
+export * from './infrastructure/invite-notifier.js';
+export * from './application/invite.service.js';
+export * from './presentation/invites.controller.js';

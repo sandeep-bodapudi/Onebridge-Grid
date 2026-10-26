@@ -1,5 +1,10 @@
 import type {
   CompanyProfileSettings,
+  InviteRequest,
+  InviteSummary,
+  InvitePreview,
+  ClaimInviteRequest,
+  ClaimInviteResponse,
   Organization,
   CreateOrganizationRequest,
   UpdateOrganizationRequest,
@@ -148,6 +153,37 @@ export const apiClient = {
     if (data.accessToken) {
       inMemoryAccessToken = data.accessToken;
     }
+    return data;
+  },
+
+  /** F14: sign in with a one-time code sent by email (to claim an invite sent by email). */
+  async requestEmailOtp(email: string): Promise<{ message: string; cooldownSeconds?: number }> {
+    const res = await fetch(`${IDENTITY_API_URL}/auth/otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'onebridge-csrf-token' },
+      body: JSON.stringify({ email }),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'Could not send the code');
+    }
+    return res.json();
+  },
+
+  async verifyEmailOtp(email: string, code: string, deviceLabel = 'Browser'): Promise<{ status: string; accessToken?: string; mfaTicket?: string }> {
+    const res = await fetch(`${IDENTITY_API_URL}/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'onebridge-csrf-token' },
+      body: JSON.stringify({ email, code, deviceLabel }),
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.title || 'That code is not right');
+    }
+    const data = await res.json();
+    if (data.accessToken) inMemoryAccessToken = data.accessToken;
     return data;
   },
 
@@ -676,6 +712,50 @@ export const apiClient = {
       throw new Error(err.detail || err.title || 'Failed to assign seat');
     }
     return res.json();
+  },
+
+  /** Organization service request with the in-memory token; throws the server's problem detail (and code) on failure. */
+  async orgRequest<T>(path: string, init: RequestInit, tenantId?: string, fallbackError = 'Request failed'): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (init.body) headers['Content-Type'] = 'application/json';
+    if (tenantId) headers['X-Tenant-Id'] = tenantId;
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    const res = await fetch(`${ORGANIZATION_API_URL}${path}`, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> | undefined) }, credentials: 'include' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const error = new Error(err.detail || err.title || fallbackError) as Error & { code?: string; status?: number };
+      error.code = err.code;
+      error.status = res.status;
+      throw error;
+    }
+    return res.json() as Promise<T>;
+  },
+
+  /** F14: invite a person into a seat (replaces any open invite). */
+  async inviteToSeat(tenantId: string, seatId: string, req: InviteRequest): Promise<InviteSummary> {
+    return this.orgRequest<InviteSummary>(`/orgs/${tenantId}/seats/${encodeURIComponent(seatId)}/invite`, { method: 'POST', body: JSON.stringify(req) }, tenantId, 'Could not send the invite');
+  },
+
+  async resendInvite(tenantId: string, seatId: string): Promise<InviteSummary> {
+    return this.orgRequest<InviteSummary>(`/orgs/${tenantId}/seats/${encodeURIComponent(seatId)}/invite/resend`, { method: 'POST' }, tenantId, 'Could not resend the invite');
+  },
+
+  async revokeInvite(tenantId: string, seatId: string): Promise<InviteSummary> {
+    return this.orgRequest<InviteSummary>(`/orgs/${tenantId}/seats/${encodeURIComponent(seatId)}/invite/revoke`, { method: 'POST' }, tenantId, 'Could not cancel the invite');
+  },
+
+  async listInvites(tenantId: string): Promise<InviteSummary[]> {
+    const data = await this.orgRequest<{ items: InviteSummary[] }>(`/orgs/${tenantId}/invites`, { method: 'GET' }, tenantId, 'Could not load invites');
+    return data.items || [];
+  },
+
+  /** F14: what an invite link is for (no sign-in needed). */
+  async getInvite(token: string): Promise<InvitePreview> {
+    return this.orgRequest<InvitePreview>(`/invites/${encodeURIComponent(token)}`, { method: 'GET' }, undefined, 'Could not open the invite');
+  },
+
+  async claimInvite(token: string, req: ClaimInviteRequest): Promise<ClaimInviteResponse> {
+    return this.orgRequest<ClaimInviteResponse>(`/invites/${encodeURIComponent(token)}/claim`, { method: 'POST', body: JSON.stringify(req) }, undefined, 'Could not claim the invite');
   },
 
   async archiveSeat(tenantId: string, seatId: string): Promise<Seat> {

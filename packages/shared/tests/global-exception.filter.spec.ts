@@ -59,4 +59,35 @@ describe('AC-10: Global Exception Filter', () => {
     expect(logged.message).toContain('Test Error');
     expect(logged.correlationId).toBe('123');
   });
+
+  it('passes through a safe machine-readable code and numeric hints, and nothing else', () => {
+    const { host, json } = makeHost();
+    const exception = {
+      getStatus: () => 403,
+      getResponse: () => ({
+        title: 'Forbidden',
+        detail: 'Sign in with the invited number.',
+        code: 'wrong_person',
+        retryAfterSeconds: 30,
+        limit: 50,
+        stack: 'secret',
+        personPhone: '+919820012345',
+      }),
+    };
+
+    new GlobalExceptionFilter().catch(exception, host);
+
+    const body = json.mock.calls[0][0] as Record<string, unknown>;
+    expect(body.code).toBe('wrong_person');
+    expect(body.retryAfterSeconds).toBe(30);
+    expect(body.limit).toBe(50);
+    expect(body).not.toHaveProperty('stack');
+    expect(body).not.toHaveProperty('personPhone');
+  });
+
+  it('drops a code that is not a simple identifier', () => {
+    const { host, json } = makeHost();
+    new GlobalExceptionFilter().catch({ getStatus: () => 400, getResponse: () => ({ title: 'Bad', code: '<script>' }) }, host);
+    expect(json.mock.calls[0][0]).not.toHaveProperty('code');
+  });
 });

@@ -364,7 +364,8 @@ export class SeatsService {
     const updated: SeatProps = {
       ...existing,
       personId: dto.personId.trim(),
-      status: (existing.status === 'vacant' || existing.status === 'offboarded') ? 'active' : existing.status,
+      // F14: a claimed invite ("invited") becomes active too.
+      status: (existing.status === 'vacant' || existing.status === 'offboarded' || existing.status === 'invited') ? 'active' : existing.status,
       // cardBinding strictly preserved
       cardBinding: existing.cardBinding,
       updatedAt: now,

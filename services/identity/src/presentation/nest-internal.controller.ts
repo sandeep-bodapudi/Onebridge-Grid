@@ -5,6 +5,7 @@ import {
   NotFoundException,
   BadRequestException,
   Post,
+  Param,
   Body,
   Headers,
   HttpCode,
@@ -68,6 +69,7 @@ export class NestInternalController {
       branchId?: string;
       departmentId?: string;
       teamId?: string;
+      onlyIfAbsent?: boolean;
     },
     @Headers('idempotency-key') idempotencyKey?: string,
     @Headers('x-correlation-id') correlationId = 'unknown'
@@ -106,6 +108,7 @@ export class NestInternalController {
       branchId: body.branchId,
       departmentId: body.departmentId,
       teamId: body.teamId,
+      onlyIfAbsent: body.onlyIfAbsent === true,
     });
 
     if (idempotencyKey) {
@@ -116,5 +119,20 @@ export class NestInternalController {
     }
 
     return membership;
+  }
+
+  /** F14: verified phone and email of a person, for the seat-claim contact check. */
+  @Get('persons/:personId/contacts')
+  async getPersonContacts(@Param('personId') personId: string): Promise<{ phone?: string; email?: string }> {
+    const contacts = await this.rbacService.getPersonContacts(personId);
+    if (!contacts) {
+      throw new NotFoundException({
+        type: 'https://tools.ietf.org/html/rfc7807',
+        title: 'Not Found',
+        status: 404,
+        detail: 'No person with this ID',
+      });
+    }
+    return contacts;
   }
 }

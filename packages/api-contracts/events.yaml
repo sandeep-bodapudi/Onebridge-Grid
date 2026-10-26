@@ -572,6 +572,25 @@ components:
             tenantId: { type: string }
             slug: { type: string }
         aggregateVersion: { type: integer }
+    CardApprovalRequestedEvent:
+      description: F14 AC-4. An employee published a card in a company that requires approval; admins are notified (F22).
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "card.approval_requested" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [cardId, seatId, requestedBy]
+          properties:
+            cardId: { type: string }
+            seatId: { type: string }
+            requestedBy: { type: string, description: personId of the employee }
+        aggregateVersion: { type: integer }
     KybStatusChangedEvent:
       type: object
       required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]

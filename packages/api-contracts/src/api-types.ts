@@ -6,7 +6,7 @@
 
 export interface paths {
   "/auth/otp": {
-    /** Request mobile OTP */
+    /** Request a one-time code by mobile, or by email (F14 invites sent by email) */
     post: {
       parameters: {
         header?: {
@@ -18,7 +18,9 @@ export interface paths {
         content: {
           "application/json": {
             /** @example +919876543210 */
-            phone: string;
+            phone?: string;
+            /** Format: email */
+            email?: string;
           };
         };
       };
@@ -55,7 +57,9 @@ export interface paths {
         content: {
           "application/json": {
             /** @example +919876543210 */
-            phone: string;
+            phone?: string;
+            /** Format: email */
+            email?: string;
             /** @example 123456 */
             code: string;
             /** @example Chrome on macOS */
@@ -1274,6 +1278,171 @@ export interface paths {
           content: {
             "application/problem+json": components["schemas"]["ProblemDetails"];
           };
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/seats/{seatId}/invite": {
+    /** Invite a person into a seat by SMS, WhatsApp or email (F14). Replaces any open invite for the seat. */
+    post: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+        };
+        path: {
+          tenantId: string;
+          seatId: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["InviteRequest"];
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": components["schemas"]["InviteSummary"];
+          };
+        };
+        /** @description Bad channel or contact */
+        400: {
+          content: never;
+        };
+        /** @description Not an owner or admin, or the seat is over the plan limit (code over_limit) */
+        403: {
+          content: never;
+        };
+        /** @description The seat already has a person (seat_taken) or is closed (seat_closed) */
+        409: {
+          content: never;
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/seats/{seatId}/invite/resend": {
+    /** Send a fresh invite link to the same contact (F14). The previous link stops working. */
+    post: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+        };
+        path: {
+          tenantId: string;
+          seatId: string;
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": components["schemas"]["InviteSummary"];
+          };
+        };
+        /** @description The seat has no invite to resend */
+        404: {
+          content: never;
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/seats/{seatId}/invite/revoke": {
+    /** Cancel the open invite for a seat (F14) */
+    post: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+        };
+        path: {
+          tenantId: string;
+          seatId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["InviteSummary"];
+          };
+        };
+        /** @description The seat has no open invite */
+        404: {
+          content: never;
+        };
+      };
+    };
+  };
+  "/orgs/{tenantId}/invites": {
+    /** Open invites in the company (F14), owners and admins */
+    get: {
+      parameters: {
+        header?: {
+          "X-Tenant-Id"?: string;
+        };
+        path: {
+          tenantId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              items: components["schemas"]["InviteSummary"][];
+            };
+          };
+        };
+      };
+    };
+  };
+  "/invites/{token}": {
+    /** What an invite link is for (F14). Minimal data, and only the status unless the invite is open. */
+    get: {
+      parameters: {
+        path: {
+          token: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["InvitePreview"];
+          };
+        };
+      };
+    };
+  };
+  "/invites/{token}/claim": {
+    /** Claim the seat (F14). The signed-in person must have verified the invited phone or email and accept the current notice. */
+    post: {
+      parameters: {
+        path: {
+          token: string;
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ClaimInviteRequest"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["ClaimInviteResponse"];
+          };
+        };
+        /** @description Notice not accepted, or an old notice version (code notice_required) */
+        400: {
+          content: never;
+        };
+        /** @description Signed in with a different phone or email than the invite (code wrong_person) */
+        403: {
+          content: never;
+        };
+        /** @description Unknown link (code invalid) */
+        404: {
+          content: never;
+        };
+        /** @description Already used (claimed), cancelled (revoked) or expired (expired) */
+        410: {
+          content: never;
         };
       };
     };
@@ -3012,6 +3181,65 @@ export interface components {
       branchId?: string;
       consent: boolean;
       turnstileToken?: string;
+    };
+    /** @enum {string} */
+    InviteChannel: "sms" | "whatsapp" | "email";
+    InviteRequest: {
+      channel: components["schemas"]["InviteChannel"];
+      /** @description Mobile number for sms and whatsapp */
+      contact: string;
+    };
+    InviteSummary: {
+      inviteId: string;
+      seatId: string;
+      channel: components["schemas"]["InviteChannel"];
+      /** @example +91 •••••• 3456 */
+      contactMasked: string;
+      /** @enum {string} */
+      status: "pending" | "claimed" | "revoked" | "expired";
+      /** Format: date-time */
+      expiresAt: string;
+      sentCount: number;
+      /** Format: date-time */
+      lastSentAt: string;
+      /** @description Only while invites are not delivered for real (fake notifier */
+      inviteUrl?: string;
+    };
+    InvitePreview: {
+      /** @enum {string} */
+      status: "pending" | "claimed" | "revoked" | "expired" | "invalid";
+      companyName?: string;
+      companyLogo?: string;
+      seatTitle?: string;
+      channel?: components["schemas"]["InviteChannel"];
+      contactMasked?: string;
+      /** Format: date-time */
+      expiresAt?: string;
+      notice?: {
+        version: string;
+        en: {
+          title: string;
+          points: string[];
+          accept: string;
+          decline: string;
+        };
+        hi: {
+          title: string;
+          points: string[];
+          accept: string;
+          decline: string;
+        };
+      };
+    };
+    ClaimInviteRequest: {
+      acceptNotice: boolean;
+      noticeVersion: string;
+    };
+    ClaimInviteResponse: {
+      tenantId: string;
+      seatId: string;
+      cardId: string;
+      companyName: string;
     };
     CardSummary: {
       /** @description Card ID (equals the seat ID) */

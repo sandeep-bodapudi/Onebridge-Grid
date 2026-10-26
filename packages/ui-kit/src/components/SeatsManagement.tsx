@@ -157,6 +157,8 @@ export interface SeatsManagementProps {
   onArchiveSeat?: (seatId: string) => Promise<void> | void;
   /** Opens the card editor for a seat. */
   onEditCard?: (seatId: string) => void;
+  /** F14: invite controls for a seat (send, resend, cancel), shown in the seat's detail panel. */
+  renderInvite?: (seat: SeatItem) => React.ReactNode;
   branches?: Array<{ id: string; name: string }>;
   departments?: Array<{ id: string; name: string }>;
   teams?: Array<{ id: string; name: string }>;
@@ -181,6 +183,7 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
   onUpdateStatus,
   onArchiveSeat,
   onEditCard,
+  renderInvite,
   branches = [],
   departments = [],
   teams = [],
@@ -393,12 +396,16 @@ export const SeatsManagement: React.FC<SeatsManagementProps> = ({
               {seat.status === 'inactive' ? 'Reactivate card' : 'Pause card'}
             </Button>
           ) : null}
-          <p className="flex items-start gap-2 text-[13px] text-charcoal/70 dark:text-warm-paper/55 pt-1">
-            <UserPlus className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
-            <span>
-              <span className="font-semibold">{labels.assignPersonTitle}</span> is coming soon. {labels.assignPersonDesc}
-            </span>
-          </p>
+          {renderInvite ? (
+            renderInvite(seat)
+          ) : (
+            <p className="flex items-start gap-2 text-[13px] text-charcoal/70 dark:text-warm-paper/55 pt-1">
+              <UserPlus className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+              <span>
+                <span className="font-semibold">{labels.assignPersonTitle}</span> is coming soon. {labels.assignPersonDesc}
+              </span>
+            </p>
+          )}
           {onArchiveSeat ? (
             <Button
               variant="ghost"

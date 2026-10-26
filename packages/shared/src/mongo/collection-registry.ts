@@ -115,6 +115,16 @@ export const KNOWN_COLLECTIONS: Record<string, CollectionMetadata> = {
     classification: 'tenant-scoped',
     description: 'Public company page settings (F26): catalogue, services, portfolio, documents, directory, enquiry routing, SEO',
   },
+  invites: {
+    name: 'invites',
+    classification: 'tenant-scoped',
+    description: 'Seat invites (F14): hashed single-use token, encrypted contact, channel, expiry, status',
+  },
+  notice_acceptances: {
+    name: 'notice_acceptances',
+    classification: 'tenant-scoped',
+    description: 'Seat-claim privacy notice acceptances (F14 AC-2): person, seat, notice version, timestamp',
+  },
 };
 
 export const ALLOWLISTED_GLOBAL_COLLECTIONS = Object.values(KNOWN_COLLECTIONS)

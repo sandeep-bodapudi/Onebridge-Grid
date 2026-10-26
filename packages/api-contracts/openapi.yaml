@@ -5,7 +5,7 @@ info:
 paths:
   /auth/otp:
     post:
-      summary: Request mobile OTP
+      summary: Request a one-time code by mobile, or by email (F14 invites sent by email)
       parameters:
         - in: header
           name: Idempotency-Key
@@ -19,9 +19,10 @@ paths:
           application/json:
             schema:
               type: object
-              required: [phone]
+              description: Send phone, or email when signing in to claim an email invite.
               properties:
                 phone: { type: string, example: "+919876543210" }
+                email: { type: string, format: email }
       responses:
         '200':
           description: OTP dispatched
@@ -52,9 +53,11 @@ paths:
           application/json:
             schema:
               type: object
-              required: [phone, code]
+              required: [code]
+              description: Send phone, or email for an email one-time code.
               properties:
                 phone: { type: string, example: "+919876543210" }
+                email: { type: string, format: email }
                 code: { type: string, example: "123456" }
                 deviceLabel: { type: string, example: "Chrome on macOS" }
       responses:
@@ -1480,6 +1483,163 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+
+  /orgs/{tenantId}/seats/{seatId}/invite:
+    post:
+      summary: Invite a person into a seat by SMS, WhatsApp or email (F14). Replaces any open invite for the seat.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: seatId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteSummary'
+        '400':
+          description: Bad channel or contact
+        '403':
+          description: Not an owner or admin, or the seat is over the plan limit (code over_limit)
+        '409':
+          description: The seat already has a person (seat_taken) or is closed (seat_closed)
+
+  /orgs/{tenantId}/seats/{seatId}/invite/resend:
+    post:
+      summary: Send a fresh invite link to the same contact (F14). The previous link stops working.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: seatId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteSummary'
+        '404':
+          description: The seat has no invite to resend
+
+  /orgs/{tenantId}/seats/{seatId}/invite/revoke:
+    post:
+      summary: Cancel the open invite for a seat (F14)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: seatId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteSummary'
+        '404':
+          description: The seat has no open invite
+
+  /orgs/{tenantId}/invites:
+    get:
+      summary: Open invites in the company (F14), owners and admins
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Tenant-Id
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/InviteSummary' } }
+
+  /invites/{token}:
+    get:
+      summary: What an invite link is for (F14). Minimal data, and only the status unless the invite is open.
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitePreview'
+
+  /invites/{token}/claim:
+    post:
+      summary: Claim the seat (F14). The signed-in person must have verified the invited phone or email and accept the current notice.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimInviteRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimInviteResponse'
+        '400':
+          description: Notice not accepted, or an old notice version (code notice_required)
+        '403':
+          description: Signed in with a different phone or email than the invite (code wrong_person)
+        '404':
+          description: Unknown link (code invalid)
+        '410':
+          description: Already used (claimed), cancelled (revoked) or expired (expired)
 
   /orgs/{tenantId}/seats/{seatId}/archive:
     post:
@@ -3382,6 +3542,80 @@ components:
         branchId: { type: string, description: Route to this branch's contact }
         consent: { type: boolean }
         turnstileToken: { type: string }
+
+    InviteChannel:
+      type: string
+      enum: [sms, whatsapp, email]
+
+    InviteRequest:
+      type: object
+      required: [channel, contact]
+      properties:
+        channel: { $ref: '#/components/schemas/InviteChannel' }
+        contact: { type: string, description: Mobile number for sms and whatsapp, email address for email }
+
+    InviteSummary:
+      type: object
+      required: [inviteId, seatId, channel, contactMasked, status, expiresAt, sentCount, lastSentAt]
+      properties:
+        inviteId: { type: string }
+        seatId: { type: string }
+        channel: { $ref: '#/components/schemas/InviteChannel' }
+        contactMasked: { type: string, example: "+91 •••••• 3456" }
+        status: { type: string, enum: [pending, claimed, revoked, expired] }
+        expiresAt: { type: string, format: date-time }
+        sentCount: { type: integer }
+        lastSentAt: { type: string, format: date-time }
+        inviteUrl: { type: string, description: Only while invites are not delivered for real (fake notifier, never in production) }
+
+    InvitePreview:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [pending, claimed, revoked, expired, invalid] }
+        companyName: { type: string }
+        companyLogo: { type: string }
+        seatTitle: { type: string }
+        channel: { $ref: '#/components/schemas/InviteChannel' }
+        contactMasked: { type: string }
+        expiresAt: { type: string, format: date-time }
+        notice:
+          type: object
+          required: [version, en, hi]
+          properties:
+            version: { type: string }
+            en:
+              type: object
+              required: [title, points, accept, decline]
+              properties:
+                title: { type: string }
+                points: { type: array, items: { type: string } }
+                accept: { type: string }
+                decline: { type: string }
+            hi:
+              type: object
+              required: [title, points, accept, decline]
+              properties:
+                title: { type: string }
+                points: { type: array, items: { type: string } }
+                accept: { type: string }
+                decline: { type: string }
+
+    ClaimInviteRequest:
+      type: object
+      required: [acceptNotice, noticeVersion]
+      properties:
+        acceptNotice: { type: boolean }
+        noticeVersion: { type: string }
+
+    ClaimInviteResponse:
+      type: object
+      required: [tenantId, seatId, cardId, companyName]
+      properties:
+        tenantId: { type: string }
+        seatId: { type: string }
+        cardId: { type: string }
+        companyName: { type: string }
 
     CardSummary:
       type: object

@@ -192,3 +192,15 @@
 
 - Date: 2026-10-26
 - No unclaimed listings at launch (Q-NET-1). Card owners may opt in to show their number only after a face-to-face QR or NFC scan, off by default (Q-NET-2). Proposed timings in N01 to N11 are accepted and stay configurable (Q-NET-3). Search uses Meilisearch for N-1 (Q-NET-4).
+
+## D-F14: invite and seat claim implementation decisions
+
+- Date: 2026-10-26
+- Routes use slashes, not the spec's colon form: `POST /orgs/{tenantId}/seats/{seatId}/invite`, `.../invite/resend`, `.../invite/revoke`, `GET /invites/{token}`, `POST /invites/{token}/claim` (also in `docs/spec-deviations.md` terms: same behaviour, path shape only).
+- D-INVITE-DEV-LINK: until F22 delivers invites for real, the fake notifier is used and the invite link is returned to the admin (never when NODE_ENV=production or when a real notifier is configured), so the demo can be run end to end.
+- Email invites need email verification, so identity gained email one-time codes (`/auth/otp` and `/auth/verify` accept `email` instead of `phone`; contract updated, phone stays optional).
+- A claim never lowers an existing membership (identity `createMembership` gained `onlyIfAbsent`).
+- The invitee's contact is stored AES-256-GCM encrypted (tenant key) with an HMAC index for matching; the token is stored only as a SHA-256 hash; single use is enforced with an atomic pending-to-claimed update.
+- `card.approval_requested` is emitted when an employee publishes in a company that needs approval (F14 AC-4); F22 will deliver the admin notification.
+- The shared error filter now passes through RFC 7807 extension members `code`, `retryAfterSeconds` and `limit` (validated), so clients can act on them (for example `wrong_person`, `over_limit`).
+- Found while testing, to fix in F28 hardening: identity issues the fixed code 123456 for every one-time code, outside demo mode too.

@@ -68,6 +68,11 @@ export class GlobalExceptionFilter {
           status,
           detail: respObj.detail || (Array.isArray(respObj.message) ? respObj.message.join(', ') : respObj.message) || fallbackMsg,
           correlationId: (respObj.correlationId as string) || correlationId,
+          // RFC 7807 extension members the clients act on: a machine-readable code
+          // (e.g. wrong_person, over_limit) and numeric hints. Nothing else is passed through.
+          ...(typeof respObj.code === 'string' && /^[a-z][a-z0-9_]{0,40}$/.test(respObj.code) ? { code: respObj.code } : {}),
+          ...(typeof respObj.retryAfterSeconds === 'number' ? { retryAfterSeconds: respObj.retryAfterSeconds } : {}),
+          ...(typeof respObj.limit === 'number' ? { limit: respObj.limit } : {}),
         });
       }
 

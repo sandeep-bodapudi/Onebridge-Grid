@@ -96,14 +96,17 @@ export class NestAuthController {
   @Post('otp')
   @HttpCode(HttpStatus.OK)
   async requestOtp(
-    @Body() body: { phone: string },
+    @Body() body: { phone?: string; email?: string },
     @Headers('idempotency-key') idempotencyKey?: string,
     @Headers('x-correlation-id') correlationId = 'unknown',
     @Req() req?: HttpRequest
   ) {
     const ip = getClientIp(req);
     return this.handleIdempotency(idempotencyKey, body, correlationId, async () => {
-      const result = await this.authService.requestOtp(body.phone, ip);
+      // F14: an email code verifies the email an invite was sent to.
+      const result = body.email && !body.phone
+        ? await this.authService.requestEmailOtp(body.email, ip)
+        : await this.authService.requestOtp(body.phone as string, ip);
       return {
         message: result.message,
         cooldownSeconds: result.cooldownSeconds,
@@ -114,7 +117,7 @@ export class NestAuthController {
   @Post('verify')
   @HttpCode(HttpStatus.OK)
   async verifyOtp(
-    @Body() body: { phone: string; code: string; deviceLabel?: string },
+    @Body() body: { phone?: string; email?: string; code: string; deviceLabel?: string },
     @Headers('idempotency-key') idempotencyKey?: string,
     @Headers('x-correlation-id') correlationId = 'unknown',
     @Res({ passthrough: true }) res?: HttpResponse,
@@ -123,12 +126,9 @@ export class NestAuthController {
     const ip = getClientIp(req);
     const userAgent = getClientUserAgent(req);
     return this.handleIdempotency(idempotencyKey, body, correlationId, async () => {
-      const result = await this.authService.verifyOtp(
-        body.phone,
-        body.code,
-        body.deviceLabel || userAgent,
-        ip
-      );
+      const result = body.email && !body.phone
+        ? await this.authService.verifyEmailOtp(body.email, body.code, body.deviceLabel || userAgent, ip, correlationId)
+        : await this.authService.verifyOtp(body.phone as string, body.code, body.deviceLabel || userAgent, ip);
 
       if (result.refreshToken && res) {
         const cookieOpts = getRefreshTokenCookieOptions(

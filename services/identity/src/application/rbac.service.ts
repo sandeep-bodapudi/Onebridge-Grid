@@ -131,8 +131,11 @@ export class RbacService {
     branchId?: string;
     departmentId?: string;
     teamId?: string;
+    /** F14 seat claim: keep an existing membership (never lower an owner's or admin's role). */
+    onlyIfAbsent?: boolean;
   }): Promise<MembershipProps> {
     const existing = await this.membershipRepo.findByPersonAndOrg(props.personId, props.orgId);
+    if (existing && props.onlyIfAbsent) return existing;
     const membership: MembershipProps = {
       id: existing ? existing.id : `mem-${Math.random().toString(36).substring(2, 9)}`,
       personId: props.personId,
@@ -148,5 +151,16 @@ export class RbacService {
     };
 
     return this.membershipRepo.save(membership);
+  }
+
+  /**
+   * Verified contact details of a person (phone verified by OTP at sign-in,
+   * email from a verified provider), for the F14 seat-claim check that the
+   * invite was sent to this person. Internal (service key) only.
+   */
+  async getPersonContacts(personId: string): Promise<{ phone?: string; email?: string } | null> {
+    const person = await this.personRepo.findById(personId);
+    if (!person) return null;
+    return { phone: person.phone || undefined, email: person.email ? person.email.toLowerCase() : undefined };
   }
 }

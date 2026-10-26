@@ -1,5 +1,5 @@
 import { Module, DynamicModule, Global, OnModuleInit } from '@nestjs/common';
-import { MongoConnectionHandle, FakeEventBus, EventBus } from '@onebridge/shared';
+import { MongoConnectionHandle, FakeEventBus, EventBus, KeyVaultProvider, LocalKeyVaultProvider } from '@onebridge/shared';
 import { OrganizationEnvConfig, loadAndValidateEnv } from './config/env.js';
 import { OrganizationService } from './application/organization.service.js';
 import { MongoOrganizationRepository } from './infrastructure/mongo-organization.repository.js';
@@ -27,6 +27,10 @@ import { FakeMediaStorageService } from './infrastructure/media-storage.service.
 import { BrandKitService } from './application/brand-kit.service.js';
 import { AuditLogService } from './application/audit-log.service.js';
 import { AuditController } from './presentation/audit.controller.js';
+import { InviteService } from './application/invite.service.js';
+import { MongoInviteRepository, MongoNoticeAcceptanceRepository } from './infrastructure/mongo-invite.repository.js';
+import { FakeInviteNotifier, InviteNotifier } from './infrastructure/invite-notifier.js';
+import { InvitesController, PublicInvitesController } from './presentation/invites.controller.js';
 
 export interface EventBusLike {
   publish: (event: unknown) => Promise<void>;
@@ -39,6 +43,9 @@ export interface OrganizationModuleOptions {
   eventBus?: EventBusLike;
   /** Overrides the token-verifying authenticator (tests). */
   requestAuthenticator?: RequestAuthenticator;
+  /** F14 invite delivery; a fake until F22 notifications. */
+  inviteNotifier?: InviteNotifier;
+  keyVault?: KeyVaultProvider;
 }
 
 @Global()
@@ -52,7 +59,8 @@ export class OrganizationModule implements OnModuleInit {
     private readonly deptRepo?: MongoDepartmentRepository,
     private readonly teamRepo?: MongoTeamRepository,
     private readonly auditRepo?: MongoAuditRepository,
-    private readonly seatRepo?: MongoSeatRepository
+    private readonly seatRepo?: MongoSeatRepository,
+    private readonly inviteRepo?: MongoInviteRepository
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -65,6 +73,7 @@ export class OrganizationModule implements OnModuleInit {
       if (this.teamRepo) await this.teamRepo.createIndexes();
       if (this.auditRepo) await this.auditRepo.createIndexes();
       if (this.seatRepo) await this.seatRepo.createIndexes();
+      if (this.inviteRepo) await this.inviteRepo.createIndexes();
     } catch (err: unknown) {
       console.error('[OrganizationModule] Failed to ensure database indexes:', err);
     }
@@ -297,6 +306,54 @@ export class OrganizationModule implements OnModuleInit {
       inject: [MongoAuditRepository, MongoOrganizationRepository, 'EVENT_BUS'],
     };
 
+    const requireHandle = (name: string) => {
+      if (!options.connectionHandle) throw new Error(`MongoConnectionHandle is required for ${name}`);
+      return options.connectionHandle;
+    };
+    const inviteRepoProvider = { provide: MongoInviteRepository, useFactory: () => new MongoInviteRepository(requireHandle('MongoInviteRepository')) };
+    const noticeRepoProvider = {
+      provide: MongoNoticeAcceptanceRepository,
+      useFactory: () => new MongoNoticeAcceptanceRepository(requireHandle('MongoNoticeAcceptanceRepository')),
+    };
+    const inviteServiceProvider = {
+      provide: InviteService,
+      useFactory: (
+        inviteRepo: MongoInviteRepository,
+        noticeRepo: MongoNoticeAcceptanceRepository,
+        seatRepo: MongoSeatRepository,
+        seatsService: SeatsService,
+        orgRepo: MongoOrganizationRepository,
+        auditRepo: MongoAuditRepository,
+        identityClient: IdentityInternalClient,
+        eventBus: EventBus
+      ) =>
+        new InviteService(
+          inviteRepo,
+          noticeRepo,
+          seatRepo,
+          seatsService,
+          orgRepo,
+          auditRepo,
+          identityClient,
+          options.keyVault || new LocalKeyVaultProvider(),
+          options.inviteNotifier || new FakeInviteNotifier(),
+          eventBus as EventBus,
+          config.appUrl,
+          // D-INVITE-DEV-LINK: hand the link back only while invites are not really delivered, never in production.
+          config.nodeEnv !== 'production'
+        ),
+      inject: [
+        MongoInviteRepository,
+        MongoNoticeAcceptanceRepository,
+        MongoSeatRepository,
+        SeatsService,
+        MongoOrganizationRepository,
+        MongoAuditRepository,
+        'IDENTITY_INTERNAL_CLIENT',
+        'EVENT_BUS',
+      ],
+    };
+
     // D-SERVICE-AUTH: verifies identity access tokens and resolves the caller's role.
     const requestAuthenticatorProvider = {
       provide: REQUEST_AUTHENTICATOR,
@@ -317,6 +374,8 @@ export class OrganizationModule implements OnModuleInit {
         StructureController,
         SeatsController,
         AuditController,
+        InvitesController,
+        PublicInvitesController,
       ],
       providers: [
         envProvider,
@@ -337,6 +396,9 @@ export class OrganizationModule implements OnModuleInit {
         mediaStorageServiceProvider,
         brandKitServiceProvider,
         auditLogServiceProvider,
+        inviteRepoProvider,
+        noticeRepoProvider,
+        inviteServiceProvider,
         requestAuthenticatorProvider,
         TenantAuthGuard,
       ],
