@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // Empty when unknown at build time: the browser then uses its own address (same origin).
-const publicUrl = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
+const rawPublicUrl = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '';
+const publicUrl = rawPublicUrl ? new URL(rawPublicUrl).origin : '';
 
 const env = {
   ...process.env,

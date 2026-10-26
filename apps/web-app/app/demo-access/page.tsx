@@ -1,12 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button, Input, SpanLine, SpanMark } from '@onebridge/ui-kit';
 
 /** Passcode screen for the hosted prototype dashboard (D-DEMO-HOSTING). */
 export default function DemoAccessPage() {
-  const router = useRouter();
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,7 +28,9 @@ export default function DemoAccessPage() {
         setError(data.detail || 'That passcode is not right. Check the invite and try again.');
         return;
       }
-      router.push('/login');
+      // Full page load: the client router cached /login as a redirect to this page
+      // (from before the cookie existed), so router.push would bounce straight back here.
+      window.location.assign('/login');
     } catch {
       setError('Could not reach the demo. Check your connection and try again.');
     } finally {

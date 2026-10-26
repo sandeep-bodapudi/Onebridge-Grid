@@ -30,7 +30,8 @@ const ADMIN_PORT = 3100;
 const PUBLIC_PORT = 3200;
 const PUBLIC_ASSET_PREFIX = '/_cards';
 
-const publicUrl = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
+// Normalised origin (lowercase host, no trailing slash): services compare it exactly with the browser's Origin header.
+const publicUrl = new URL(process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`).origin;
 
 // Secrets: required when data persists (MONGODB_URI); otherwise the database is
 // thrown away on every restart, so fresh random values per boot are safe.
@@ -99,6 +100,7 @@ const server = http.createServer((req, res) => {
   const headers = { ...req.headers, host: req.headers.host || `127.0.0.1:${target.port}` };
   headers['x-forwarded-for'] = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '');
   headers['x-forwarded-proto'] = String(req.headers['x-forwarded-proto'] || 'http');
+  headers['x-forwarded-host'] = String(req.headers['x-forwarded-host'] || req.headers.host || '');
   const upstream = http.request({ host: '127.0.0.1', port: target.port, path: target.path, method: req.method, headers }, (up) => {
     res.writeHead(up.statusCode || 502, up.headers);
     up.pipe(res);

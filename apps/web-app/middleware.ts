@@ -10,10 +10,11 @@ export async function middleware(request: NextRequest) {
   const cookie = request.cookies.get(DEMO_ACCESS_COOKIE)?.value || '';
   if (cookie && safeEqual(cookie, await demoAccessToken(passcode))) return NextResponse.next();
 
-  const url = request.nextUrl.clone();
-  url.pathname = '/demo-access';
-  url.search = '';
-  return NextResponse.redirect(url);
+  // Behind a proxy (single-service deployment) request.nextUrl carries the internal host
+  // (localhost:<port>), so the redirect is built from the public host the browser used.
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
+  const proto = (request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(':', '')).split(',')[0].trim();
+  return NextResponse.redirect(new URL('/demo-access', `${proto}://${host}`));
 }
 
 export const config = {
