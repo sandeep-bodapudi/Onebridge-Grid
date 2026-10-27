@@ -146,10 +146,11 @@ export const OtpInput: React.FC<OtpInputProps> = ({
             className={cn(
               'w-11 h-12 text-center text-lg font-mono font-bold rounded-control transition-all duration-150',
               'bg-warm-paper text-charcoal border border-sand-border',
-              'dark:bg-charcoal dark:text-warm-paper dark:border-sand-border/30',
+              // Dark: each box shows its edge at ~4.2:1 against the charcoal panel (WCAG 1.4.11).
+              'dark:bg-charcoal-deep dark:text-warm-paper dark:border-warm-paper/45',
               'focus-visible:outline-none focus:border-bridge-orange focus:ring-2 focus:ring-bridge-orange',
               'disabled:opacity-50 disabled:cursor-not-allowed',
-              hasError ? 'border-error text-error focus:border-error focus:ring-error' : ''
+              hasError ? 'border-error dark:border-error text-error focus:border-error focus:ring-error' : ''
             )}
           />
         ))}

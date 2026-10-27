@@ -90,6 +90,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSubmit, isLoading = fa
             ref={refs.consent}
             type="checkbox"
             checked={consent}
+            aria-labelledby="signup-consent-label"
             aria-invalid={errors.consent ? true : undefined}
             aria-describedby={errors.consent ? 'signup-consent-error' : undefined}
             onChange={(e) => {
@@ -98,7 +99,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSubmit, isLoading = fa
             }}
             className="mt-1 h-5 w-5 shrink-0 rounded-control border-sand-border focus:ring-bridge-orange"
           />
-          <span>
+          <span id="signup-consent-label">
             I agree to the{' '}
             <a href={termsHref} target="_blank" rel="noreferrer" className="font-semibold underline underline-offset-2">
               Terms of Service

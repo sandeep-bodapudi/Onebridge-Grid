@@ -19,7 +19,7 @@ interface FieldProps {
 }
 
 /** A labelled input whose hint and error are announced with the field (aria-describedby). */
-export const TextField = React.forwardRef<HTMLInputElement, FieldProps>(({ label, hint, error, id, ...props }, ref) => {
+export const TextField = React.forwardRef<HTMLInputElement, FieldProps>(({ label, hint, error, id, className, ...props }, ref) => {
   const auto = useId();
   const fieldId = id ?? auto;
   const hintId = hint ? `${fieldId}-hint` : undefined;
@@ -35,6 +35,7 @@ export const TextField = React.forwardRef<HTMLInputElement, FieldProps>(({ label
         hasError={Boolean(error)}
         aria-invalid={error ? true : undefined}
         aria-describedby={[hintId, errorId].filter(Boolean).join(' ') || undefined}
+        className={className}
         {...props}
       />
       {hint ? (
@@ -63,7 +64,7 @@ export const PasswordField = React.forwardRef<HTMLInputElement, Omit<FieldProps,
         onClick={() => setVisible((v) => !v)}
         aria-pressed={visible}
         aria-label={visible ? 'Hide password' : 'Show password'}
-        className="absolute right-1 top-[30px] min-h-[44px] min-w-[44px] px-2 text-xs font-semibold text-charcoal underline underline-offset-2 dark:text-warm-paper"
+        className="absolute right-1 top-[26px] min-h-[44px] min-w-[44px] px-2 text-xs font-semibold text-charcoal underline underline-offset-2 dark:text-warm-paper"
       >
         {visible ? 'Hide' : 'Show'}
       </button>

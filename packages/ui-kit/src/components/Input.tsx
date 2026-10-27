@@ -19,7 +19,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           'w-full min-h-[44px] h-[44px] px-3 font-body text-sm rounded-control transition-colors duration-150',
           'bg-warm-paper text-charcoal border border-sand-border',
           'placeholder:text-charcoal/40 dark:placeholder:text-warm-paper/40',
-          'dark:bg-charcoal dark:text-warm-paper dark:border-sand-border/30',
+          // Dark: the field sits below the charcoal panel with an edge at ~4.2:1 against it (WCAG 1.4.11).
+          'dark:bg-charcoal-deep dark:text-warm-paper dark:border-warm-paper/45',
           'focus-visible:outline-none focus:border-bridge-orange focus:ring-1 focus:ring-bridge-orange',
           'disabled:opacity-50 disabled:cursor-not-allowed',
           hasError
