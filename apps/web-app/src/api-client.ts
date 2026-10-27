@@ -1,5 +1,7 @@
 import type {
   CompanyProfileSettings,
+  SearchResults,
+  Industry,
   FollowState,
   ActorPage,
   PublicCompanyProfile,
@@ -62,6 +64,7 @@ const IDENTITY_API_URL = process.env.NEXT_PUBLIC_IDENTITY_API_URL || 'http://loc
 const ORGANIZATION_API_URL = process.env.NEXT_PUBLIC_ORGANIZATION_API_URL || 'http://localhost:4002';
 const PROFILES_API_URL = process.env.NEXT_PUBLIC_PROFILES_API_URL || 'http://localhost:4004';
 const SOCIAL_API_URL = process.env.NEXT_PUBLIC_SOCIAL_API_URL || 'http://localhost:4005';
+const SEARCH_API_URL = process.env.NEXT_PUBLIC_SEARCH_API_URL || 'http://localhost:4006';
 const CARDS_PUBLIC_API_URL = process.env.NEXT_PUBLIC_CARDS_API_URL || 'http://localhost:4003';
 const CARDS_API_URL = process.env.NEXT_PUBLIC_CARDS_API_URL || 'http://localhost:4003';
 // Empty means the public site shares this app's origin (single-service deployment, D-SINGLE-SERVICE).
@@ -799,6 +802,28 @@ export const apiClient = {
   async listFollowing(cursor?: string, asCompany?: string): Promise<ActorPage> {
     const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
     return this.socialRequest<ActorPage>(`/me/following${q}`, { method: 'GET' }, asCompany, 'Could not load who you follow');
+  },
+
+  /** N03: search as the signed-in member (members-only profiles included). */
+  async search(params: { q?: string; type?: string; industry?: string; city?: string; verified?: boolean; cursor?: string }): Promise<SearchResults> {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== '' && v !== false) q.set(k, String(v));
+    });
+    const headers: Record<string, string> = {};
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    const res = await fetch(`${SEARCH_API_URL}/search?${q.toString()}`, { headers });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Search is not available right now.');
+    }
+    return res.json();
+  },
+
+  async industries(): Promise<Industry[]> {
+    const res = await fetch(`${SEARCH_API_URL}/taxonomy/industries`);
+    if (!res.ok) return [];
+    return ((await res.json()) as { items: Industry[] }).items;
   },
 
   /** F26 public company page data (used by the signed-in company view). */

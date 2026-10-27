@@ -155,6 +155,11 @@ export const KNOWN_COLLECTIONS: Record<string, CollectionMetadata> = {
     classification: 'global',
     description: 'Social read model: public company name, slug, logo and verification from org events (ADR-0003)',
   },
+  search_documents: {
+    name: 'search_documents',
+    classification: 'global',
+    description: 'N03 search index: public company and member profile text only; never contact details',
+  },
   notice_acceptances: {
     name: 'notice_acceptances',
     classification: 'tenant-scoped',

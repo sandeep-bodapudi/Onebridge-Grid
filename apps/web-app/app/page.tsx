@@ -145,6 +145,9 @@ export default function HomePage() {
             <a href="#pricing" className="flex min-h-[44px] items-center px-3 hover:text-warm-paper">
               Pricing
             </a>
+            <a href={`${WEB_PUBLIC_URL}/search`} className="flex min-h-[44px] items-center px-3 hover:text-warm-paper">
+              Find companies
+            </a>
           </nav>
           <Link
             href="/login"

@@ -46,6 +46,9 @@ export const MemberPageShell: React.FC<{ children: (session: MemberSession) => R
                 Company dashboard
               </a>
             ) : null}
+            <a href="/network/search" className="min-h-[44px] px-3 inline-flex items-center rounded-[10px] hover:bg-white/10">
+              Search
+            </a>
             <a href="/network/following" className="min-h-[44px] px-3 inline-flex items-center rounded-[10px] hover:bg-white/10">
               Following
             </a>

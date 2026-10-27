@@ -58,7 +58,7 @@ const DEFAULTS = {
 for (const [k, v] of Object.entries(DEFAULTS)) if (!process.env[k]) process.env[k] = v;
 
 const PORT = Number(process.env.PORT || 8080);
-const TARGETS = { identity: 4001, organization: 4002, cards: 4003, profiles: 4004, social: 4005 };
+const TARGETS = { identity: 4001, organization: 4002, cards: 4003, profiles: 4004, social: 4005, search: 4006 };
 const apps = [];
 let mongod = null;
 let handle = null;
@@ -83,6 +83,8 @@ async function startServices() {
   const profilesEnv = await importDist('services/profiles/dist/config/env.js');
   const social = await importDist('services/social/dist/app.js');
   const socialEnv = await importDist('services/social/dist/config/env.js');
+  const search = await importDist('services/search/dist/app.js');
+  const searchEnv = await importDist('services/search/dist/config/env.js');
 
   handle = await shared.connectMongo(process.env.MONGODB_URI);
   const eventBus = new shared.InMemoryEventBus();
@@ -121,6 +123,20 @@ async function startServices() {
   await socialApp.listen(TARGETS.social, '127.0.0.1');
   apps.push(socialApp);
 
+  // N03 search (indexes company, company page and member events).
+  const searchApp = await search.createApp({
+    envConfig: {
+      ...searchEnv.loadAndValidateEnv(),
+      port: TARGETS.search,
+      cardsApiUrl: `http://127.0.0.1:${TARGETS.cards}`,
+      profilesApiUrl: `http://127.0.0.1:${TARGETS.profiles}`,
+    },
+    connectionHandle: handle,
+    eventBus,
+  });
+  await searchApp.listen(TARGETS.search, '127.0.0.1');
+  apps.push(searchApp);
+
   const organizationApp = await organization.createApp({
     envConfig: { ...organizationEnv.loadAndValidateEnv(), port: TARGETS.organization },
     connectionHandle: handle,
@@ -128,7 +144,7 @@ async function startServices() {
   });
   await organizationApp.listen(TARGETS.organization, '127.0.0.1');
   apps.push(organizationApp);
-  log('identity, organization, cards, profiles and social are running (shared event bus)');
+  log('identity, organization, cards, profiles, social and search are running (shared event bus)');
 }
 
 function proxy(req, res, port, upstreamPath) {
@@ -189,7 +205,7 @@ const router = http.createServer(async (req, res) => {
     setTimeout(() => shutdown(0), 300);
     return;
   }
-  const match = url.match(/^\/(identity|organization|cards|profiles|social)(\/.*)?$/);
+  const match = url.match(/^\/(identity|organization|cards|profiles|social|search)(\/.*)?$/);
   if (!match) {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ title: 'Not Found', status: 404 }));

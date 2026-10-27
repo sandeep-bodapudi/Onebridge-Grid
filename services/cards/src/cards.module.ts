@@ -356,7 +356,8 @@ export class CardsModule implements OnModuleInit {
         seatRepo: MongoSeatReadModelRepository,
         branchRepo: MongoBranchReadModelRepository,
         analyticsRepo: MongoAnalyticsEventRepository,
-        sharebackService: SharebackService
+        sharebackService: SharebackService,
+        eventBus: PublishableEventBus
       ) =>
         new CompanyProfileService(
           profileRepo,
@@ -366,7 +367,9 @@ export class CardsModule implements OnModuleInit {
           branchRepo,
           analyticsRepo,
           sharebackService,
-          config.webPublicUrl || 'https://grid.onebridge.in'
+          config.webPublicUrl || 'https://grid.onebridge.in',
+          undefined,
+          eventBus
         ),
       inject: [
         MongoCompanyProfileRepository,
@@ -376,6 +379,7 @@ export class CardsModule implements OnModuleInit {
         MongoBranchReadModelRepository,
         MongoAnalyticsEventRepository,
         SharebackService,
+        'EVENT_BUS',
       ],
     };
 

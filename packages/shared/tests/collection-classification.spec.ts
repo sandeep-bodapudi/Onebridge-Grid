@@ -25,6 +25,8 @@ describe('Collection Classification Registry & Base Class Guard', () => {
       // N04 (D-N04): follow edges connect people and companies across tenants; IDs only.
       'follows',
       'social_company_refs',
+      // N03 (D-N03): the directory spans companies and members, built from public profile text only.
+      'search_documents',
     ];
 
     expect(ALLOWLISTED_GLOBAL_COLLECTIONS.sort()).toEqual(expectedGlobals.sort());

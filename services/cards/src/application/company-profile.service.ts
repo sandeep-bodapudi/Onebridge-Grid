@@ -1,3 +1,4 @@
+import { ulid } from 'ulid';
 import { Role, TenantContext } from '@onebridge/shared';
 import type { CompanyProfileSettings, PublicCompanyProfile } from '@onebridge/api-contracts';
 import {
@@ -61,7 +62,9 @@ export class CompanyProfileService {
     private readonly sharebackService: SharebackService,
     /** apps/web-public origin; cards live at /c/<slug>, company pages at /<company>. */
     private readonly publicBaseUrl: string,
-    private readonly now: () => Date = () => new Date()
+    private readonly now: () => Date = () => new Date(),
+    /** Announces company page changes (N03 search re-indexes the catalogue). */
+    private readonly eventBus?: { publish(event: unknown): Promise<void> }
   ) {}
 
   private base(): string {
@@ -92,6 +95,16 @@ export class CompanyProfileService {
       const org = await this.orgRepo.findByTenantId(tenantId);
       const valid = validateCompanyProfile(input as Parameters<typeof validateCompanyProfile>[0], org?.plan);
       const saved = await this.profileRepo.save({ ...valid, tenantId, updatedAt: this.now().toISOString() });
+      await this.eventBus?.publish({
+        eventId: ulid(),
+        type: 'company_profile.updated',
+        version: '1.0.0',
+        tenantId,
+        occurredAt: saved.updatedAt,
+        correlationId: ulid(),
+        aggregateVersion: 1,
+        payload: { orgId: tenantId },
+      });
       return this.toSettings(saved, org?.plan);
     });
   }

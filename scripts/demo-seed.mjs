@@ -221,6 +221,66 @@ async function seedMemberProfiles(ownerToken, orgId, ownerPersonId) {
   return created;
 }
 
+// N03 directory: fictional Hyderabad businesses (free profiles) owned by one fictional person,
+// so seeding stays within the sign-in code limit (5 an hour per network).
+const DIRECTORY_OWNER_PHONE = '+919700070001';
+const DIRECTORY_COMPANIES = [
+  {
+    org: { name: 'Charminar Fabricators', industry: 'Manufacturing', size: '11-50', city: 'Hyderabad' },
+    about: 'Sheet metal fabrication and CNC machining in IDA Balanagar. Enclosures, panels and machined parts for pharma and engineering plants.',
+    products: [
+      { id: 'enclosures', name: 'MS sheet metal enclosures', category: 'Fabrication', priceOnRequest: true },
+      { id: 'cnc-parts', name: 'CNC turned parts', category: 'Machining', priceOnRequest: true },
+    ],
+    services: [{ id: 'laser', name: 'Laser cutting', description: 'Up to 12 mm mild steel' }],
+  },
+  {
+    org: { name: 'Golconda Precision Tools', industry: 'Manufacturing', size: '1-10', city: 'Hyderabad' },
+    about: 'Carbide cutting tools and regrinding for machine shops in Hyderabad and Secunderabad.',
+    products: [
+      { id: 'drills', name: 'Carbide drill bits', category: 'Cutting tools', price: '₹850 onwards' },
+      { id: 'end-mills', name: 'Solid carbide end mills', category: 'Cutting tools', priceOnRequest: true },
+    ],
+    services: [{ id: 'regrind', name: 'Tool regrinding' }],
+  },
+  {
+    org: { name: 'Deccan Freight Logistics', industry: 'Logistics services', size: '51-200', city: 'Hyderabad' },
+    about: 'Full and part truck loads across Telangana and Andhra Pradesh, with a warehouse at Shamshabad.',
+    products: [],
+    services: [
+      { id: 'ftl', name: 'Full truck load', description: 'Telangana and Andhra Pradesh' },
+      { id: 'warehousing', name: 'Warehousing', description: 'Shamshabad, 40,000 sq ft' },
+    ],
+  },
+  {
+    org: { name: 'Banjara Packaging Solutions', industry: 'Packaging manufacturing', size: '11-50', city: 'Hyderabad' },
+    about: 'Corrugated boxes and stretch film for FMCG and pharma distributors.',
+    products: [
+      { id: 'boxes', name: '5-ply corrugated boxes', category: 'Corrugated', price: '₹18 per box onwards' },
+      { id: 'film', name: 'Stretch wrap film', category: 'Films', priceOnRequest: true },
+    ],
+    services: [],
+  },
+];
+
+/** Creates the directory companies through the APIs, if they do not exist yet. */
+async function seedDirectory() {
+  const token = await signIn(DIRECTORY_OWNER_PHONE);
+  const me = await call('GET', `${IDENTITY}/me`, { token });
+  if ((me.memberships ?? []).length >= DIRECTORY_COMPANIES.length) return 0;
+  let created = 0;
+  for (const c of DIRECTORY_COMPANIES) {
+    const org = await call('POST', `${ORGANIZATION}/orgs`, { token, body: { ...c.org, plan: 'free' } });
+    const T = { token, tenantId: org.id };
+    await call('PATCH', `${ORGANIZATION}/orgs/${org.id}`, { ...T, body: { about: c.about } });
+    const current = await call('GET', `${CARDS}/company-profile`, T);
+    const { limits: _limits, ...settings } = current;
+    await call('PUT', `${CARDS}/company-profile`, { ...T, body: { ...settings, products: c.products, services: c.services } });
+    created++;
+  }
+  return created;
+}
+
 const LEADS = [
   { person: 1, name: 'Rahul Mehta', phone: '9822099999', company: 'Mehta Builders', note: 'Need 40 MT of 12 mm for a G+7 project', sourceTag: 'pune_expo_2026' },
   { person: 1, name: 'Sneha Wagh', phone: '9767012345', company: 'Wagh Constructions', sourceTag: 'pune_expo_2026' },
@@ -241,6 +301,9 @@ async function main() {
       .catch((err) => log(`Member profiles skipped: ${err.message}`));
     log(`Demo company already exists: ${org.name} (${org.businessId}).${filled ? ' Filled in its company page.' : ' Nothing to do.'}`);
     log(`Company page: ${WEB_PUBLIC}/${org.slug}`);
+    await seedDirectory()
+      .then((n) => n && log(`Created ${n} Hyderabad directory companies`))
+      .catch((err) => log(`Directory companies skipped: ${err.message}`));
     return;
   }
 
@@ -361,11 +424,16 @@ async function main() {
     body: { name: 'Nikhil Pawar', phone: '9970012345', company: 'Pawar Realty', message: 'Rates for 60 MT, delivery to Wakad', productId: 'tmt-550d', consent: true, turnstileToken: 'demo' },
   }).catch((err) => log(`Company enquiry skipped: ${err.message}`));
 
+  await seedDirectory()
+    .then((n) => log(`Created ${n} Hyderabad directory companies`))
+    .catch((err) => log(`Directory companies skipped: ${err.message}`));
+
   log('Done.');
   log(`Dashboard: sign in with ${OWNER_PHONE} and code ${OTP}`);
   log(`Visitor card: ${WEB_PUBLIC}/c/${cards[1].slug}`);
   log(`Company page: ${WEB_PUBLIC}/${org.slug}`);
   log(`Member profile: ${WEB_PUBLIC}/in/${OWNER_PROFILE.handle}`);
+  log(`Directory: ${WEB_PUBLIC}/directory/hyderabad/manufacturing`);
 }
 
 main().catch((err) => {

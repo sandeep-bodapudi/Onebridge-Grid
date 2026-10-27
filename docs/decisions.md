@@ -234,3 +234,13 @@
 - Following is idempotent; self-follows are refused; following needs an existing member profile or company. A company follows another company with `X-Act-As-Company` (Owner or Admin). A daily cap of 200 new follows per account (env `DAILY_FOLLOW_CAP`) stops follow-spam; N09 will lower it for new accounts.
 - Public pages show Follow as a link to the signed-in view (`/network/in/<handle>`, `/network/company/<slug>`), where the real button works; members see who they follow at `/network/following`; owners and admins see followers in a Company page tab.
 - Not yet: block-aware follows (N09), hiding follower lists (N10), new-follower notifications (F22 consumes `follow.created`).
+
+## D-N03: directory and search implementation
+
+- Date: 2026-10-27
+- New `services/search` (port 4006, `/svc/search`) with one global collection, `search_documents` (approved in the collection guard test). The index is built only from public data: org and KYB events, a new `company_profile.updated` event from cards (then a read of the public company page), and member events (then the profiles service-key summaries endpoint). Contact details are never indexed (D-CONTACT); a lapsed company's catalogue is left out.
+- Q-NET-4 chose Meilisearch. Until it is hosted, a MongoDB adapter sits behind a `SearchIndex` interface so the switch is one class. Matching: every query word must match; word starts anywhere, and words of 4+ letters also inside longer words ("bars" in "rebars") at a lower weight. No typo tolerance until Meilisearch.
+- Ranking is relevance (name, then products and skills, headline, city, about) plus boosts for verified, profile completeness, activity in the last 30 days and Business or Enterprise plans. "Featured" placement is part of the result shape, always labelled, and currently always false.
+- Members-only profiles appear only to signed-in searchers. Anonymous searches are rate-limited per IP (60 a minute, env `ANON_SEARCH_PER_MINUTE`).
+- Public `/search` is a plain GET form (works without JavaScript) and is noindex. SEO directory pages `/directory/<city>/<industry>` (with `?sub=` sub-categories) list only companies whose page allows search engines, carry ItemList JSON-LD, rebuild every 5 minutes, and are noindex while empty. The taxonomy is a fixed list in code for launch.
+- Not yet: backfill of data created before the search service existed (only new events are indexed; the demo seed creates fresh data), block-aware results (N09), search analytics.

@@ -1063,3 +1063,20 @@ components:
           properties:
             personId: { type: string }
         aggregateVersion: { type: integer }
+    CompanyProfileUpdatedEvent:
+      description: "N03. The company page (catalogue, services, work) changed; search re-reads it from the public API. IDs only."
+      type: object
+      required: [eventId, type, version, tenantId, occurredAt, correlationId, payload, aggregateVersion]
+      properties:
+        eventId: { type: string }
+        type: { type: string, const: "company_profile.updated" }
+        version: { type: string, const: "1.0.0" }
+        tenantId: { type: string }
+        occurredAt: { type: string, format: date-time }
+        correlationId: { type: string }
+        payload:
+          type: object
+          required: [orgId]
+          properties:
+            orgId: { type: string }
+        aggregateVersion: { type: integer }

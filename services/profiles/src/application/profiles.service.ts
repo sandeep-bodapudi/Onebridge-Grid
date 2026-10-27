@@ -311,7 +311,18 @@ export class ProfilesService {
     const found = await Promise.all(unique.map((id) => this.profiles.findByPersonId(id)));
     return found
       .filter((p): p is MemberProfileProps => Boolean(p))
-      .map((p) => ({ personId: p.personId, handle: p.handle, name: p.name, headline: p.headline, photoUrl: p.photoUrl, visibility: p.visibility }));
+      .map((p) => ({
+        personId: p.personId,
+        handle: p.handle,
+        name: p.name,
+        headline: p.headline,
+        photoUrl: p.photoUrl,
+        visibility: p.visibility,
+        // N03 search: public profile text only.
+        city: p.city,
+        about: p.about,
+        skills: p.skills,
+      }));
   }
 
   // ------------------------------------------------------------------

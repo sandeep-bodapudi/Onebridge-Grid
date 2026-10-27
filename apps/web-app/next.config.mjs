@@ -12,7 +12,7 @@ const nextConfig = {
     const target = process.env.API_PROXY_TARGET;
     if (!target) return [];
     const base = target.replace(/\/+$/, '');
-    return ['identity', 'organization', 'cards', 'profiles', 'social'].map((service) => ({
+    return ['identity', 'organization', 'cards', 'profiles', 'social', 'search'].map((service) => ({
       source: `/svc/${service}/:path*`,
       destination: `${base}/${service}/:path*`,
     }));
