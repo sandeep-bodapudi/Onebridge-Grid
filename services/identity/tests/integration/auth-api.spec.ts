@@ -250,29 +250,6 @@ describe('Auth API Integration (AC-1 through AC-9 & Complete Controller Endpoint
     });
   });
 
-  describe('OAuth Endpoint (AC-4)', () => {
-    it('should authenticate via handleOAuth endpoint', async () => {
-      const oauthResp = await controller.handleOAuth(
-        'google',
-        {
-          idToken: 'mock-google-token',
-          mockProfile: {
-            sub: 'g-sub-1',
-            email: 'googleuser@example.com',
-            emailVerified: true,
-            name: 'Google User',
-          },
-        },
-        { ip: '127.0.0.1', correlationId: 'corr-oauth' }
-      );
-
-      expect(oauthResp.status).toBe(200);
-      expect(oauthResp.body.status).toBe('authenticated');
-      expect(oauthResp.body.accessToken).toBeDefined();
-      expect(oauthResp.headers['Set-Cookie']).toContain('refreshToken=');
-    });
-  });
-
   describe('ProblemDetails Error format', () => {
     it('should format errors using application/problem+json', async () => {
       try {

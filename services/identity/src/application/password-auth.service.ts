@@ -119,7 +119,7 @@ export class PasswordAuthService {
   }
 
   /** 5 code emails per address and 20 per network, per hour. */
-  private limitSends(email: string, ip: string): void {
+  limitSends(email: string, ip: string): void {
     this.limit(`code-email:${email}`, 5, HOUR);
     this.limit(`code-ip:${ip}`, 20, HOUR);
   }
@@ -134,14 +134,15 @@ export class PasswordAuthService {
   }
 
   /** A10: security notices never block or fail the sign-in itself. */
-  private notify(template: EmailTemplate, person: Person, vars: { device?: string } = {}): void {
+  notify(template: EmailTemplate, person: Person, vars: { device?: string } = {}): void {
     if (!person.email) return;
     this.deps.email.send(renderEmail(template, person.email, { name: person.name, ...vars }, person.language)).catch((err: unknown) => {
       Logger.warn('Security email failed', { tag: template, reason: err instanceof Error ? err.message : 'unknown' });
     });
   }
 
-  private async issueCode(
+  /** Emails a fresh code for `purpose`. Callers run limitSends first. */
+  async issueCode(
     purpose: EmailCodePurpose,
     email: string,
     extra: Partial<Pick<EmailCode, 'personId' | 'pending' | 'deviceIdHash' | 'deviceLabel' | 'googleSub' | 'googleName'>> = {},

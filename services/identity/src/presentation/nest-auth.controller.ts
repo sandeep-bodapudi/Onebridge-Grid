@@ -12,6 +12,7 @@ import {
   HttpStatus,
   Headers,
   Inject,
+  HttpException,
 } from '@nestjs/common';
 export interface HttpRequest {
   ip?: string;
@@ -29,7 +30,8 @@ import { ProblemException, Logger } from '@onebridge/shared';
 import { AuthService } from '../application/auth.service.js';
 import { MfaService } from '../application/mfa.service.js';
 import { getRefreshTokenCookieOptions } from '../config/cookie.config.js';
-import { IdentityEnvConfig } from '../config/env.js';
+import { IdentityEnvConfig, defaultAuthMethods, AuthMethod } from '../config/env.js';
+import { GoogleSignInService } from '../application/google-sign-in.service.js';
 
 function getClientUserAgent(req?: HttpRequest): string {
   const ua = req?.headers?.['user-agent'];
@@ -54,8 +56,17 @@ export class NestAuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly mfaService: MfaService,
-    @Inject('IDENTITY_ENV_CONFIG') private readonly envConfig: IdentityEnvConfig
+    @Inject('IDENTITY_ENV_CONFIG') private readonly envConfig: IdentityEnvConfig,
+    private readonly google: GoogleSignInService
   ) {}
+
+  /** D-AUTH-EMAIL D3: phone codes only when AUTH_METHODS includes phone; email codes (F14) when it includes email. */
+  private requireMethod(method: AuthMethod): void {
+    const methods = this.envConfig.authMethods ?? defaultAuthMethods(this.envConfig.nodeEnv);
+    if (!methods.includes(method)) {
+      throw new HttpException({ title: 'Forbidden', detail: `${method === 'phone' ? 'Phone' : 'Email'} sign-in is turned off on this server.`, code: 'method_disabled' }, 403);
+    }
+  }
 
   private idempotencyCache = new Map<
     string,
@@ -102,6 +113,7 @@ export class NestAuthController {
     @Req() req?: HttpRequest
   ) {
     const ip = getClientIp(req);
+    this.requireMethod(body?.email && !body?.phone ? 'email' : 'phone');
     return this.handleIdempotency(idempotencyKey, body, correlationId, async () => {
       // F14: an email code verifies the email an invite was sent to.
       const result = body.email && !body.phone
@@ -125,6 +137,7 @@ export class NestAuthController {
   ) {
     const ip = getClientIp(req);
     const userAgent = getClientUserAgent(req);
+    this.requireMethod(body?.email && !body?.phone ? 'email' : 'phone');
     return this.handleIdempotency(idempotencyKey, body, correlationId, async () => {
       const result = body.email && !body.phone
         ? await this.authService.verifyEmailOtp(body.email, body.code, body.deviceLabel || userAgent, ip, correlationId)
@@ -156,19 +169,17 @@ export class NestAuthController {
   ) {
     const ip = getClientIp(req);
     const userAgent = getClientUserAgent(req);
-    const result = await this.authService.loginWithOAuth(
-      provider,
-      body.idToken,
-      body.deviceLabel || userAgent,
-      ip
-    );
+    if (provider !== 'google') {
+      throw new HttpException({ title: 'Bad Request', detail: 'Only Google sign-in is available.', code: 'method_disabled' }, 400);
+    }
+    const result = await this.google.signIn(body?.idToken, { deviceId: '', deviceLabel: body?.deviceLabel || userAgent, ip, correlationId: 'unknown' });
 
     if (result.status === 'link_confirmation_required') {
       return {
         status: result.status,
         linkTicket: result.linkTicket,
-        maskedPhone: result.maskedPhone,
-        message: result.message,
+        maskedEmail: result.maskedEmail,
+        message: 'This email already has a OneBridge account. Enter the code we emailed to connect Google to it.',
       };
     }
 
@@ -196,12 +207,7 @@ export class NestAuthController {
   ) {
     const ip = getClientIp(req);
     const userAgent = getClientUserAgent(req);
-    const result = await this.authService.confirmOAuthLink(
-      body.linkTicket,
-      body.code,
-      body.deviceLabel || userAgent,
-      ip
-    );
+    const result = await this.google.confirmLink(body?.linkTicket, body?.code, { deviceId: '', deviceLabel: body?.deviceLabel || userAgent, ip, correlationId: 'unknown' });
 
     if (result.refreshToken) {
       const cookieOpts = getRefreshTokenCookieOptions(

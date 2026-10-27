@@ -14,6 +14,7 @@ export async function createApp(options: IdentityModuleOptions = {}): Promise<IN
       envConfig: config,
       connectionHandle: options.connectionHandle,
       emailSender: options.emailSender,
+      oauthVerifier: options.oauthVerifier,
     })
   );
 

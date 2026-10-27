@@ -4,6 +4,7 @@ import path from 'node:path';
 import { NestAuthController } from '../../src/presentation/nest-auth.controller';
 import { NestMeController } from '../../src/presentation/nest-me.controller';
 import { NestInternalController } from '../../src/presentation/nest-internal.controller';
+import { PasswordAuthController } from '../../src/presentation/password-auth.controller';
 
 describe('OpenAPI Route Parity & Status Verification (Condition 10)', () => {
   const openApiPath = path.resolve(__dirname, '../../../../packages/api-contracts/openapi.yaml');
@@ -14,6 +15,15 @@ describe('OpenAPI Route Parity & Status Verification (Condition 10)', () => {
     { path: '/auth/verify:', method: 'post:', expectedStatuses: ["'200':", "'400':", "'423':"] },
     { path: '/auth/oauth/{provider}:', method: 'post:', expectedStatuses: ["'200':", "'400':"] },
     { path: '/auth/oauth/confirm-link:', method: 'post:', expectedStatuses: ["'200':", "'400':"] },
+    { path: '/auth/methods:', method: 'get:', expectedStatuses: ["'200':"] },
+    { path: '/auth/signup:', method: 'post:', expectedStatuses: ["'202':", "'400':", "'429':"] },
+    { path: '/auth/signup/verify:', method: 'post:', expectedStatuses: ["'200':", "'400':"] },
+    { path: '/auth/login:', method: 'post:', expectedStatuses: ["'200':", "'401':", "'429':"] },
+    { path: '/auth/login/verify:', method: 'post:', expectedStatuses: ["'200':", "'400':"] },
+    { path: '/auth/password/forgot:', method: 'post:', expectedStatuses: ["'202':"] },
+    { path: '/auth/password/reset:', method: 'post:', expectedStatuses: ["'204':", "'400':"] },
+    { path: '/auth/password/change:', method: 'post:', expectedStatuses: ["'204':", "'400':", "'401':"] },
+    { path: '/auth/code/resend:', method: 'post:', expectedStatuses: ["'202':", "'429':"] },
     { path: '/auth/refresh:', method: 'post:', expectedStatuses: ["'200':", "'401':"] },
     { path: '/auth/logout:', method: 'post:', expectedStatuses: ["'204':"] },
     { path: '/auth/sessions:', method: 'get:', expectedStatuses: ["'200':", "'401':"] },
@@ -51,6 +61,11 @@ describe('OpenAPI Route Parity & Status Verification (Condition 10)', () => {
   });
 
   it('should verify controllers define methods for all identity routes', () => {
+    // D-AUTH-EMAIL email + password controller
+    for (const m of ['methodsList', 'signup', 'verifySignup', 'login', 'verifyLogin', 'forgot', 'reset', 'change', 'resend'] as const) {
+      expect(typeof PasswordAuthController.prototype[m]).toBe('function');
+    }
+
     // Auth controller methods
     expect(typeof NestAuthController.prototype.requestOtp).toBe('function');
     expect(typeof NestAuthController.prototype.verifyOtp).toBe('function');

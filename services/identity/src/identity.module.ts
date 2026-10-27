@@ -8,7 +8,10 @@ import { TokenService } from './application/token.service.js';
 import { MfaService } from './application/mfa.service.js';
 import { AuthService } from './application/auth.service.js';
 import { RbacService } from './application/rbac.service.js';
-import { FakeOAuthVerifier } from './application/oauth-verifier.js';
+import { FakeOAuthVerifier, IOAuthVerifier } from './application/oauth-verifier.js';
+import { GoogleOAuthVerifier } from './application/google-oauth-verifier.js';
+import { GoogleSignInService } from './application/google-sign-in.service.js';
+import { defaultAuthMethods } from './config/env.js';
 import { PasswordAuthService } from './application/password-auth.service.js';
 import { MongoPersonRepository } from './infrastructure/repositories/mongo-person.repository.js';
 import { MongoSessionRepository } from './infrastructure/repositories/mongo-session.repository.js';
@@ -28,6 +31,20 @@ export interface IdentityModuleOptions {
   useInMemoryRepositories?: boolean;
   /** Tests pass a ConsoleEmailSender to read codes; otherwise built from EMAIL_PROVIDER. */
   emailSender?: EmailSender;
+  /** Tests pass a Google verifier backed by a local key set. */
+  oauthVerifier?: IOAuthVerifier;
+}
+
+/**
+ * D-AUTH-EMAIL A6/A7: the real Google verifier when GOOGLE_CLIENT_ID is set; the stand-in only
+ * outside production (env refuses production without a client ID); none when Google is off.
+ */
+export function selectOAuthVerifier(config: IdentityEnvConfig): IOAuthVerifier | undefined {
+  const methods = config.authMethods ?? defaultAuthMethods(config.nodeEnv);
+  if (!methods.includes('google')) return undefined;
+  if (config.googleClientId) return new GoogleOAuthVerifier(config.googleClientId);
+  if (config.nodeEnv === 'production') throw new Error('GOOGLE_CLIENT_ID is required in production while AUTH_METHODS includes google');
+  return new FakeOAuthVerifier(false);
 }
 
 export const EMAIL_SENDER = 'IDENTITY_EMAIL_SENDER';
@@ -187,20 +204,27 @@ export class IdentityModule {
             fakeEventBus: FakeEventBus
           ) => {
             const fakeOtpSender = new FakeOtpSender();
-            const oauthVerifier = new FakeOAuthVerifier(config.nodeEnv === 'production');
             return new AuthService({
               persons: personRepo,
               sessions: sessionRepo,
               otpChallenges: otpRepo,
               otpSender: fakeOtpSender,
               eventBus: fakeEventBus,
-              oauthVerifier: oauthVerifier,
               jwtSecret: config.jwtSecret,
               // ENABLE_FAKE_OTP is refused in production, so real builds always send random codes.
               fixedOtpCode: config.enableFakeOtp ? '123456' : undefined,
             });
           },
           inject: [MongoPersonRepository, MongoSessionRepository, MongoOtpRepository, IDENTITY_EVENT_BUS],
+        },
+        {
+          provide: GoogleSignInService,
+          useFactory: (persons: MongoPersonRepository, passwords: PasswordAuthService, auth: AuthService) => {
+            const verifier = options.oauthVerifier ?? selectOAuthVerifier(config);
+            assertNotFakeInProduction('Google sign-in verifier', verifier, config.nodeEnv);
+            return new GoogleSignInService(persons, passwords, auth, verifier);
+          },
+          inject: [MongoPersonRepository, PasswordAuthService, AuthService],
         },
         {
           provide: MfaService,
