@@ -122,8 +122,10 @@ export interface paths {
               status?: "authenticated" | "mfa_required" | "mfa_setup_required" | "link_confirmation_required";
               accessToken?: string;
               mfaTicket?: string;
+              /** @description Send with the emailed code to /auth/oauth/confirm-link */
               linkTicket?: string;
-              maskedPhone?: string;
+              /** @example m•••@example.com */
+              maskedEmail?: string;
               message?: string;
             };
           };
@@ -138,7 +140,7 @@ export interface paths {
     };
   };
   "/auth/oauth/confirm-link": {
-    /** Confirm OAuth account linking with primary credential OTP */
+    /** Confirm linking Google to an existing account with the code emailed to that account (D6) */
     post: {
       requestBody: {
         content: {
@@ -166,6 +168,240 @@ export interface paths {
         };
         /** @description Invalid ticket or code */
         400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/auth/methods": {
+    /** Sign-in methods this server accepts (the login page reads this) */
+    get: {
+      responses: {
+        /** @description Enabled methods */
+        200: {
+          content: {
+            "application/json": components["schemas"]["AuthMethods"];
+          };
+        };
+      };
+    };
+  };
+  "/auth/signup": {
+    /** Start an email and password sign-up; emails a 6-digit code. Same answer whether or not the email is taken. */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["SignupRequest"];
+        };
+      };
+      responses: {
+        /** @description Code sent, or for a taken email a notice sent to its owner */
+        202: {
+          content: {
+            "application/json": components["schemas"]["CodeTicket"];
+          };
+        };
+        /** @description Invalid email, or weak_password */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description rate_limited, with retryAfterSeconds */
+        429: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/auth/signup/verify": {
+    /** Finish sign-up with the emailed code; creates the account and signs in */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CodeVerifyRequest"];
+        };
+      };
+      responses: {
+        /** @description Signed in (refresh cookie set) or MFA needed */
+        200: {
+          headers: {
+            "Set-Cookie"?: string;
+          };
+          content: {
+            "application/json": components["schemas"]["AuthResult"];
+          };
+        };
+        /** @description code_invalid, code_expired or too_many_attempts */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/auth/login": {
+    /** Sign in with email and password. A new device, or 30 days since the last code there, needs an emailed code (D4). */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["PasswordLoginRequest"];
+        };
+      };
+      responses: {
+        /** @description authenticated, code_required (with ticket) or mfa_required (with mfaTicket) */
+        200: {
+          headers: {
+            "Set-Cookie"?: string;
+          };
+          content: {
+            "application/json": components["schemas"]["AuthResult"];
+          };
+        };
+        /** @description invalid_credentials; or email_not_verified, where a sign-up code is sent and the problem carries ticket */
+        401: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description rate_limited, with retryAfterSeconds */
+        429: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/auth/login/verify": {
+    /** Finish a sign-in that needed an emailed code */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CodeVerifyRequest"];
+        };
+      };
+      responses: {
+        /** @description Signed in or MFA needed */
+        200: {
+          headers: {
+            "Set-Cookie"?: string;
+          };
+          content: {
+            "application/json": components["schemas"]["AuthResult"];
+          };
+        };
+        /** @description code_invalid, code_expired or too_many_attempts */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/auth/password/forgot": {
+    /** Email a password reset code. Always 202, so it never reveals whether an account exists. */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ForgotPasswordRequest"];
+        };
+      };
+      responses: {
+        /** @description Accepted */
+        202: {
+          content: {
+            "application/json": components["schemas"]["CodeTicket"];
+          };
+        };
+        /** @description rate_limited, with retryAfterSeconds */
+        429: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/auth/password/reset": {
+    /** Set a new password with the emailed code; signs the person out everywhere */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ResetPasswordRequest"];
+        };
+      };
+      responses: {
+        /** @description Password changed */
+        204: {
+          content: never;
+        };
+        /** @description code_invalid, code_expired, too_many_attempts or weak_password */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/auth/password/change": {
+    /** Change password while signed in (bearer token); signs out every other session */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ChangePasswordRequest"];
+        };
+      };
+      responses: {
+        /** @description Password changed */
+        204: {
+          content: never;
+        };
+        /** @description invalid_credentials or weak_password */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description Not signed in */
+        401: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+      };
+    };
+  };
+  "/auth/code/resend": {
+    /** Send the code for a ticket again (60 seconds after the last one) */
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ResendCodeRequest"];
+        };
+      };
+      responses: {
+        /** @description Sent */
+        202: {
+          content: {
+            "application/json": components["schemas"]["CodeTicket"];
+          };
+        };
+        /** @description code_expired: the ticket is no longer valid */
+        400: {
+          content: {
+            "application/problem+json": components["schemas"]["ProblemDetails"];
+          };
+        };
+        /** @description rate_limited, with retryAfterSeconds */
+        429: {
           content: {
             "application/problem+json": components["schemas"]["ProblemDetails"];
           };
@@ -2650,6 +2886,67 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    AuthMethods: {
+      methods: ("google" | "email" | "phone")[];
+      /** @description Web client ID for Google Identity Services; absent when Google is off */
+      googleClientId?: string;
+    };
+    SignupRequest: {
+      name: string;
+      /** Format: email */
+      email: string;
+      password: string;
+      acceptedTermsVersion: string;
+      acceptedPrivacyVersion: string;
+      /** @enum {string} */
+      language?: "en" | "hi";
+    };
+    PasswordLoginRequest: {
+      /** Format: email */
+      email: string;
+      password: string;
+      deviceLabel?: string;
+    };
+    CodeVerifyRequest: {
+      ticket: string;
+      code: string;
+      deviceLabel?: string;
+    };
+    ForgotPasswordRequest: {
+      /** Format: email */
+      email: string;
+    };
+    ResetPasswordRequest: {
+      ticket: string;
+      code: string;
+      newPassword: string;
+    };
+    ChangePasswordRequest: {
+      currentPassword: string;
+      newPassword: string;
+    };
+    ResendCodeRequest: {
+      ticket: string;
+    };
+    CodeTicket: {
+      /** @enum {string} */
+      status: "code_sent";
+      /** @description Opaque; send back with the code */
+      ticket: string;
+      /** @example m•••@example.com */
+      maskedEmail?: string;
+      /** @example 60 */
+      resendAfterSeconds?: number;
+    };
+    AuthResult: {
+      /** @enum {string} */
+      status: "authenticated" | "code_required" | "mfa_required" | "mfa_setup_required";
+      accessToken?: string;
+      /** @description With code_required: send with the emailed code to /auth/login/verify */
+      ticket?: string;
+      maskedEmail?: string;
+      mfaTicket?: string;
+    };
     ProblemDetails: {
       /** Format: uri */
       type?: string;

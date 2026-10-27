@@ -1,6 +1,18 @@
 export * from './api-types';
 import type { components } from './api-types';
 
+// Sign-in: Google and email + password (D-AUTH-EMAIL)
+export type AuthMethods = components['schemas']['AuthMethods'];
+export type SignupRequest = components['schemas']['SignupRequest'];
+export type PasswordLoginRequest = components['schemas']['PasswordLoginRequest'];
+export type CodeVerifyRequest = components['schemas']['CodeVerifyRequest'];
+export type ForgotPasswordRequest = components['schemas']['ForgotPasswordRequest'];
+export type ResetPasswordRequest = components['schemas']['ResetPasswordRequest'];
+export type ChangePasswordRequest = components['schemas']['ChangePasswordRequest'];
+export type ResendCodeRequest = components['schemas']['ResendCodeRequest'];
+export type CodeTicket = components['schemas']['CodeTicket'];
+export type AuthResult = components['schemas']['AuthResult'];
+
 export type Organization = components['schemas']['Organization'];
 export type CreateOrganizationRequest = components['schemas']['CreateOrganizationRequest'];
 export type UpdateOrganizationRequest = components['schemas']['UpdateOrganizationRequest'];

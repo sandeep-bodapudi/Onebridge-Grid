@@ -116,8 +116,8 @@ paths:
                   status: { type: string, enum: [authenticated, mfa_required, mfa_setup_required, link_confirmation_required] }
                   accessToken: { type: string }
                   mfaTicket: { type: string }
-                  linkTicket: { type: string }
-                  maskedPhone: { type: string }
+                  linkTicket: { type: string, description: "Send with the emailed code to /auth/oauth/confirm-link" }
+                  maskedEmail: { type: string, example: "m•••@example.com" }
                   message: { type: string }
         '400':
           description: Invalid token or unverified identity
@@ -128,7 +128,7 @@ paths:
 
   /auth/oauth/confirm-link:
     post:
-      summary: Confirm OAuth account linking with primary credential OTP
+      summary: Confirm linking Google to an existing account with the code emailed to that account (D6)
       requestBody:
         required: true
         content:
@@ -156,6 +156,226 @@ paths:
                   mfaTicket: { type: string }
         '400':
           description: Invalid ticket or code
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/methods:
+    get:
+      summary: Sign-in methods this server accepts (the login page reads this)
+      responses:
+        '200':
+          description: Enabled methods
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMethods'
+
+  /auth/signup:
+    post:
+      summary: Start an email and password sign-up; emails a 6-digit code. Same answer whether or not the email is taken.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '202':
+          description: Code sent, or for a taken email a notice sent to its owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodeTicket'
+        '400':
+          description: "Invalid email, or weak_password"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: "rate_limited, with retryAfterSeconds"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/signup/verify:
+    post:
+      summary: Finish sign-up with the emailed code; creates the account and signs in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeVerifyRequest'
+      responses:
+        '200':
+          description: Signed in (refresh cookie set) or MFA needed
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResult'
+        '400':
+          description: "code_invalid, code_expired or too_many_attempts"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/login:
+    post:
+      summary: Sign in with email and password. A new device, or 30 days since the last code there, needs an emailed code (D4).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordLoginRequest'
+      responses:
+        '200':
+          description: authenticated, code_required (with ticket) or mfa_required (with mfaTicket)
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResult'
+        '401':
+          description: "invalid_credentials; or email_not_verified, where a sign-up code is sent and the problem carries ticket"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: "rate_limited, with retryAfterSeconds"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/login/verify:
+    post:
+      summary: Finish a sign-in that needed an emailed code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeVerifyRequest'
+      responses:
+        '200':
+          description: Signed in or MFA needed
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResult'
+        '400':
+          description: "code_invalid, code_expired or too_many_attempts"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/password/forgot:
+    post:
+      summary: Email a password reset code. Always 202, so it never reveals whether an account exists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodeTicket'
+        '429':
+          description: "rate_limited, with retryAfterSeconds"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/password/reset:
+    post:
+      summary: Set a new password with the emailed code; signs the person out everywhere
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '204':
+          description: Password changed
+        '400':
+          description: "code_invalid, code_expired, too_many_attempts or weak_password"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/password/change:
+    post:
+      summary: Change password while signed in (bearer token); signs out every other session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Password changed
+        '400':
+          description: "invalid_credentials or weak_password"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: "Not signed in"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/code/resend:
+    post:
+      summary: Send the code for a ticket again (60 seconds after the last one)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendCodeRequest'
+      responses:
+        '202':
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodeTicket'
+        '400':
+          description: "code_expired: the ticket is no longer valid"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: "rate_limited, with retryAfterSeconds"
           content:
             application/problem+json:
               schema:
@@ -2936,6 +3156,78 @@ paths:
 
 components:
   schemas:
+    AuthMethods:
+      type: object
+      required: [methods]
+      properties:
+        methods:
+          type: array
+          items: { type: string, enum: [google, email, phone] }
+        googleClientId: { type: string, description: "Web client ID for Google Identity Services; absent when Google is off" }
+    SignupRequest:
+      type: object
+      required: [name, email, password, acceptedTermsVersion, acceptedPrivacyVersion]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 10, maxLength: 128 }
+        acceptedTermsVersion: { type: string }
+        acceptedPrivacyVersion: { type: string }
+        language: { type: string, enum: [en, hi] }
+    PasswordLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+        deviceLabel: { type: string }
+    CodeVerifyRequest:
+      type: object
+      required: [ticket, code]
+      properties:
+        ticket: { type: string }
+        code: { type: string, pattern: '^[0-9]{6}$' }
+        deviceLabel: { type: string }
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+    ResetPasswordRequest:
+      type: object
+      required: [ticket, code, newPassword]
+      properties:
+        ticket: { type: string }
+        code: { type: string, pattern: '^[0-9]{6}$' }
+        newPassword: { type: string, minLength: 10, maxLength: 128 }
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string }
+        newPassword: { type: string, minLength: 10, maxLength: 128 }
+    ResendCodeRequest:
+      type: object
+      required: [ticket]
+      properties:
+        ticket: { type: string }
+    CodeTicket:
+      type: object
+      required: [status, ticket]
+      properties:
+        status: { type: string, enum: [code_sent] }
+        ticket: { type: string, description: "Opaque; send back with the code" }
+        maskedEmail: { type: string, example: "m•••@example.com" }
+        resendAfterSeconds: { type: integer, example: 60 }
+    AuthResult:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [authenticated, code_required, mfa_required, mfa_setup_required] }
+        accessToken: { type: string }
+        ticket: { type: string, description: "With code_required: send with the emailed code to /auth/login/verify" }
+        maskedEmail: { type: string }
+        mfaTicket: { type: string }
     ProblemDetails:
       type: object
       properties:

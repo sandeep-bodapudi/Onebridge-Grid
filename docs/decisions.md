@@ -264,3 +264,16 @@
 - Sign-in codes (phone and email) were always `123456`. `OtpService` now draws each code with `crypto.randomInt` (6 digits, zero-padded).
 - The fixed code `123456` remains only when `ENABLE_FAKE_OTP=true` (dev, demo server, e2e launcher, tests), passed as `fixedOtpCode`. The env loader refuses `ENABLE_FAKE_OTP` in production, so a production build cannot issue the fixed code.
 - The newest challenge for a phone now wins a `createdAt` tie (`_id` tie-break in Mongo, insertion order in memory); before, two requests in the same millisecond could return the older, already-used code.
+
+## D-AUTH-EMAIL: Google and email + password sign-in
+
+- Date: 2026-10-27 (founder: Google + email/password with verification code, Docker Compose VPS, real customers)
+- D1 Email goes out over SMTP (one adapter fits ZeptoMail, SES SMTP or any provider); a console adapter is for development and tests and refuses to start in production.
+- D2 Codes come from `EMAIL_FROM` (no-reply@onebridgecard.com) with reply-to `EMAIL_REPLY_TO` (support@onebridgecard.com).
+- D3 Phone sign-in is off in production and on in development and tests, through `AUTH_METHODS`.
+- D4 An email code is asked at sign-up, at password reset, and at sign-in from a new device or after 30 days without a code on that device (httpOnly `ob_device` cookie, stored hashed in `known_devices`). Google sign-in needs no code.
+- D5 Passwords are hashed with scrypt from `node:crypto` (N=2^15, r=8, p=1).
+- D6 Google and email accounts with the same email link automatically only when both emails are verified; otherwise the account owner confirms with an emailed code.
+- D11 Invite claim (F14) uses email in production.
+- New global collections `email_codes` (TTL on `expiresAt`) and `known_devices`, approved in the collection guard test. Pending sign-ups keep the name and password hash on the code record, so an abandoned sign-up leaves no account.
+- Phone remains a profile and card field; identity events carry IDs only.
