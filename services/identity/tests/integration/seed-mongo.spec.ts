@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { connectMongo, MongoConnectionHandle } from '@onebridge/shared';
 import { seedDevDatabase } from '../../src/infrastructure/seed';
+import { DEV_PASSWORD } from '../../src/infrastructure/seed.data';
+import { verifyPassword } from '../../src/domain/password';
 
 const TEST_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
@@ -45,6 +47,10 @@ describe('Real MongoDB Seed Idempotency & Production Refusal (Fix 1: AC-A9)', ()
     const db = connectionHandle._getInternalDb();
     const orgCount1 = await db.collection('organizations').countDocuments();
     const personCount1 = await db.collection('persons').countDocuments();
+    // D-AUTH-EMAIL A9: seeded people sign in with their example.com email and the development password.
+    const owner = await db.collection('persons').findOne({ email: 'aarav.owner@acme.example.com' });
+    expect(owner?.emailVerifiedAt).toBeTruthy();
+    expect(await verifyPassword(DEV_PASSWORD, owner?.passwordHash)).toBe(true);
     const membershipCount1 = await db.collection('memberships').countDocuments();
 
     // Organizations belong to the organization service (seedDevOrganizations);

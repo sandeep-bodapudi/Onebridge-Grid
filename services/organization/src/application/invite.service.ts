@@ -92,7 +92,9 @@ export class InviteService {
     private readonly appUrl: string,
     /** Return the link to the admin when invites are not delivered for real (never in production). */
     private readonly exposeLinksWhenFake: boolean,
-    private readonly now: () => Date = () => new Date()
+    private readonly now: () => Date = () => new Date(),
+    /** D-AUTH-EMAIL D11: phone sign-in is off (production), so invitees must be reached and sign in by email. */
+    private readonly emailOnly = false
   ) {}
 
   private inviteUrl(token: string): string {
@@ -156,7 +158,12 @@ export class InviteService {
   ): Promise<InviteSummary> {
     const channel = input.channel as InviteChannel;
     if (!INVITE_CHANNELS.includes(channel)) {
-      throw new BadRequestException(problem(400, 'Bad Request', 'Choose SMS, WhatsApp or email.'));
+      throw new BadRequestException(problem(400, 'Bad Request', this.emailOnly ? 'Send the invite by email.' : 'Choose SMS, WhatsApp or email.'));
+    }
+    if (this.emailOnly && channel !== 'email') {
+      throw new BadRequestException(
+        problem(400, 'Bad Request', 'Send the invite by email. People sign in to OneBridge with their email address, so the invite has to reach it.', 'email_required')
+      );
     }
     const seat = await this.seatsService.getSeat(tenantId, seatId);
     if (seat.isReadOnly) {

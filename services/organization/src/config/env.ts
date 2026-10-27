@@ -12,11 +12,24 @@ export interface OrganizationEnvConfig {
   internalServiceKey: string;
   /** Verifies identity access tokens (D-SERVICE-AUTH). Must equal identity's JWT_SECRET. */
   jwtSecret?: string;
+  /** D-AUTH-EMAIL D11: phone sign-in is off (AUTH_METHODS without phone; production default), so invites go by email only. */
+  emailOnlyInvites?: boolean;
+  /** EMAIL_PROVIDER, SMTP_* and EMAIL_* settings for the invite emails. */
+  emailEnv?: Record<string, string | undefined>;
 }
+
+const EMAIL_KEYS = ['EMAIL_PROVIDER', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_SECURE', 'EMAIL_FROM', 'EMAIL_REPLY_TO'];
 
 export function loadAndValidateEnv(): OrganizationEnvConfig {
   const nodeEnv = process.env.NODE_ENV || 'development';
+  // Same rule as identity: AUTH_METHODS when set, otherwise phone is off only in production.
+  const methods = process.env.AUTH_METHODS?.split(',').map((m) => m.trim().toLowerCase());
+  const phoneSignIn = methods ? methods.includes('phone') : nodeEnv !== 'production';
+  const emailEnv: Record<string, string | undefined> = {};
+  for (const key of EMAIL_KEYS) emailEnv[key] = process.env[key];
   return {
+    emailOnlyInvites: !phoneSignIn,
+    emailEnv,
     nodeEnv,
     jwtSecret: resolveServiceJwtSecret(nodeEnv, process.env.JWT_SECRET),
     port: parseInt(process.env.ORGANIZATION_PORT || '4002', 10),

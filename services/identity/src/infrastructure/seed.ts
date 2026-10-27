@@ -1,5 +1,6 @@
 import { loadAndValidateEnv } from '../config/env.js';
-import { SEED_DATA } from './seed.data.js';
+import { DEV_PASSWORD, SEED_DATA } from './seed.data.js';
+import { hashPassword } from '../domain/password.js';
 import { KeyService } from '../application/key.service.js';
 import { connectMongo, MongoConnectionHandle, redactMongoUri, isLocalMongoUri } from '@onebridge/shared';
 
@@ -46,14 +47,19 @@ export async function seedDevDatabase(customHandle?: MongoConnectionHandle): Pro
     const orgs = Object.values(SEED_DATA.tenants);
 
     // 3. Seed Persons (with encrypted TOTP secrets for Owner & Admin)
+    // One scrypt hash of the development password, shared by every seeded person.
+    const devPasswordHash = await hashPassword(DEV_PASSWORD);
     const personDocs = Object.values(SEED_DATA.persons).map((p) => {
       const now = new Date().toISOString();
       return {
         userId: p.id,
         phone: p.phone,
-        email: p.email,
+        email: p.email.toLowerCase(),
         name: p.name,
-        authProviders: ['phone'],
+        authProviders: ['otp', 'password'],
+        emailVerifiedAt: now,
+        passwordHash: devPasswordHash,
+        passwordUpdatedAt: now,
         mfa: {
           enabled: p.mfaEnrolled,
           secret: p.totpSecret ? keyService.encrypt(p.totpSecret) : undefined,

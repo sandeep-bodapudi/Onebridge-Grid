@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthFlow, AuthStep, AuthFlowLabels } from '../../src/features/auth/AuthFlow';
 import { SignIn } from '../../src/features/auth/SignIn';
+import { nextFromLocation, safeNextPath, withNext } from '../../src/features/auth/next-path';
 import { apiClient } from '../../src/api-client';
 
 const labels: AuthFlowLabels = {
@@ -43,12 +44,17 @@ export default function LoginPage() {
   const [mfaTicket, setMfaTicket] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Where to go afterwards, e.g. back to a seat invite (?next=/invite/...).
+  const [next, setNext] = useState<string | null>(null);
+  const done = () => router.push(safeNextPath(next));
 
   useEffect(() => {
+    const target = nextFromLocation();
+    setNext(target);
     // Condition 9: Silent refresh on app load
     apiClient.silentRefresh().then((token) => {
       if (token) {
-        router.push('/dashboard');
+        router.push(safeNextPath(target));
       }
     });
   }, [router]);
@@ -84,7 +90,7 @@ export default function LoginPage() {
     try {
       const res = await apiClient.verifyOtp(currentPhone, code);
       if (res.status === 'authenticated') {
-        router.push('/dashboard');
+        done();
       } else if (res.status === 'mfa_required' || res.status === 'mfa_setup_required') {
         goToMfa(res.status, res.mfaTicket);
       }
@@ -120,7 +126,7 @@ export default function LoginPage() {
     setErrorMessage(null);
     try {
       await apiClient.verifyMfa(code, mfaTicket);
-      router.push('/dashboard');
+      done();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Invalid TOTP code';
       setErrorMessage(msg);
@@ -159,7 +165,8 @@ export default function LoginPage() {
         ) : null}
         {view === 'signin' ? (
           <SignIn
-            onSignedIn={() => router.push('/dashboard')}
+            signupHref={withNext('/signup', next)}
+            onSignedIn={done}
             onMfa={goToMfa}
             onUsePhone={() => {
               setStep('otp_entry');

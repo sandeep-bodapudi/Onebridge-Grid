@@ -9,7 +9,8 @@ export type EmailTemplate =
   | 'signup_on_existing_account'
   | 'new_device_sign_in'
   | 'password_changed'
-  | 'google_linked';
+  | 'google_linked'
+  | 'seat_invite';
 
 export type EmailLanguage = 'en' | 'hi';
 
@@ -18,6 +19,11 @@ export interface TemplateVars {
   minutes?: number;
   name?: string;
   device?: string;
+  /** seat_invite only: the one link these emails ever carry. */
+  url?: string;
+  companyName?: string;
+  seatTitle?: string;
+  days?: number;
 }
 
 interface Copy {
@@ -73,6 +79,11 @@ const en: Strings = {
     intro: 'You can now sign in to OneBridge with Google as well as your password.',
     note: "If you didn't do this, change your password now and contact support.",
   }),
+  seat_invite: (v) => ({
+    subject: `${v.companyName} invited you to your OneBridge card`,
+    intro: `${v.companyName} has set up a digital business card for you as ${v.seatTitle}. Open the invite to claim it, signing in with this email address.`,
+    note: `The invite works for ${v.days} days.`,
+  }),
 };
 
 const hi: Strings = {
@@ -119,6 +130,11 @@ const hi: Strings = {
     intro: 'अब आप पासवर्ड के साथ-साथ Google से भी OneBridge में साइन इन कर सकते हैं।',
     note: 'अगर यह आपने नहीं किया, तो अभी अपना पासवर्ड बदलें और सहायता से संपर्क करें।',
   }),
+  seat_invite: (v) => ({
+    subject: `${v.companyName} ने आपको OneBridge कार्ड के लिए आमंत्रित किया है`,
+    intro: `${v.companyName} ने ${v.seatTitle} के रूप में आपके लिए एक डिजिटल बिज़नेस कार्ड बनाया है। इसे लेने के लिए आमंत्रण खोलें और इसी ईमेल पते से साइन इन करें।`,
+    note: `यह आमंत्रण ${v.days} दिन तक काम करेगा।`,
+  }),
 };
 
 const STRINGS: Record<EmailLanguage, Strings> = { en, hi };
@@ -134,11 +150,15 @@ export function renderEmail(template: EmailTemplate, to: string, vars: TemplateV
   const copy = s[template](v);
   const hello = s.hello(v.name);
 
-  const text = [hello, '', copy.intro, '', ...(v.code ? [v.code, ''] : []), copy.note, '', s.notYou, '', `— ${s.brand}`].join('\n');
+  const text = [hello, '', copy.intro, '', ...(v.code ? [v.code, ''] : []), ...(v.url ? [v.url, ''] : []), copy.note, '', s.notYou, '', `— ${s.brand}`].join('\n');
 
   const e = escapeHtml;
   const codeBlock = v.code
     ? `<p style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:32px;letter-spacing:6px;font-weight:700;margin:24px 0;color:#111827">${e(v.code)}</p>`
+    : '';
+  const linkLabel = language === 'hi' ? 'आमंत्रण खोलें' : 'Open the invite';
+  const linkBlock = v.url
+    ? `<p style="margin:24px 0"><a href="${e(v.url)}" style="display:inline-block;padding:12px 20px;background:#111827;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:700">${e(linkLabel)}</a></p>`
     : '';
   const html = `<!doctype html><html><body style="margin:0;background:#f5f5f4;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1f2937">
 <div style="max-width:480px;margin:0 auto;padding:32px 24px;background:#ffffff">
@@ -146,6 +166,7 @@ export function renderEmail(template: EmailTemplate, to: string, vars: TemplateV
 <p style="margin:0 0 12px">${e(hello)}</p>
 <p style="margin:0 0 12px;line-height:1.5">${e(copy.intro)}</p>
 ${codeBlock}
+${linkBlock}
 <p style="margin:0 0 12px;line-height:1.5">${e(copy.note)}</p>
 <p style="margin:24px 0 0;font-size:13px;color:#6b7280;line-height:1.5">${e(s.notYou)}</p>
 </div></body></html>`;

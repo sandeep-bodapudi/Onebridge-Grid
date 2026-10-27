@@ -21,6 +21,12 @@ export interface SeedMembership {
   role: 'owner' | 'admin' | 'employee';
 }
 
+/**
+ * D-AUTH-EMAIL A9: every seeded person can sign in with their example.com email and this
+ * development-only password. Seeds never run in production (seedDevDatabase refuses).
+ */
+export const DEV_PASSWORD = 'DevPassword-2026!';
+
 export const SEED_DATA = {
   tenants: {
     acme: {

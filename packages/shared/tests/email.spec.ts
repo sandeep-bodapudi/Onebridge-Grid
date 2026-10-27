@@ -41,6 +41,16 @@ describe('D-AUTH-EMAIL email sending', () => {
     }
   });
 
+  it('renders a seat invite with its one link, escaped, in both languages', () => {
+    const m = renderEmail('seat_invite', 'meera@example.com', { companyName: 'Acme & Sons', seatTitle: 'Sales lead', url: 'https://onebridgecard.com/invite/tok"x', days: 7 });
+    expect(m.subject).toBe('Acme & Sons invited you to your OneBridge card');
+    expect(m.text).toContain('https://onebridgecard.com/invite/tok"x');
+    expect(m.text).toContain('7 days');
+    expect(m.html).toContain('href="https://onebridgecard.com/invite/tok&quot;x"');
+    expect(m.html).toContain('Acme &amp; Sons');
+    expect(renderEmail('seat_invite', 'a@example.com', { companyName: 'Acme', seatTitle: 'Sales', url: 'https://x.example/i', days: 7 }, 'hi').html).toContain('आमंत्रण खोलें');
+  });
+
   it('masks emails for logs and screens', () => {
     expect(maskEmail('meera@example.com')).toBe('m•••@example.com');
     expect(maskEmail('bad')).toBe('•••');

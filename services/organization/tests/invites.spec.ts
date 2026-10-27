@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { connectMongo, MongoConnectionHandle, FakeEventBus, LocalKeyVaultProvider } from '@onebridge/shared';
+import { connectMongo, MongoConnectionHandle, FakeEventBus, LocalKeyVaultProvider, ConsoleEmailSender } from '@onebridge/shared';
 import {
   InviteService,
   SeatsService,
@@ -12,6 +12,7 @@ import {
   MongoAuditRepository,
   MongoCounterRepository,
   FakeInviteNotifier,
+  EmailInviteNotifier,
   SEAT_NOTICE,
   IdentityInternalClient,
 } from '../src/index.js';
@@ -208,5 +209,39 @@ describe('F14: invite and seat claim', () => {
     Object.defineProperty(notifier, 'deliversForReal', { value: true });
     const sent = await service.invite(TENANT, SEAT, { channel: 'sms', contact: '9890123456' }, 'o');
     expect(sent.inviteUrl).toBeUndefined();
+  });
+
+  it('D-AUTH-EMAIL D11: with phone sign-in off, invites go by real email only', async () => {
+    const mail = new ConsoleEmailSender('test');
+    const seatRepo = new MongoSeatRepository(handle);
+    const orgRepo = new MongoOrganizationRepository(handle);
+    const auditRepo = new MongoAuditRepository(handle);
+    const seats = new SeatsService(seatRepo, orgRepo, new CounterService(new MongoCounterRepository(handle), orgRepo), auditRepo, bus);
+    const emailOnly = new InviteService(
+      new MongoInviteRepository(handle),
+      new MongoNoticeAcceptanceRepository(handle),
+      seatRepo,
+      seats,
+      orgRepo,
+      auditRepo,
+      identity,
+      new LocalKeyVaultProvider(),
+      new EmailInviteNotifier(mail, () => clock),
+      bus,
+      'https://onebridgecard.com',
+      false,
+      () => clock,
+      true
+    );
+    for (const channel of ['sms', 'whatsapp']) {
+      await expect(emailOnly.invite(TENANT, SEAT, { channel, contact: '9890123456' }, 'o')).rejects.toMatchObject({ status: 400, response: { code: 'email_required' } });
+    }
+    const sent = await emailOnly.invite(TENANT, SEAT, { channel: 'email', contact: 'Meera@Example.com' }, 'o');
+    expect(sent.inviteUrl).toBeUndefined();
+    const email = mail.lastTo('meera@example.com');
+    expect(email?.tag).toBe('seat_invite');
+    expect(email?.subject).toBe('Acme Steels invited you to your OneBridge card');
+    expect(email?.text).toMatch(/https:\/\/onebridgecard\.com\/invite\/\S+/);
+    expect(email?.text).toContain('7 days');
   });
 });

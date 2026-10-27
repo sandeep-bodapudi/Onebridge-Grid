@@ -1,5 +1,5 @@
 import { Module, DynamicModule, Global, OnModuleInit } from '@nestjs/common';
-import { MongoConnectionHandle, FakeEventBus, EventBus, KeyVaultProvider, LocalKeyVaultProvider } from '@onebridge/shared';
+import { MongoConnectionHandle, FakeEventBus, EventBus, KeyVaultProvider, LocalKeyVaultProvider, assertNotFakeInProduction, createEmailSender } from '@onebridge/shared';
 import { OrganizationEnvConfig, loadAndValidateEnv } from './config/env.js';
 import { OrganizationService } from './application/organization.service.js';
 import { MongoOrganizationRepository } from './infrastructure/mongo-organization.repository.js';
@@ -29,7 +29,18 @@ import { AuditLogService } from './application/audit-log.service.js';
 import { AuditController } from './presentation/audit.controller.js';
 import { InviteService } from './application/invite.service.js';
 import { MongoInviteRepository, MongoNoticeAcceptanceRepository } from './infrastructure/mongo-invite.repository.js';
-import { FakeInviteNotifier, InviteNotifier } from './infrastructure/invite-notifier.js';
+import { EmailInviteNotifier, FakeInviteNotifier, InviteNotifier } from './infrastructure/invite-notifier.js';
+
+/**
+ * D-AUTH-EMAIL D11: production (or EMAIL_PROVIDER set) sends invites by real email; development
+ * keeps the recording stand-in that hands the link back to the admin (D-INVITE-DEV-LINK).
+ */
+export function selectInviteNotifier(config: OrganizationEnvConfig): InviteNotifier {
+  const realEmail = config.nodeEnv === 'production' || Boolean(config.emailEnv?.EMAIL_PROVIDER);
+  const notifier = realEmail ? new EmailInviteNotifier(createEmailSender(config.emailEnv ?? {}, config.nodeEnv)) : new FakeInviteNotifier();
+  assertNotFakeInProduction('Invite notifier', notifier, config.nodeEnv);
+  return notifier;
+}
 import { InvitesController, PublicInvitesController } from './presentation/invites.controller.js';
 import { AccessRequestService, MongoAccessRequestRepository } from './application/access-request.service.js';
 import { AccessRequestsController } from './presentation/access-requests.controller.js';
@@ -338,11 +349,13 @@ export class OrganizationModule implements OnModuleInit {
           auditRepo,
           identityClient,
           options.keyVault || new LocalKeyVaultProvider(),
-          options.inviteNotifier || new FakeInviteNotifier(),
+          options.inviteNotifier || selectInviteNotifier(config),
           eventBus as EventBus,
           config.appUrl,
           // D-INVITE-DEV-LINK: hand the link back only while invites are not really delivered, never in production.
-          config.nodeEnv !== 'production'
+          config.nodeEnv !== 'production',
+          () => new Date(),
+          Boolean(config.emailOnlyInvites)
         ),
       inject: [
         MongoInviteRepository,

@@ -277,3 +277,6 @@
 - D11 Invite claim (F14) uses email in production.
 - New global collections `email_codes` (TTL on `expiresAt`) and `known_devices`, approved in the collection guard test. Pending sign-ups keep the name and password hash on the code record, so an abandoned sign-up leaves no account.
 - Phone remains a profile and card field; identity events carry IDs only.
+- D11 in practice (2026-10-27): while phone sign-in is off, organization refuses SMS and WhatsApp invites (`email_required`) and sends invites through `EmailInviteNotifier` (shared EmailSender, `seat_invite` template, the one email with a link). The claim page sends the invitee to sign in or create an account and back (`?next=/invite/<token>`, a same-site path only; no email in the URL); the server still checks the claimer's email matches the invite.
+- Code-only sign-in (`POST /auth/otp` and `/auth/verify`, phone or email codes) creates accounts without a password or recorded consent, so it answers 403 `method_disabled` unless `AUTH_METHODS` includes phone (development and the demo server). The demo seed keeps using it; it never runs against production.
+- Seeded development people sign in with their example.com email and `DevPassword-2026!` (seed.data.ts); seeding refuses production.

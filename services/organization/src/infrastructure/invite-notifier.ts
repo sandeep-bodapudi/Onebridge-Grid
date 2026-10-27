@@ -1,3 +1,4 @@
+import { EmailSender, renderEmail } from '@onebridge/shared';
 import { InviteChannel } from '../domain/invite.js';
 
 export interface InviteMessage {
@@ -29,5 +30,23 @@ export class FakeInviteNotifier implements InviteNotifier {
     this.sent.push(message);
     // No personal data in logs: channel and company only.
     console.log(`[FakeInviteNotifier] invite via ${message.channel} for ${message.companyName}`);
+  }
+}
+
+/**
+ * D-AUTH-EMAIL D11: invites go by email in production (phone sign-in is off there), through
+ * the shared EmailSender. SMS and WhatsApp wait for F22, so they are refused, not faked.
+ */
+export class EmailInviteNotifier implements InviteNotifier {
+  readonly deliversForReal = true;
+
+  constructor(private readonly email: EmailSender, private readonly now: () => Date = () => new Date()) {}
+
+  async send(message: InviteMessage): Promise<void> {
+    if (message.channel !== 'email') throw new Error(`Invites by ${message.channel} are not available yet`);
+    const days = Math.max(1, Math.round((new Date(message.expiresAt).getTime() - this.now().getTime()) / 86_400_000));
+    await this.email.send(
+      renderEmail('seat_invite', message.to, { companyName: message.companyName, seatTitle: message.seatTitle, url: message.inviteUrl, days })
+    );
   }
 }

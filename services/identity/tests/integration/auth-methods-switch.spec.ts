@@ -54,4 +54,12 @@ describe('D-AUTH-EMAIL methods switch', () => {
       .expect(403);
     expect(res.body.code).toBe('method_disabled');
   });
+
+  it('refuses code-only sign-in (phone or email codes) while phone is off', async () => {
+    for (const body of [{ phone: '+919700000001' }, { email: 'invitee@example.com' }]) {
+      const res = await request(app.getHttpServer()).post('/auth/otp').set('Origin', ORIGIN).send(body).expect(403);
+      expect(res.body.code).toBe('method_disabled');
+    }
+    await request(app.getHttpServer()).post('/auth/verify').set('Origin', ORIGIN).send({ email: 'invitee@example.com', code: '123456' }).expect(403);
+  });
 });

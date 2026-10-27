@@ -60,11 +60,16 @@ export class NestAuthController {
     private readonly google: GoogleSignInService
   ) {}
 
-  /** D-AUTH-EMAIL D3: phone codes only when AUTH_METHODS includes phone; email codes (F14) when it includes email. */
+  /**
+   * D-AUTH-EMAIL D3/D11: /auth/otp and /auth/verify are code-only sign-in (a phone code, or an
+   * email code for old F14 invites). They create accounts without a password or recorded consent,
+   * so they run only while AUTH_METHODS includes phone (development); production invitees sign in
+   * or sign up with Google or a password instead.
+   */
   private requireMethod(method: AuthMethod): void {
     const methods = this.envConfig.authMethods ?? defaultAuthMethods(this.envConfig.nodeEnv);
     if (!methods.includes(method)) {
-      throw new HttpException({ title: 'Forbidden', detail: `${method === 'phone' ? 'Phone' : 'Email'} sign-in is turned off on this server.`, code: 'method_disabled' }, 403);
+      throw new HttpException({ title: 'Forbidden', detail: 'Sign-in with a one-time code alone is turned off. Sign in with Google or your email and password.', code: 'method_disabled' }, 403);
     }
   }
 
@@ -113,7 +118,7 @@ export class NestAuthController {
     @Req() req?: HttpRequest
   ) {
     const ip = getClientIp(req);
-    this.requireMethod(body?.email && !body?.phone ? 'email' : 'phone');
+    this.requireMethod('phone');
     return this.handleIdempotency(idempotencyKey, body, correlationId, async () => {
       // F14: an email code verifies the email an invite was sent to.
       const result = body.email && !body.phone
@@ -137,7 +142,7 @@ export class NestAuthController {
   ) {
     const ip = getClientIp(req);
     const userAgent = getClientUserAgent(req);
-    this.requireMethod(body?.email && !body?.phone ? 'email' : 'phone');
+    this.requireMethod('phone');
     return this.handleIdempotency(idempotencyKey, body, correlationId, async () => {
       const result = body.email && !body.phone
         ? await this.authService.verifyEmailOtp(body.email, body.code, body.deviceLabel || userAgent, ip, correlationId)

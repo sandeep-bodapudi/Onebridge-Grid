@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Clock, Link2Off, ShieldCheck } from 'lucid
 import { Button, Input, SpanMark } from '@onebridge/ui-kit';
 import type { InvitePreview } from '@onebridge/api-contracts';
 import { apiClient } from '../../../src/api-client';
+import { withNext } from '../../../src/features/auth/next-path';
 
 type Step = 'loading' | 'closed' | 'welcome' | 'verify' | 'notice' | 'declined' | 'done';
 
@@ -30,6 +31,12 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const [error, setError] = useState<string | null>(null);
   const [lang, setLang] = useState<'en' | 'hi'>('en');
   const [result, setResult] = useState<{ companyName: string } | null>(null);
+  // D-AUTH-EMAIL D11: code-only sign-in exists only while identity offers phone (development).
+  const [codeSignIn, setCodeSignIn] = useState(false);
+
+  useEffect(() => {
+    void apiClient.getAuthMethods().then((m) => setCodeSignIn(m.methods.includes('phone')));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,7 +197,36 @@ export default function InvitePage({ params }: { params: { token: string } }) {
           </div>
         ) : null}
 
-        {step === 'verify' && invite ? (
+        {step === 'verify' && invite && !codeSignIn ? (
+          <div className={`${panel} space-y-4`} data-testid="invite-sign-in">
+            <h1 className="text-xl font-bold">Confirm it is you</h1>
+            {isEmail ? (
+              <>
+                <p className="text-sm text-warm-paper/70">
+                  Sign in, or create your OneBridge account, with the email this invite was sent to ({invite.contactMasked}). You&apos;ll come straight back here to claim
+                  your card.
+                </p>
+                {errorBox}
+                <a
+                  href={withNext('/login', `/invite/${token}`)}
+                  className="flex min-h-[44px] w-full items-center justify-center rounded-control bg-warm-paper text-charcoal text-sm font-bold"
+                >
+                  Sign in
+                </a>
+                <a
+                  href={withNext('/signup', `/invite/${token}`)}
+                  className="flex min-h-[44px] w-full items-center justify-center text-sm font-semibold underline underline-offset-4"
+                >
+                  Create an account
+                </a>
+              </>
+            ) : (
+              <p className="text-sm text-warm-paper/70">This invite was sent to a mobile number. Ask your admin to send it again to your email address.</p>
+            )}
+          </div>
+        ) : null}
+
+        {step === 'verify' && invite && codeSignIn ? (
           <form
             className={`${panel} space-y-4`}
             noValidate
@@ -231,7 +267,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                 />
-                <p className="text-xs text-warm-paper/55 mt-1">In this demo the code is 123456.</p>
+                {process.env.NODE_ENV !== 'production' ? <p className="text-xs text-warm-paper/55 mt-1">In development the code is 123456.</p> : null}
               </div>
             ) : null}
             {errorBox}
