@@ -2,8 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ExternalLink, Plus, Trash2 } from 'lucide-react';
-import { Button, Input, PageHeader, Skeleton } from '@onebridge/ui-kit';
-import type { Branch, CardSummary, CompanyProfileSettings, Organization } from '@onebridge/api-contracts';
+import { Avatar, Button, Input, PageHeader, Skeleton } from '@onebridge/ui-kit';
+import type { ActorSummary, Branch, CardSummary, CompanyProfileSettings, Organization } from '@onebridge/api-contracts';
 import { apiClient } from '../../api-client';
 
 export interface CompanyPageFeatureProps {
@@ -12,13 +12,14 @@ export interface CompanyPageFeatureProps {
   onOrganizationSaved?: (org: Organization) => void;
 }
 
-type Tab = 'profile' | 'catalogue' | 'work' | 'documents' | 'people' | 'search';
+type Tab = 'profile' | 'catalogue' | 'work' | 'documents' | 'people' | 'followers' | 'search';
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'profile', label: 'Profile' },
   { id: 'catalogue', label: 'Products and services' },
   { id: 'work', label: 'Work and clients' },
   { id: 'documents', label: 'Documents' },
   { id: 'people', label: 'People and enquiries' },
+  { id: 'followers', label: 'Followers' },
   { id: 'search', label: 'Search engines' },
 ];
 
@@ -620,6 +621,8 @@ export const CompanyPageFeature: React.FC<CompanyPageFeatureProps> = ({ tenantId
           </>
         ) : null}
 
+        {tab === 'followers' ? <FollowersPanel tenantId={tenantId} /> : null}
+
         {tab === 'search' ? (
           <section className={`${panel} p-5`} aria-labelledby="cp-seo-title">
             <div className="flex items-start justify-between gap-4">
@@ -647,5 +650,76 @@ export const CompanyPageFeature: React.FC<CompanyPageFeatureProps> = ({ tenantId
         ) : null}
       </div>
     </div>
+  );
+};
+
+/** N04: who follows the company (Owner and Admins). Follower contact details are never shown. */
+const FollowersPanel: React.FC<{ tenantId: string }> = ({ tenantId }) => {
+  const [state, setState] = useState<{ items: ActorSummary[]; total: number; next?: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [more, setMore] = useState(false);
+
+  useEffect(() => {
+    apiClient
+      .listCompanyFollowers(tenantId)
+      .then((page) => setState({ items: page.items, total: page.total ?? page.items.length, next: page.nextCursor }))
+      .catch((err: Error) => setError(err.message));
+  }, [tenantId]);
+
+  const loadMore = async () => {
+    if (!state?.next) return;
+    setMore(true);
+    try {
+      const page = await apiClient.listCompanyFollowers(tenantId, state.next);
+      setState({ items: [...state.items, ...page.items], total: state.total, next: page.nextCursor });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load more.');
+    } finally {
+      setMore(false);
+    }
+  };
+
+  return (
+    <section className={`${panel} p-5`} aria-labelledby="cp-followers-title">
+      <h2 id="cp-followers-title" className="text-base font-bold">
+        {state ? `${state.total.toLocaleString('en-IN')} follower${state.total === 1 ? '' : 's'}` : 'Followers'}
+      </h2>
+      <p className="text-sm text-warm-paper/60 mt-0.5">People and companies who follow your page see your updates. Their phone numbers and emails are not shared.</p>
+      {error ? (
+        <p role="alert" className="mt-3 text-sm px-3 py-2.5 rounded-[10px] bg-error/15 border border-error/40">
+          {error}
+        </p>
+      ) : null}
+      {!state && !error ? (
+        <div className="mt-4 space-y-2" aria-busy="true">
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+        </div>
+      ) : null}
+      {state && state.items.length === 0 ? <p className="mt-4 text-sm text-warm-paper/70">No followers yet. Share your company page link or QR standee to get your first.</p> : null}
+      {state && state.items.length ? (
+        <ul className="mt-4 grid sm:grid-cols-2 gap-2">
+          {state.items.map((a) => (
+            <li key={`${a.type}-${a.id}`} className="rounded-xl bg-charcoal-deep border border-white/[0.08] p-3 flex items-center gap-3">
+              <Avatar name={a.name} />
+              <a href={a.type === 'company' ? `/network/company/${a.handle}` : `/network/in/${a.handle}`} className="min-w-0">
+                <span className="block font-semibold truncate">{a.name}</span>
+                <span className="block text-xs text-warm-paper/55 truncate">
+                  {a.type === 'company' ? 'Company' : 'Member'}
+                  {a.headline ? ` · ${a.headline}` : ''}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {state?.next ? (
+        <div className="mt-4">
+          <Button variant="secondary" isLoading={more} onClick={loadMore}>
+            Show more
+          </Button>
+        </div>
+      ) : null}
+    </section>
   );
 };

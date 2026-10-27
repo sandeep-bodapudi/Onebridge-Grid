@@ -23,6 +23,7 @@ import { avatarColour, initialsOf } from './AppShell';
 export interface CompanyProfileData {
   status: 'active' | 'lapsed';
   company: {
+    id?: string;
     name: string;
     slug: string;
     businessId: string;
@@ -66,6 +67,8 @@ export interface CompanyProfilePageProps {
   privacyNoticeUrl?: string;
   onEnquirySubmit?: (data: CompanyEnquiryData) => Promise<{ success: boolean; message?: string } | void>;
   onDocumentClick?: (documentId: string) => void;
+  /** Extra hero buttons, such as Follow (N04). */
+  heroActions?: React.ReactNode;
 }
 
 /* ------------------------------------------------------------------ */
@@ -221,6 +224,7 @@ export const CompanyProfilePage: React.FC<CompanyProfilePageProps> = ({
   privacyNoticeUrl,
   onEnquirySubmit,
   onDocumentClick,
+  heroActions,
 }) => {
   const [lang, setLang] = useState<'en' | 'hi'>('en');
   const t: Copy = copy[lang];
@@ -485,6 +489,7 @@ export const CompanyProfilePage: React.FC<CompanyProfilePageProps> = ({
                 {t.directions}
               </a>
             ) : null}
+            {heroActions}
           </div>
         </div>
         <span aria-hidden="true" data-span-line="true" className="absolute inset-x-0 bottom-0 h-[5px] bg-bridge-orange" />

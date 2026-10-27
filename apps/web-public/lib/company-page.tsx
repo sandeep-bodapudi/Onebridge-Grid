@@ -90,7 +90,7 @@ export function CompanyPageView({ company, path, branchId }: { company: PublicCo
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json }} />
-      <CompanyPageClient data={company as unknown as CompanyProfileData} branchId={branchId} />
+      <CompanyPageClient data={company as unknown as CompanyProfileData} branchId={branchId} appUrl={(process.env.APP_URL || '').replace(/\/+$/, '')} />
     </>
   );
 }

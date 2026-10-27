@@ -70,6 +70,7 @@ export class ProfilesModule implements OnModuleInit {
       controllers: [ProfilesController],
       providers: [
         { provide: 'PROFILES_ENV_CONFIG', useValue: config },
+        { provide: 'INTERNAL_SERVICE_KEY', useValue: config.internalServiceKey },
         { provide: 'EVENT_BUS', useValue: options.eventBus || new InMemoryEventBus() },
         { provide: MongoMemberProfileRepository, useFactory: () => new MongoMemberProfileRepository(handle()) },
         { provide: MongoWorkHistoryRepository, useFactory: () => new MongoWorkHistoryRepository(handle()) },

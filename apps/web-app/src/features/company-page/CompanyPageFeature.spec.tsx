@@ -93,4 +93,16 @@ describe('CompanyPageFeature (F26)', () => {
     expect(Array.from(select.options).map((o) => o.text)).toEqual(['First published card', 'Sneha Reddy']);
     expect((await axe(container)).violations).toEqual([]);
   });
+
+  it('shows followers to the owner without contact details (N04)', async () => {
+    vi.spyOn(apiClient, 'getCompanyProfile').mockResolvedValue(settings());
+    vi.spyOn(apiClient, 'listCompanyFollowers').mockResolvedValue({
+      items: [{ type: 'member', id: 'p2', handle: 'ravi-teja-reddy', name: 'Ravi Teja Reddy', headline: 'Procurement manager', verified: false }],
+      total: 1,
+    });
+    render(<CompanyPageFeature tenantId={tenantId} organization={org} />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Followers' }));
+    expect(await screen.findByText('1 follower')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Ravi Teja Reddy/ }).getAttribute('href')).toBe('/network/in/ravi-teja-reddy');
+  });
 });

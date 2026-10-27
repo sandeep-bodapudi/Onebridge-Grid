@@ -22,6 +22,9 @@ describe('Collection Classification Registry & Base Class Guard', () => {
       // Profiles read models of public company names and seat titles (ADR-0003).
       'profile_org_refs',
       'profile_seat_refs',
+      // N04 (D-N04): follow edges connect people and companies across tenants; IDs only.
+      'follows',
+      'social_company_refs',
     ];
 
     expect(ALLOWLISTED_GLOBAL_COLLECTIONS.sort()).toEqual(expectedGlobals.sort());

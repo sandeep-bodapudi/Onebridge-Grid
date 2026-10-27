@@ -330,9 +330,35 @@ export interface paths {
     };
   };
   "/follows/{targetType}/{targetId}": {
+    /** Follower count, and whether the signed-in viewer (or X-Act-As-Company) follows the target (N04) */
+    get: {
+      parameters: {
+        header?: {
+          "X-Act-As-Company"?: components["parameters"]["ActAsCompany"];
+        };
+        path: {
+          targetType: components["schemas"]["ActorType"];
+          targetId: string;
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": components["schemas"]["FollowState"];
+          };
+        };
+        /** @description No such member or company */
+        404: {
+          content: never;
+        };
+      };
+    };
     /** Follow (idempotent). With X-Act-As-Company the company follows (Owner, Admin or an allowed role) (N04) */
     put: {
       parameters: {
+        query?: {
+          source?: "profile" | "search" | "card_scan" | "post" | "other";
+        };
         header?: {
           "X-Act-As-Company"?: components["parameters"]["ActAsCompany"];
         };
@@ -400,15 +426,15 @@ export interface paths {
       };
     };
   };
-  "/members/{handle}/followers": {
-    /** Followers of a member, if the member allows it (N04, N10) */
+  "/members/{personId}/followers": {
+    /** Followers of a member, if the member allows it (N04, N10). Signed-in members only. */
     get: {
       parameters: {
         query?: {
           cursor?: components["parameters"]["Cursor"];
         };
         path: {
-          handle: string;
+          personId: string;
         };
       };
       responses: {
@@ -1414,6 +1440,8 @@ export interface components {
       };
     };
     PublicMemberProfile: {
+      /** @description Opaque member ID */
+      personId: string;
       handle: string;
       name: string;
       headline?: string;
@@ -1426,8 +1454,8 @@ export interface components {
       indexable?: boolean;
       /** @description Hidden entries are omitted */
       workHistory: components["schemas"]["WorkHistoryEntry"][];
-      /** @description Omitted when the member hides follower lists */
-      followerCount: number;
+      /** @description Deprecated; use GET /follows/member/<personId> (social service) */
+      followerCount?: number;
       /** @description What the signed-in viewer can do (all false when signed out) */
       viewer: {
         following: boolean;

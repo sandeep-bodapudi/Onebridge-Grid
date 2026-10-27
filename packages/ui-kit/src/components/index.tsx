@@ -32,6 +32,7 @@ export * from './StatTile';
 export * from './TrendBars';
 export * from './CompanyProfilePage';
 export * from './MemberProfileView';
+export * from './FollowButton';
 export * from './QrPreview';
 export * from './PhoneFramePreview';
 export * from './BusinessIdDisplay';

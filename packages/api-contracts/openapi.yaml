@@ -3479,6 +3479,7 @@ components:
           type: object
           required: [name, slug, businessId, verifiedBadge]
           properties:
+            id: { type: string, description: Opaque company ID (follow, chat and call targets, N04 and later) }
             name: { type: string }
             slug: { type: string }
             businessId: { type: string }

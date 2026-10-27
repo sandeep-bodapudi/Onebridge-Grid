@@ -40,12 +40,15 @@ export const MemberPageShell: React.FC<{ children: (session: MemberSession) => R
             <SpanMark />
             OneBridge Grid
           </a>
-          <nav aria-label="Account" className="flex items-center gap-1 text-sm font-semibold">
+          <nav aria-label="Account" className="flex items-center gap-1 text-sm font-semibold overflow-x-auto min-w-0">
             {session?.hasCompany ? (
               <a href="/dashboard" className="min-h-[44px] px-3 inline-flex items-center rounded-[10px] hover:bg-white/10">
                 Company dashboard
               </a>
             ) : null}
+            <a href="/network/following" className="min-h-[44px] px-3 inline-flex items-center rounded-[10px] hover:bg-white/10">
+              Following
+            </a>
             <a href="/profile" className="min-h-[44px] px-3 inline-flex items-center rounded-[10px] hover:bg-white/10">
               My profile
             </a>

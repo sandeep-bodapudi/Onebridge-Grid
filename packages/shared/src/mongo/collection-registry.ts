@@ -145,6 +145,16 @@ export const KNOWN_COLLECTIONS: Record<string, CollectionMetadata> = {
     classification: 'tenant-scoped',
     description: 'N02 requests to join an existing company (found by GSTIN); the requester chooses the name shown',
   },
+  follows: {
+    name: 'follows',
+    classification: 'global',
+    description: 'N04 follow edges between members and companies (IDs only)',
+  },
+  social_company_refs: {
+    name: 'social_company_refs',
+    classification: 'global',
+    description: 'Social read model: public company name, slug, logo and verification from org events (ADR-0003)',
+  },
   notice_acceptances: {
     name: 'notice_acceptances',
     classification: 'tenant-scoped',

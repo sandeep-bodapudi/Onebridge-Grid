@@ -20,6 +20,7 @@ const env = {
   NEXT_PUBLIC_ORGANIZATION_API_URL: '/svc/organization',
   NEXT_PUBLIC_CARDS_API_URL: '/svc/cards',
   NEXT_PUBLIC_PROFILES_API_URL: '/svc/profiles',
+  NEXT_PUBLIC_SOCIAL_API_URL: '/svc/social',
   NEXT_PUBLIC_WEB_PUBLIC_URL: publicUrl,
   NEXT_PUBLIC_DEMO_LEADS_PANEL: process.env.NEXT_PUBLIC_DEMO_LEADS_PANEL || 'true',
   NEXT_PUBLIC_DEMO_PHONE: process.env.NEXT_PUBLIC_DEMO_PHONE || '+919988776655',
@@ -32,7 +33,7 @@ const run = (cmd, extra = {}) => {
 
 console.log(`[single-build] Public URL: ${publicUrl || '(same origin as the browser)'}`);
 run('pnpm --filter "@onebridge/shared" --filter "@onebridge/api-contracts" run build');
-run('pnpm --filter "@onebridge/identity" --filter "@onebridge/organization" --filter "@onebridge/cards" --filter "@onebridge/profiles" run build');
+run('pnpm --filter "@onebridge/identity" --filter "@onebridge/organization" --filter "@onebridge/cards" --filter "@onebridge/profiles" --filter "@onebridge/social" run build');
 // Next.js must build with NODE_ENV=production: a host-level NODE_ENV=development makes the
 // prerender mix dev and prod React runtimes ("Cannot read properties of null (reading 'useContext')").
 run('pnpm --filter "@onebridge/web-app" run build', { NODE_ENV: 'production' });

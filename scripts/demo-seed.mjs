@@ -15,6 +15,7 @@ const IDENTITY = process.env.IDENTITY_URL || 'http://localhost:4001';
 const ORGANIZATION = process.env.ORGANIZATION_URL || 'http://localhost:4002';
 const CARDS = process.env.CARDS_URL || 'http://localhost:4003';
 const PROFILES = process.env.PROFILES_URL || 'http://localhost:4004';
+const SOCIAL = process.env.SOCIAL_URL || 'http://localhost:4005';
 const WEB_PUBLIC = process.env.WEB_PUBLIC_URL || 'http://localhost:3001';
 const APP_ORIGIN = process.env.APP_URL || 'http://localhost:3000';
 const OWNER_PHONE = process.env.DEMO_OWNER_PHONE || '+919988776655';
@@ -197,7 +198,7 @@ const MEMBERS = [
 ];
 
 /** Creates member profiles through the profiles API, if they do not exist yet. */
-async function seedMemberProfiles(ownerToken) {
+async function seedMemberProfiles(ownerToken, orgId, ownerPersonId) {
   const put = (token, body) => call('PUT', `${PROFILES}/me/profile`, { token, body: { ...body, ageConfirmed: true, noticeVersion: MEMBER_NOTICE_VERSION } });
   const exists = (token) => call('GET', `${PROFILES}/me/profile`, { token }).then(() => true, () => false);
   let created = 0;
@@ -210,6 +211,11 @@ async function seedMemberProfiles(ownerToken) {
     if (await exists(token)) continue;
     await put(token, m.profile);
     for (const h of m.history) await call('POST', `${PROFILES}/me/work-history`, { token, body: h });
+    // N04: the members follow the demo company, and Ravi follows its founder.
+    if (orgId) await call('PUT', `${SOCIAL}/follows/company/${orgId}?source=profile`, { token }).catch(() => undefined);
+    if (ownerPersonId && m.profile.handle === 'ravi-teja-reddy') {
+      await call('PUT', `${SOCIAL}/follows/member/${ownerPersonId}?source=profile`, { token }).catch(() => undefined);
+    }
     created++;
   }
   return created;
@@ -230,7 +236,7 @@ async function main() {
   if (existing) {
     const org = await call('GET', `${ORGANIZATION}/orgs/${existing}`, { token, tenantId: existing });
     const filled = await seedCompanyPage({ token, tenantId: existing }, existing).catch((err) => log(`Company page skipped: ${err.message}`));
-    await seedMemberProfiles(token)
+    await seedMemberProfiles(token, existing, me.person?.id)
       .then((n) => n && log(`Created ${n} member profiles`))
       .catch((err) => log(`Member profiles skipped: ${err.message}`));
     log(`Demo company already exists: ${org.name} (${org.businessId}).${filled ? ' Filled in its company page.' : ' Nothing to do.'}`);
@@ -345,8 +351,8 @@ async function main() {
     .then(() => log('Filled in the company page'))
     .catch((err) => log(`Company page skipped: ${err.message}`));
 
-  await seedMemberProfiles(token)
-    .then((n) => log(`Created ${n} member profiles`))
+  await seedMemberProfiles(token, org.id, me.person?.id)
+    .then((n) => log(`Created ${n} member profiles and their follows`))
     .catch((err) => log(`Member profiles skipped: ${err.message}`));
 
   // A company page enquiry about a product, so the company_enquiry source shows up in leads.

@@ -279,6 +279,7 @@ export class ProfilesService {
     return {
       kind: 'profile',
       profile: {
+        personId: profile.personId,
         handle: profile.handle,
         name: profile.name,
         headline: profile.headline,
@@ -290,7 +291,6 @@ export class ProfilesService {
         languages: profile.languages,
         indexable: profile.indexable && profile.visibility === 'everyone',
         workHistory: await this.history(profile.personId, false),
-        followerCount: 0, // N04 follow
         viewer: {
           // N04, N08, N11 and N09 fill these in; until then nothing is offered.
           following: false,
@@ -300,6 +300,18 @@ export class ProfilesService {
         },
       },
     };
+  }
+
+  /**
+   * Internal (service key): public summaries of members, for lists in other
+   * services (followers, conversations). Never contact details.
+   */
+  async summaries(personIds: string[]) {
+    const unique = Array.from(new Set(personIds.filter((id) => typeof id === 'string' && id))).slice(0, 200);
+    const found = await Promise.all(unique.map((id) => this.profiles.findByPersonId(id)));
+    return found
+      .filter((p): p is MemberProfileProps => Boolean(p))
+      .map((p) => ({ personId: p.personId, handle: p.handle, name: p.name, headline: p.headline, photoUrl: p.photoUrl, visibility: p.visibility }));
   }
 
   // ------------------------------------------------------------------

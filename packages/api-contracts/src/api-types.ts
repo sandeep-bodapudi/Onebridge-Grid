@@ -3131,6 +3131,8 @@ export interface components {
        */
       status: "active" | "lapsed";
       company: {
+        /** @description Opaque company ID (follow */
+        id?: string;
         name: string;
         slug: string;
         businessId: string;

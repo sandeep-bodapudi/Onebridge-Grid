@@ -1,22 +1,28 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { MemberProfileView, Skeleton } from '@onebridge/ui-kit';
-import type { PublicMemberProfile } from '@onebridge/api-contracts';
+import { FollowButton, MemberProfileView, Skeleton } from '@onebridge/ui-kit';
+import type { FollowState, PublicMemberProfile } from '@onebridge/api-contracts';
 import { apiClient } from '../../../../src/api-client';
-import { MemberPageShell } from '../../../../src/features/profile';
+import { MemberPageShell, type MemberSession } from '../../../../src/features/profile';
 
-const WEB_PUBLIC_URL = process.env.NEXT_PUBLIC_WEB_PUBLIC_URL ?? '';
-
-function ProfileBody({ handle }: { handle: string }) {
+function ProfileBody({ handle, session }: { handle: string; session: MemberSession }) {
   const [state, setState] = useState<{ status: 'loading' | 'ready' | 'missing' | 'error'; profile?: PublicMemberProfile; error?: string }>({ status: 'loading' });
+  const [follow, setFollow] = useState<FollowState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [followError, setFollowError] = useState<string | null>(null);
 
   useEffect(() => {
     apiClient
       .getMemberProfile(handle)
-      .then((profile) => setState(profile ? { status: 'ready', profile } : { status: 'missing' }))
+      .then((profile) => {
+        setState(profile ? { status: 'ready', profile } : { status: 'missing' });
+        if (profile && profile.personId !== session.personId) {
+          apiClient.getFollowState('member', profile.personId).then(setFollow).catch(() => setFollow(null));
+        }
+      })
       .catch((err: Error) => setState({ status: 'error', error: err.message }));
-  }, [handle]);
+  }, [handle, session.personId]);
 
   if (state.status === 'loading') {
     return (
@@ -34,10 +40,44 @@ function ProfileBody({ handle }: { handle: string }) {
       </div>
     );
   }
-  return <MemberProfileView profile={state.profile} companyHref={(slug) => `${WEB_PUBLIC_URL}/${slug}`} />;
+  const profile = state.profile;
+  const toggle = async () => {
+    if (!follow) return;
+    setBusy(true);
+    setFollowError(null);
+    try {
+      setFollow(follow.following ? await apiClient.unfollow('member', profile.personId) : await apiClient.follow('member', profile.personId, 'profile'));
+    } catch (err) {
+      setFollowError(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <MemberProfileView
+      profile={profile}
+      companyHref={(slug) => `/network/company/${slug}`}
+      actions={
+        follow ? (
+          <span className="flex flex-col gap-1">
+            <FollowButton following={follow.following} followerCount={follow.followerCount} onToggle={toggle} busy={busy} targetName={profile.name} />
+            {followError ? (
+              <span role="alert" className="text-sm text-error">
+                {followError}
+              </span>
+            ) : null}
+          </span>
+        ) : profile.personId === session.personId ? (
+          <a href="/profile" className="min-h-[48px] px-5 rounded-[14px] border border-sand-border bg-white text-sm font-bold inline-flex items-center">
+            Edit my profile
+          </a>
+        ) : null
+      }
+    />
+  );
 }
 
-/** N01: a member's profile as a signed-in member sees it (members-only profiles included). */
+/** N01, N04: a member's profile as a signed-in member sees it, with Follow. */
 export default function NetworkProfilePage({ params }: { params: { handle: string } }) {
-  return <MemberPageShell light>{() => <ProfileBody handle={params.handle} />}</MemberPageShell>;
+  return <MemberPageShell light>{(session) => <ProfileBody handle={params.handle} session={session} />}</MemberPageShell>;
 }

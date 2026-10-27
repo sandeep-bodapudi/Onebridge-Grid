@@ -96,7 +96,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
   return (
     <main className="w-full">
       {ld ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ld }} /> : null}
-      <MemberProfileClient profile={p} />
+      <MemberProfileClient profile={p} appUrl={appUrl()} />
     </main>
   );
 }

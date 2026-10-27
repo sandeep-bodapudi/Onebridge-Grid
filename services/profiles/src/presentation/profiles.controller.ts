@@ -12,8 +12,10 @@ import {
   Post,
   Put,
   Req,
+  Query,
   Res,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AuthenticationError, RequestAuthenticator } from '@onebridge/shared';
 import { ProfilesService } from '../application/profiles.service.js';
@@ -42,8 +44,19 @@ const notFound = () =>
 export class ProfilesController {
   constructor(
     private readonly profiles: ProfilesService,
-    @Inject(REQUEST_AUTHENTICATOR) private readonly authenticator: RequestAuthenticator
+    @Inject(REQUEST_AUTHENTICATOR) private readonly authenticator: RequestAuthenticator,
+    @Inject('INTERNAL_SERVICE_KEY') private readonly serviceKey: string
   ) {}
+
+  /** Service-to-service only (x-service-key); used by the social service for follower lists. */
+  @Get('internal/members')
+  async internalSummaries(@Req() req: RequestLike, @Query('ids') ids?: string) {
+    const key = req.headers['x-service-key'];
+    if (!key || key !== this.serviceKey) {
+      throw new ForbiddenException({ type: 'https://tools.ietf.org/html/rfc7807', title: 'Forbidden', status: 403, detail: 'Service key required' });
+    }
+    return { items: await this.profiles.summaries(String(ids || '').split(',')) };
+  }
 
   private async personId(req: RequestLike): Promise<string> {
     try {

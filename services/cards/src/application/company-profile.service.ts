@@ -144,6 +144,7 @@ export class CompanyProfileService {
       return {
         status: lapsed ? 'lapsed' : 'active',
         company: {
+          id: org.tenantId,
           name: org.name,
           slug: org.slug,
           businessId: org.businessId,

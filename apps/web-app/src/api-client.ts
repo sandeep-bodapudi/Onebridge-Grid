@@ -1,5 +1,8 @@
 import type {
   CompanyProfileSettings,
+  FollowState,
+  ActorPage,
+  PublicCompanyProfile,
   AccessRequest,
   PlanUsage,
   MyProfile,
@@ -58,6 +61,8 @@ let inFlightRefresh: Promise<string | null> | null = null;
 const IDENTITY_API_URL = process.env.NEXT_PUBLIC_IDENTITY_API_URL || 'http://localhost:4001';
 const ORGANIZATION_API_URL = process.env.NEXT_PUBLIC_ORGANIZATION_API_URL || 'http://localhost:4002';
 const PROFILES_API_URL = process.env.NEXT_PUBLIC_PROFILES_API_URL || 'http://localhost:4004';
+const SOCIAL_API_URL = process.env.NEXT_PUBLIC_SOCIAL_API_URL || 'http://localhost:4005';
+const CARDS_PUBLIC_API_URL = process.env.NEXT_PUBLIC_CARDS_API_URL || 'http://localhost:4003';
 const CARDS_API_URL = process.env.NEXT_PUBLIC_CARDS_API_URL || 'http://localhost:4003';
 // Empty means the public site shares this app's origin (single-service deployment, D-SINGLE-SERVICE).
 const WEB_PUBLIC_URL = process.env.NEXT_PUBLIC_WEB_PUBLIC_URL ?? 'http://localhost:3001';
@@ -756,6 +761,52 @@ export const apiClient = {
     }
     if (res.status === 204) return undefined as T;
     return res.json() as Promise<T>;
+  },
+
+  /** N04 social service request. asCompany sends X-Act-As-Company (the caller must be its owner or an admin). */
+  async socialRequest<T>(path: string, init: RequestInit, asCompany?: string, fallbackError = 'Request failed'): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    if (asCompany) headers['X-Act-As-Company'] = asCompany;
+    const res = await fetch(`${SOCIAL_API_URL}${path}`, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> | undefined) }, credentials: 'include' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const error = new Error(err.detail || err.title || fallbackError) as Error & { code?: string; status?: number };
+      error.code = err.code;
+      error.status = res.status;
+      throw error;
+    }
+    return res.json() as Promise<T>;
+  },
+
+  async getFollowState(targetType: 'member' | 'company', targetId: string, asCompany?: string): Promise<FollowState> {
+    return this.socialRequest<FollowState>(`/follows/${targetType}/${encodeURIComponent(targetId)}`, { method: 'GET' }, asCompany, 'Could not load follow status');
+  },
+
+  async follow(targetType: 'member' | 'company', targetId: string, source = 'profile', asCompany?: string): Promise<FollowState> {
+    return this.socialRequest<FollowState>(`/follows/${targetType}/${encodeURIComponent(targetId)}?source=${source}`, { method: 'PUT' }, asCompany, 'Could not follow');
+  },
+
+  async unfollow(targetType: 'member' | 'company', targetId: string, asCompany?: string): Promise<FollowState> {
+    return this.socialRequest<FollowState>(`/follows/${targetType}/${encodeURIComponent(targetId)}`, { method: 'DELETE' }, asCompany, 'Could not unfollow');
+  },
+
+  async listCompanyFollowers(tenantId: string, cursor?: string): Promise<ActorPage> {
+    const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    return this.socialRequest<ActorPage>(`/companies/${encodeURIComponent(tenantId)}/followers${q}`, { method: 'GET', headers: { 'X-Tenant-Id': tenantId } }, undefined, 'Could not load followers');
+  },
+
+  async listFollowing(cursor?: string, asCompany?: string): Promise<ActorPage> {
+    const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    return this.socialRequest<ActorPage>(`/me/following${q}`, { method: 'GET' }, asCompany, 'Could not load who you follow');
+  },
+
+  /** F26 public company page data (used by the signed-in company view). */
+  async getPublicCompany(slug: string): Promise<PublicCompanyProfile | null> {
+    const res = await fetch(`${CARDS_PUBLIC_API_URL}/public/o/${encodeURIComponent(slug)}`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error('Could not load the company page');
+    return res.json();
   },
 
   /** N01: my profile; rejects with code profile_missing before the first save. */

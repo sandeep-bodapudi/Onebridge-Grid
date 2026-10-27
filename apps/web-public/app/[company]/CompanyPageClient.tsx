@@ -1,15 +1,17 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { CompanyProfilePage, type CompanyProfileData, type CompanyEnquiryData } from '@onebridge/ui-kit';
+import { CompanyProfilePage, FollowButton, type CompanyProfileData, type CompanyEnquiryData } from '@onebridge/ui-kit';
 
 export interface CompanyPageClientProps {
   data?: CompanyProfileData;
   state?: 'ready' | 'not_found';
   branchId?: string;
+  /** Admin app origin; Follow opens the signed-in company view there (N04). Empty means same origin. */
+  appUrl?: string;
 }
 
-export function CompanyPageClient({ data, state = 'ready', branchId }: CompanyPageClientProps) {
+export function CompanyPageClient({ data, state = 'ready', branchId, appUrl = '' }: CompanyPageClientProps) {
   const slug = data?.company.slug;
 
   useEffect(() => {
@@ -41,5 +43,14 @@ export function CompanyPageClient({ data, state = 'ready', branchId }: CompanyPa
     }
   };
 
-  return <CompanyProfilePage data={data} state={data ? state : 'not_found'} onEnquirySubmit={handleEnquiry} />;
+  return (
+    <CompanyProfilePage
+      data={data}
+      state={data ? state : 'not_found'}
+      onEnquirySubmit={handleEnquiry}
+      heroActions={
+        data ? <FollowButton tone="band" following={false} href={`${appUrl}/network/company/${data.company.slug}`} targetName={data.company.name} /> : null
+      }
+    />
+  );
 }

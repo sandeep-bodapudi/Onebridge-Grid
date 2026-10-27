@@ -224,3 +224,13 @@
 - `GET /orgs/{id}/limits` reports the limits the organization service measures (seats, branches). Catalogue usage is reported by the cards company-page settings; later limits (posts, inbox, call requests) are reported by the services that own them.
 - Public company pages gain `acceptsEnquiries`: false when no published card can receive an enquiry (free companies until chat and call requests, N08 and N11) or when the plan has lapsed; enquiry buttons are hidden. Unverified companies show "Not verified yet".
 - Onboarding plan prices corrected to the F17 per-seat prices, and the plan cards became accessible radio buttons.
+
+## D-N04: follow implementation
+
+- Date: 2026-10-27
+- New `services/social` (port 4005, `/svc/social`), which will also hold posts and the feed (N05). Collections `follows` (edges, IDs only) and `social_company_refs` (public company summaries from org and KYB events) are global; approved in the collection guard test.
+- Member names and photos in lists come from a new service-key endpoint on profiles (`GET /internal/members?ids=`), never from another service's database (ADR-0003). Lists never include contact details.
+- Contract changes before code: `GET /follows/{type}/{id}` returns the follower count and whether the viewer follows (so profile and company pages do not store each other's data); member follower lists use `personId` (`/members/{personId}/followers`, signed-in only); `PublicMemberProfile.personId` and the company `id` on public company pages were added as follow targets. `followerCount` on profiles is deprecated.
+- Following is idempotent; self-follows are refused; following needs an existing member profile or company. A company follows another company with `X-Act-As-Company` (Owner or Admin). A daily cap of 200 new follows per account (env `DAILY_FOLLOW_CAP`) stops follow-spam; N09 will lower it for new accounts.
+- Public pages show Follow as a link to the signed-in view (`/network/in/<handle>`, `/network/company/<slug>`), where the real button works; members see who they follow at `/network/following`; owners and admins see followers in a Company page tab.
+- Not yet: block-aware follows (N09), hiding follower lists (N10), new-follower notifications (F22 consumes `follow.created`).

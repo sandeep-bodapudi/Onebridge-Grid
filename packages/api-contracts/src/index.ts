@@ -89,6 +89,7 @@ export type SearchResults = N['SearchResults'];
 export type SearchHit = N['SearchHit'];
 export type Industry = N['Industry'];
 export type FollowState = N['FollowState'];
+export type ActorPage = N['ActorPage'];
 export type Conversation = N['Conversation'];
 export type ChatMessage = N['Message'];
 export type SendMessage = N['SendMessage'];

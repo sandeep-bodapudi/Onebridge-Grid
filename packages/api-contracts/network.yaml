@@ -205,11 +205,20 @@ paths:
     parameters:
       - { in: path, name: targetType, required: true, schema: { $ref: '#/components/schemas/ActorType' } }
       - { in: path, name: targetId, required: true, schema: { type: string } }
+    get:
+      tags: [follow]
+      summary: Follower count, and whether the signed-in viewer (or X-Act-As-Company) follows the target (N04)
+      parameters: [{ $ref: '#/components/parameters/ActAsCompany' }]
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/FollowState' } } } }
+        '404': { description: No such member or company }
     put:
       tags: [follow]
       summary: Follow (idempotent). With X-Act-As-Company the company follows (Owner, Admin or an allowed role) (N04)
       security: [{ BearerAuth: [] }]
-      parameters: [{ $ref: '#/components/parameters/ActAsCompany' }]
+      parameters:
+        - { $ref: '#/components/parameters/ActAsCompany' }
+        - { in: query, name: source, schema: { type: string, enum: [profile, search, card_scan, post, other] } }
       responses:
         '200': { content: { application/json: { schema: { $ref: '#/components/schemas/FollowState' } } } }
         '403': { description: Blocked (code blocked) or not allowed to act as the company }
@@ -231,11 +240,12 @@ paths:
       responses:
         '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ActorPage' } } } }
 
-  /members/{handle}/followers:
+  /members/{personId}/followers:
     get:
       tags: [follow]
-      summary: Followers of a member, if the member allows it (N04, N10)
-      parameters: [{ in: path, name: handle, required: true, schema: { type: string } }, { $ref: '#/components/parameters/Cursor' }]
+      summary: Followers of a member, if the member allows it (N04, N10). Signed-in members only.
+      security: [{ BearerAuth: [] }]
+      parameters: [{ in: path, name: personId, required: true, schema: { type: string } }, { $ref: '#/components/parameters/Cursor' }]
       responses:
         '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ActorPage' } } } }
         '403': { description: Hidden by the member's privacy setting (code hidden) }
@@ -834,8 +844,9 @@ components:
 
     PublicMemberProfile:
       type: object
-      required: [handle, name, workHistory, followerCount, viewer]
+      required: [personId, handle, name, workHistory, viewer]
       properties:
+        personId: { type: string, description: Opaque member ID, used to follow, message or request a call }
         handle: { type: string }
         name: { type: string }
         headline: { type: string }
@@ -847,7 +858,7 @@ components:
         languages: { type: array, items: { type: string } }
         indexable: { type: boolean }
         workHistory: { type: array, items: { $ref: '#/components/schemas/WorkHistoryEntry' }, description: Hidden entries are omitted }
-        followerCount: { type: integer, description: Omitted when the member hides follower lists }
+        followerCount: { type: integer, description: "Deprecated; use GET /follows/member/<personId> (social service)" }
         viewer:
           type: object
           description: What the signed-in viewer can do (all false when signed out)
