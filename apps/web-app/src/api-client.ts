@@ -56,6 +56,40 @@ import type {
   LeadSummary,
 } from '@onebridge/api-contracts';
 
+/** D-AUTH-EMAIL: a problem+json answer from identity, with the code the screens act on. */
+export class AuthApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code?: string,
+    public readonly retryAfterSeconds?: number
+  ) {
+    super(message);
+    this.name = 'AuthApiError';
+  }
+}
+
+export interface AuthMethodsResponse {
+  methods: Array<'google' | 'email' | 'phone'>;
+  googleClientId?: string;
+}
+
+export interface CodeSentResponse {
+  status: 'code_sent';
+  ticket: string;
+  maskedEmail: string;
+  resendAfterSeconds?: number;
+}
+
+export interface SignInResponse {
+  status: 'authenticated' | 'code_required' | 'mfa_required' | 'mfa_setup_required' | 'link_confirmation_required';
+  accessToken?: string;
+  mfaTicket?: string;
+  ticket?: string;
+  linkTicket?: string;
+  maskedEmail?: string;
+}
+
 export interface AuthState {
   accessToken: string | null;
   user: Record<string, unknown> | null;
@@ -207,6 +241,80 @@ export const apiClient = {
     const data = await res.json();
     if (data.accessToken) inMemoryAccessToken = data.accessToken;
     return data;
+  },
+
+  /** D-AUTH-EMAIL: one POST to identity; keeps the access token in memory and turns problems into AuthApiError. */
+  async identityPost<T>(path: string, body: unknown, bearer = false): Promise<T> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-CSRF-Token': 'onebridge-csrf-token' };
+    if (bearer && inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    let res: Response;
+    try {
+      res = await fetch(`${IDENTITY_API_URL}${path}`, { method: 'POST', headers, body: JSON.stringify(body), credentials: 'include' });
+    } catch {
+      throw new AuthApiError("Can't reach OneBridge. Check your connection and try again.", 0, 'offline');
+    }
+    if (res.status === 204) return undefined as T;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new AuthApiError(data.detail || data.title || 'Something went wrong. Try again.', res.status, data.code, data.retryAfterSeconds);
+    }
+    if (data.accessToken) inMemoryAccessToken = data.accessToken;
+    return data as T;
+  },
+
+  /** A page on the public site, e.g. the terms and privacy policy linked from sign-up. */
+  publicPageUrl(path: string): string {
+    return `${publicBase()}${path}`;
+  },
+
+  async getAuthMethods(): Promise<AuthMethodsResponse> {
+    try {
+      const res = await fetch(`${IDENTITY_API_URL}/auth/methods`, { credentials: 'include' });
+      if (res.ok) return res.json();
+    } catch {
+      // Fall through: offer email, which works without Google.
+    }
+    return { methods: ['email'] };
+  },
+
+  signup(req: { name: string; email: string; password: string; acceptedTermsVersion: string; acceptedPrivacyVersion: string; language?: 'en' | 'hi' }): Promise<CodeSentResponse> {
+    return this.identityPost('/auth/signup', req);
+  },
+
+  verifySignup(ticket: string, code: string): Promise<SignInResponse> {
+    return this.identityPost('/auth/signup/verify', { ticket, code });
+  },
+
+  loginWithPassword(email: string, password: string): Promise<SignInResponse> {
+    return this.identityPost('/auth/login', { email, password });
+  },
+
+  verifyLoginCode(ticket: string, code: string): Promise<SignInResponse> {
+    return this.identityPost('/auth/login/verify', { ticket, code });
+  },
+
+  forgotPassword(email: string): Promise<CodeSentResponse> {
+    return this.identityPost('/auth/password/forgot', { email });
+  },
+
+  resetPassword(ticket: string, code: string, newPassword: string): Promise<void> {
+    return this.identityPost('/auth/password/reset', { ticket, code, newPassword });
+  },
+
+  changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    return this.identityPost('/auth/password/change', { currentPassword, newPassword }, true);
+  },
+
+  resendCode(ticket: string): Promise<CodeSentResponse> {
+    return this.identityPost('/auth/code/resend', { ticket });
+  },
+
+  loginWithGoogle(idToken: string): Promise<SignInResponse> {
+    return this.identityPost('/auth/oauth/google', { idToken });
+  },
+
+  confirmGoogleLink(linkTicket: string, code: string): Promise<SignInResponse> {
+    return this.identityPost('/auth/oauth/confirm-link', { linkTicket, code });
   },
 
   async verifyMfa(code: string, mfaTicket?: string): Promise<{ accessToken: string }> {

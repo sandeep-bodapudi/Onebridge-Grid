@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthFlow, AuthStep, AuthFlowLabels } from '../../src/features/auth/AuthFlow';
+import { SignIn } from '../../src/features/auth/SignIn';
 import { apiClient } from '../../src/api-client';
 
 const labels: AuthFlowLabels = {
-  title: 'Sign in to OneBridge',
+  title: 'Sign in with a phone code',
   phoneLabel: 'Mobile phone number',
   phonePlaceholder: '98765 43210',
   consentLabel: 'I agree to the Terms of Service & Privacy Policy',
@@ -30,8 +31,13 @@ const labels: AuthFlowLabels = {
   emptySessionsText: 'No active sessions found.',
 };
 
+/**
+ * D-AUTH-EMAIL: Google and email + password first (SignIn). The phone flow stays for
+ * development (shown only when identity lists `phone`), and AuthFlow still runs MFA.
+ */
 export default function LoginPage() {
   const router = useRouter();
+  const [view, setView] = useState<'signin' | 'flow'>('signin');
   const [step, setStep] = useState<AuthStep>('otp_entry');
   const [currentPhone, setCurrentPhone] = useState('');
   const [mfaTicket, setMfaTicket] = useState<string | undefined>();
@@ -46,6 +52,12 @@ export default function LoginPage() {
       }
     });
   }, [router]);
+
+  const goToMfa = (status: 'mfa_required' | 'mfa_setup_required', ticket?: string) => {
+    setMfaTicket(ticket);
+    setStep(status === 'mfa_required' ? 'mfa_challenge' : 'mfa_setup');
+    setView('flow');
+  };
 
   const handleRequestOtp = async (phone: string, consent: boolean) => {
     if (!consent) {
@@ -73,12 +85,8 @@ export default function LoginPage() {
       const res = await apiClient.verifyOtp(currentPhone, code);
       if (res.status === 'authenticated') {
         router.push('/dashboard');
-      } else if (res.status === 'mfa_required') {
-        setMfaTicket(res.mfaTicket);
-        setStep('mfa_challenge');
-      } else if (res.status === 'mfa_setup_required') {
-        setMfaTicket(res.mfaTicket);
-        setStep('mfa_setup');
+      } else if (res.status === 'mfa_required' || res.status === 'mfa_setup_required') {
+        goToMfa(res.status, res.mfaTicket);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Invalid verification code';
@@ -124,7 +132,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen flex items-center justify-center p-4 md:p-8 bg-sand/30 dark:bg-charcoal-deep text-charcoal dark:text-warm-paper">
       <div className="w-full max-w-4xl">
-        {errorMessage && (
+        {errorMessage && view === 'flow' && (
           <div
             data-testid="auth-error-banner"
             role="alert"
@@ -133,7 +141,7 @@ export default function LoginPage() {
             {errorMessage}
           </div>
         )}
-        {demoPhone && step === 'otp_entry' ? (
+        {demoPhone && view === 'signin' ? (
           <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 rounded-panel border border-sand-border dark:border-sand-border/30 bg-warm-paper dark:bg-charcoal">
             <p className="text-sm">
               <span className="font-bold">Prototype demo.</span> Sign in as the owner of Sahyadri Steel Works, a fictional company.
@@ -149,16 +157,27 @@ export default function LoginPage() {
             </button>
           </div>
         ) : null}
-        <AuthFlow
-          step={step}
-          labels={labels}
-          isLoading={isLoading}
-          onRequestOtp={handleRequestOtp}
-          onVerifyOtp={handleVerifyOtp}
-          onVerifyMfa={handleVerifyMfa}
-          onResendOtp={() => handleRequestOtp(currentPhone, true)}
-          onRelogin={() => setStep('otp_entry')}
-        />
+        {view === 'signin' ? (
+          <SignIn
+            onSignedIn={() => router.push('/dashboard')}
+            onMfa={goToMfa}
+            onUsePhone={() => {
+              setStep('otp_entry');
+              setView('flow');
+            }}
+          />
+        ) : (
+          <AuthFlow
+            step={step}
+            labels={labels}
+            isLoading={isLoading}
+            onRequestOtp={handleRequestOtp}
+            onVerifyOtp={handleVerifyOtp}
+            onVerifyMfa={handleVerifyMfa}
+            onResendOtp={() => handleRequestOtp(currentPhone, true)}
+            onRelogin={() => setView('signin')}
+          />
+        )}
       </div>
     </main>
   );

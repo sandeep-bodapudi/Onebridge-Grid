@@ -5,7 +5,7 @@
  *
  *   /svc/<service>/*        -> API (identity, organization, cards), /svc stripped
  *   /healthz, /demo/reset   -> API
- *   /, /login, /dashboard, /invite, /demo-access, /api/demo-access, /_next, /fonts -> admin app (apps/web-app)
+ *   /, /login, /signup, /forgot-password, /dashboard, /invite, /demo-access, /api/demo-access, /_next, /fonts -> admin app (apps/web-app)
  *   /_cards/*               -> public site's assets (assetPrefix, stripped)
  *   everything else         -> public site (apps/web-public): /c/..., /r/..., /<company>, its /api routes
  *
@@ -85,7 +85,7 @@ start('public site', process.execPath, [nextBin('web-public'), 'start', '-p', St
   ASSET_PREFIX: PUBLIC_ASSET_PREFIX,
 });
 
-const ADMIN_PATHS = [/^\/$/, /^\/(login|dashboard|demo-access|invite|profile|network|messages)(\/|$)/, /^\/api\/demo-access(\/|$)/, /^\/_next\//, /^\/fonts\//, /^\/favicon\.ico$/];
+const ADMIN_PATHS = [/^\/$/, /^\/(login|signup|forgot-password|dashboard|demo-access|invite|profile|network|messages)(\/|$)/, /^\/api\/demo-access(\/|$)/, /^\/_next\//, /^\/fonts\//, /^\/favicon\.ico$/];
 
 function route(url) {
   const pathname = url.split('?')[0];
