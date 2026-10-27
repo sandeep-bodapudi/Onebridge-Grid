@@ -1,5 +1,5 @@
 import { GlobalRepository, MongoConnectionHandle } from '@onebridge/shared';
-import { Person } from '../../domain/person.js';
+import { AuthProvider, Person } from '../../domain/person.js';
 import { KeyService } from '../../application/key.service.js';
 import { IPersonRepository } from '../../application/auth.service.js';
 
@@ -14,8 +14,19 @@ interface MongoPersonDoc {
     secret?: string; // Encrypted at rest via KeyService
   };
   roles?: { tenantId: string; role: 'Owner' | 'Admin' | 'Member'; plan: string }[];
+  emailVerifiedAt?: string;
+  passwordHash?: string;
+  passwordUpdatedAt?: string;
+  googleSub?: string;
+  language?: 'en' | 'hi';
   createdAt: string;
   updatedAt: string;
+}
+
+/** D-AUTH-EMAIL: emails are stored lowercased and trimmed, so lookups are exact. */
+export function normaliseStoredEmail(email?: string): string | undefined {
+  const v = email?.trim().toLowerCase();
+  return v || undefined;
 }
 
 export function escapeRegExp(str: string): string {
@@ -35,6 +46,7 @@ export class MongoPersonRepository implements IPersonRepository {
   async ensureIndexes(): Promise<void> {
     await this.repo.createIndex({ phone: 1 }, { unique: true, sparse: true });
     await this.repo.createIndex({ email: 1 }, { unique: true, sparse: true });
+    await this.repo.createIndex({ googleSub: 1 }, { unique: true, sparse: true });
   }
 
   private toDomain(doc: MongoPersonDoc): Person {
@@ -43,12 +55,17 @@ export class MongoPersonRepository implements IPersonRepository {
       phone: doc.phone,
       email: doc.email,
       name: doc.name,
-      authProviders: (doc.authProviders as ('otp' | 'google' | 'microsoft')[]) || [],
+      authProviders: (doc.authProviders as AuthProvider[]) || [],
       mfa: {
         enabled: doc.mfa?.enabled || false,
         secret: doc.mfa?.secret ? this.keyService.decrypt(doc.mfa.secret) : undefined,
       },
       roles: doc.roles || [],
+      emailVerifiedAt: doc.emailVerifiedAt,
+      passwordHash: doc.passwordHash,
+      passwordUpdatedAt: doc.passwordUpdatedAt,
+      googleSub: doc.googleSub,
+      language: doc.language,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
@@ -59,7 +76,7 @@ export class MongoPersonRepository implements IPersonRepository {
     const doc: MongoPersonDoc = {
       userId: person.userId,
       phone: person.phone,
-      email: person.email,
+      email: normaliseStoredEmail(person.email),
       name: person.name,
       authProviders: person.authProviders,
       mfa: {
@@ -67,12 +84,17 @@ export class MongoPersonRepository implements IPersonRepository {
         secret: person.mfa?.secret ? this.keyService.encrypt(person.mfa.secret) : undefined,
       },
       roles: person.roles,
+      emailVerifiedAt: person.emailVerifiedAt,
+      passwordHash: person.passwordHash,
+      passwordUpdatedAt: person.passwordUpdatedAt,
+      googleSub: person.googleSub,
+      language: person.language,
       createdAt: person.createdAt,
       updatedAt: person.updatedAt,
     };
     // The driver stores undefined as null, and null counts for the sparse
     // unique indexes: a second phone-only person would collide on email: null.
-    for (const key of ['phone', 'email', 'name'] as const) {
+    for (const key of ['phone', 'email', 'name', 'emailVerifiedAt', 'passwordHash', 'passwordUpdatedAt', 'googleSub', 'language'] as const) {
       if (doc[key] === undefined || doc[key] === null) delete doc[key];
     }
     return doc;
@@ -108,6 +130,11 @@ export class MongoPersonRepository implements IPersonRepository {
   async findByEmail(email: string): Promise<Person | undefined> {
     const escaped = escapeRegExp(email);
     const doc = await this.repo.findOne({ email: new RegExp(`^${escaped}$`, 'i') });
+    return doc ? this.toDomain(doc) : undefined;
+  }
+
+  async findByGoogleSub(googleSub: string): Promise<Person | undefined> {
+    const doc = await this.repo.findOne({ googleSub });
     return doc ? this.toDomain(doc) : undefined;
   }
 

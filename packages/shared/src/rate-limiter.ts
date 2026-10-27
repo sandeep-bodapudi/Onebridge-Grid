@@ -25,6 +25,10 @@ export class InMemoryRateLimiter implements RateLimiter {
 
   consume(key: string, options: RateLimitOptions): RateLimitResult {
     const now = Date.now();
+    // Keys are per email or per network, so drop finished windows before the map grows without end.
+    if (this.buckets.size >= 10_000) {
+      for (const [k, bucket] of this.buckets) if (now >= bucket.resetAt) this.buckets.delete(k);
+    }
     const existing = this.buckets.get(key);
 
     if (!existing || now >= existing.resetAt) {

@@ -185,6 +185,16 @@ export const KNOWN_COLLECTIONS: Record<string, CollectionMetadata> = {
     classification: 'global',
     description: 'Messaging read model: follow edges from follow events, for the message request rule (IDs only)',
   },
+  email_codes: {
+    name: 'email_codes',
+    classification: 'global',
+    description: 'D-AUTH-EMAIL: hashed 6-digit email codes for sign-up, sign-in, reset and Google link, with TTL',
+  },
+  known_devices: {
+    name: 'known_devices',
+    classification: 'global',
+    description: 'D-AUTH-EMAIL: hashed device ids a person has confirmed with an email code (new-device check)',
+  },
   conversation_notes: {
     name: 'conversation_notes',
     classification: 'tenant-scoped',

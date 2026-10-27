@@ -38,7 +38,7 @@ Sign-in moves to **Continue with Google** and **email + password with 6-digit em
 
 - Phone sign-in stays in the code but is **off in production** (`AUTH_METHODS`); it remains on in development and tests. Phone stays a profile and card field.
 - Sign-up: name, email, password, terms and privacy consent; the account is created only after the emailed code is entered. A sign-up with an email that already has an account gets the same answer, and the owner gets a notice instead of a code (no enumeration).
-- Passwords: 10 to 128 characters, not one of the 10,000 most common, not the email or name; stored with scrypt.
+- Passwords: 10 to 128 characters, not the email (or its name part) and not the name; stored with scrypt. No common-password list (founder, 2026-10-27).
 - Codes: random 6 digits, 10 minutes, 5 wrong tries end the code, resend after 60 seconds, at most 5 sends per email and 20 per network per hour.
 - Sign-in: generic "email and password don't match"; 5 failures per account and 30 per network in 15 minutes, then a wait. A new device, or 30 days since the last code on that device, needs an emailed code. MFA (F01 AC-8) still applies after password and code.
 - Forgot password always answers the same; reset and change sign the person out of every other session and send a "password changed" email.

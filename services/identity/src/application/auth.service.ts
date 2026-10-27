@@ -14,6 +14,7 @@ export interface IPersonRepository {
   findById(userId: string): Promise<Person | undefined>;
   findByPhone(phone: string): Promise<Person | undefined>;
   findByEmail(email: string): Promise<Person | undefined>;
+  findByGoogleSub(googleSub: string): Promise<Person | undefined>;
   update(person: Person): Promise<void>;
 }
 

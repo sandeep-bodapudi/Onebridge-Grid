@@ -272,7 +272,7 @@
 - D2 Codes come from `EMAIL_FROM` (no-reply@onebridgecard.com) with reply-to `EMAIL_REPLY_TO` (support@onebridgecard.com).
 - D3 Phone sign-in is off in production and on in development and tests, through `AUTH_METHODS`.
 - D4 An email code is asked at sign-up, at password reset, and at sign-in from a new device or after 30 days without a code on that device (httpOnly `ob_device` cookie, stored hashed in `known_devices`). Google sign-in needs no code.
-- D5 Passwords are hashed with scrypt from `node:crypto` (N=2^15, r=8, p=1).
+- D5 Passwords are hashed with scrypt from `node:crypto` (N=2^15, r=8, p=1). Policy: 10 to 128 characters, not the email or its name part, not the name. The founder chose not to ship a common-password list (2026-10-27), so passwords like "password123" are accepted.
 - D6 Google and email accounts with the same email link automatically only when both emails are verified; otherwise the account owner confirms with an emailed code.
 - D11 Invite claim (F14) uses email in production.
 - New global collections `email_codes` (TTL on `expiresAt`) and `known_devices`, approved in the collection guard test. Pending sign-ups keep the name and password hash on the code record, so an abandoned sign-up leaves no account.

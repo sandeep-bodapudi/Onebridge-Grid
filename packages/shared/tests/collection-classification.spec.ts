@@ -33,6 +33,9 @@ describe('Collection Classification Registry & Base Class Guard', () => {
       'messaging_company_refs',
       'messaging_seat_refs',
       'messaging_follow_refs',
+      // D-AUTH-EMAIL: sign-in codes and confirmed devices belong to a person, not a company.
+      'email_codes',
+      'known_devices',
     ];
 
     expect(ALLOWLISTED_GLOBAL_COLLECTIONS.sort()).toEqual(expectedGlobals.sort());

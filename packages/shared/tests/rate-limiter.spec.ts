@@ -48,6 +48,21 @@ describe('AC-6: Rate limiting per IP and per card', () => {
     }
   });
 
+  it('drops finished windows once many keys are tracked, keeping live ones', () => {
+    vi.useFakeTimers();
+    try {
+      for (let i = 0; i < 10_000; i++) limiter.consume(`old:${i}`, { limit: 1, windowMs: 1000 });
+      limiter.consume('live', { limit: 1, windowMs: 60_000 });
+      vi.advanceTimersByTime(2000);
+      limiter.consume('new', { limit: 1, windowMs: 1000 });
+      const buckets = (limiter as unknown as { buckets: Map<string, unknown> }).buckets;
+      expect(buckets.size).toBe(2);
+      expect(limiter.consume('live', { limit: 1, windowMs: 60_000 }).allowed).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('tracks distinct keys independently', () => {
     limiter.consume('ip:1.1.1.1', { limit: 1, windowMs: 1000 });
     const otherIp = limiter.consume('ip:2.2.2.2', { limit: 1, windowMs: 1000 });
