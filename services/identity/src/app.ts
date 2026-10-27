@@ -13,6 +13,7 @@ export async function createApp(options: IdentityModuleOptions = {}): Promise<IN
     IdentityModule.register({
       envConfig: config,
       connectionHandle: options.connectionHandle,
+      emailSender: options.emailSender,
     })
   );
 

@@ -17,6 +17,8 @@ interface WindowBucket {
 
 export interface RateLimiter {
   consume(key: string, options: RateLimitOptions): RateLimitResult;
+  /** Reports whether `key` is over its limit, without counting this call. */
+  peek(key: string, options: RateLimitOptions): RateLimitResult;
   reset(key: string): void;
 }
 
@@ -55,6 +57,19 @@ export class InMemoryRateLimiter implements RateLimiter {
       allowed: true,
       remaining: Math.max(0, options.limit - existing.count),
       resetAt: existing.resetAt,
+    };
+  }
+
+  peek(key: string, options: RateLimitOptions): RateLimitResult {
+    const now = Date.now();
+    const existing = this.buckets.get(key);
+    if (!existing || now >= existing.resetAt) return { allowed: true, remaining: options.limit, resetAt: now + options.windowMs };
+    const allowed = existing.count < options.limit;
+    return {
+      allowed,
+      remaining: Math.max(0, options.limit - existing.count),
+      resetAt: existing.resetAt,
+      ...(allowed ? {} : { retryAfterMs: Math.max(0, existing.resetAt - now) }),
     };
   }
 

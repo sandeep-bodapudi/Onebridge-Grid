@@ -38,6 +38,8 @@ export interface IEmailCodeRepository {
   insert(code: EmailCode): Promise<void>;
   findByTicketHash(ticketHash: string): Promise<EmailCode | undefined>;
   update(code: EmailCode): Promise<void>;
+  /** Atomically marks an unconsumed code used; false if another request got there first. */
+  markConsumed(id: string, at: Date): Promise<boolean>;
 }
 
 export interface KnownDevice {

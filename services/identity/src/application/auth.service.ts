@@ -130,7 +130,7 @@ export class AuthService {
     let person = await this.personRepo.findByEmail(normalised);
     if (!person) {
       const userId = `usr_${crypto.randomBytes(12).toString('hex')}`;
-      person = await this.personRepo.create({ userId, email: normalised, authProviders: ['otp'], mfa: { enabled: false } });
+      person = await this.personRepo.create({ userId, email: normalised, authProviders: ['otp'], mfa: { enabled: false }, emailVerifiedAt: new Date().toISOString() });
       await this.eventBus.publish({
         eventId: crypto.randomUUID(),
         type: 'user.registered',
@@ -194,12 +194,27 @@ export class AuthService {
         correlationId,
         payload: {
           userId,
-          phone,
         },
       });
     }
 
     return this.completeLogin(person, deviceLabel, ipAddress, correlationId);
+  }
+
+  /** D-AUTH-EMAIL: sign in a person whose password, email code or Google token was already checked. */
+  async signInPerson(person: Person, deviceLabel: string, ipAddress: string, correlationId = 'unknown'): Promise<VerifyOtpResult> {
+    return this.completeLogin(person, deviceLabel, ipAddress, correlationId);
+  }
+
+  /** Ends every session of a person (password reset), or every one but `keepFamilyId` (password change). */
+  async revokeAllSessions(userId: string, keepFamilyId?: string): Promise<void> {
+    const families = new Set<string>();
+    for (let offset = 0; ; offset += 100) {
+      const page = await this.sessionRepo.findSessionsByUserId(userId, 100, offset);
+      for (const s of page.items) families.add(s.familyId);
+      if (page.items.length < 100) break;
+    }
+    for (const familyId of families) if (familyId !== keepFamilyId) await this.sessionRepo.revokeFamily(familyId);
   }
 
   /** MFA checks and session issuance after a verified one-time code (phone or email). */

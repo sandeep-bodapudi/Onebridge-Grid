@@ -60,7 +60,9 @@ describe('Auth API Integration (AC-1 through AC-9 & Complete Controller Endpoint
       expect(registeredEvents.length).toBeGreaterThanOrEqual(1);
       const event = registeredEvents[0].args.event;
       expect(event.type).toBe('user.registered');
-      expect(event.payload.phone).toBe('+919876543210');
+      // Events carry IDs only (AGENTS.md): never the phone number.
+      expect(event.payload.userId).toBeDefined();
+      expect(JSON.stringify(event)).not.toContain('9876543210');
     });
 
     it('should handle Idempotency-Key on requestOtp and verifyOtp (Rule 12)', async () => {

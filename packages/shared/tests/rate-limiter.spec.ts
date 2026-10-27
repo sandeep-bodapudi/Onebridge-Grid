@@ -63,6 +63,15 @@ describe('AC-6: Rate limiting per IP and per card', () => {
     }
   });
 
+  it('peeks without counting', () => {
+    expect(limiter.peek('k', { limit: 1, windowMs: 1000 }).allowed).toBe(true);
+    expect(limiter.peek('k', { limit: 1, windowMs: 1000 }).allowed).toBe(true);
+    limiter.consume('k', { limit: 1, windowMs: 1000 });
+    const blocked = limiter.peek('k', { limit: 1, windowMs: 1000 });
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.retryAfterMs).toBeGreaterThan(0);
+  });
+
   it('tracks distinct keys independently', () => {
     limiter.consume('ip:1.1.1.1', { limit: 1, windowMs: 1000 });
     const otherIp = limiter.consume('ip:2.2.2.2', { limit: 1, windowMs: 1000 });

@@ -24,7 +24,23 @@ export interface IdentityEnvConfig {
   cookiePath: string;
   enableFakeOtp: boolean;
   enableFakeOauth: boolean;
+  /** D-AUTH-EMAIL D3: sign-in methods this server accepts. Defaults per environment when absent. */
+  authMethods?: AuthMethod[];
+  /** Google Identity Services web client ID; set it to turn on real Google sign-in. */
+  googleClientId?: string;
+  /** EMAIL_PROVIDER, SMTP_* and EMAIL_* settings for createEmailSender. */
+  emailEnv?: Record<string, string | undefined>;
 }
+
+export type AuthMethod = 'google' | 'email' | 'phone';
+const AUTH_METHOD_NAMES: AuthMethod[] = ['google', 'email', 'phone'];
+
+/** Production: Google and email only; development and test also keep phone sign-in. */
+export function defaultAuthMethods(nodeEnv: string): AuthMethod[] {
+  return nodeEnv === 'production' ? ['google', 'email'] : ['google', 'email', 'phone'];
+}
+
+const EMAIL_KEYS = ['EMAIL_PROVIDER', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_SECURE', 'EMAIL_FROM', 'EMAIL_REPLY_TO'];
 
 export function loadAndValidateEnv(explicitEnv?: Record<string, string | undefined>): IdentityEnvConfig {
   // Named loader: dotenv
@@ -97,11 +113,29 @@ export function loadAndValidateEnv(explicitEnv?: Record<string, string | undefin
     }
   }
 
-  // 6. Port & URLs
+  // 6. Sign-in methods (D-AUTH-EMAIL D3) and Google
+  const authMethods = env.AUTH_METHODS
+    ? Array.from(new Set(env.AUTH_METHODS.split(',').map((m) => m.trim().toLowerCase()).filter(Boolean)))
+    : defaultAuthMethods(nodeEnv);
+  for (const m of authMethods) {
+    if (!AUTH_METHOD_NAMES.includes(m as AuthMethod)) throw new Error(`AUTH_METHODS has an unknown method "${m}" (use google, email, phone)`);
+  }
+  if (authMethods.length === 0) throw new Error('AUTH_METHODS must list at least one method');
+  if (isProduction && authMethods.includes('phone')) {
+    throw new Error('AUTH_METHODS may not include phone in production (D-AUTH-EMAIL D3)');
+  }
+  const googleClientId = (env.GOOGLE_CLIENT_ID || '').trim() || undefined;
+  if (isProduction && authMethods.includes('google') && !googleClientId) {
+    throw new Error('GOOGLE_CLIENT_ID is required in production while AUTH_METHODS includes google');
+  }
+  const emailEnv: Record<string, string | undefined> = {};
+  for (const key of EMAIL_KEYS) emailEnv[key] = env[key];
+
+  // 7. Port & URLs
   const port = parseInt(env.PORT || '4001', 10);
   const appUrl = (env.APP_URL || 'http://localhost:3000').trim();
 
-  // 7. Cookie configuration
+  // 8. Cookie configuration
   const cookieSecure = isProduction ? true : env.COOKIE_SECURE === 'true';
   const cookieDomain = env.COOKIE_DOMAIN ? env.COOKIE_DOMAIN.trim() : undefined;
   const cookiePath = (env.COOKIE_PATH || '/auth').trim();
@@ -120,5 +154,8 @@ export function loadAndValidateEnv(explicitEnv?: Record<string, string | undefin
     cookiePath,
     enableFakeOtp,
     enableFakeOauth,
+    authMethods: authMethods as AuthMethod[],
+    googleClientId,
+    emailEnv,
   };
 }

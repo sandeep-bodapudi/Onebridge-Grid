@@ -77,6 +77,8 @@ describe('Real MongoDB Seed Idempotency & Production Refusal (Fix 1: AC-A9)', ()
       process.env.ENCRYPTION_KEY = 'e'.repeat(64);
       process.env.ENABLE_FAKE_OTP = 'false';
       process.env.ENABLE_FAKE_OAUTH = 'false';
+      // A valid production config (D-AUTH-EMAIL needs a Google client ID while Google is on).
+      process.env.GOOGLE_CLIENT_ID = 'client-123.apps.googleusercontent.com';
       await expect(seedDevDatabase(connectionHandle)).rejects.toThrow(
         /Database seeding is strictly forbidden in production/
       );

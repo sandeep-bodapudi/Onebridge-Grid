@@ -34,6 +34,11 @@ export class MongoEmailCodeRepository implements IEmailCodeRepository {
   async update(code: EmailCode): Promise<void> {
     await this.repo.replaceOne({ id: code.id }, { ...code });
   }
+
+  async markConsumed(id: string, at: Date): Promise<boolean> {
+    const res = await this.repo.updateOne({ id, consumedAt: { $exists: false } }, { $set: { consumedAt: at } });
+    return res.modifiedCount === 1;
+  }
 }
 
 /** D-AUTH-EMAIL D4: `known_devices`, the devices a person confirmed with an email code. */

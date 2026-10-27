@@ -15,6 +15,13 @@ export class InMemoryEmailCodeRepository implements IEmailCodeRepository {
   async update(code: EmailCode): Promise<void> {
     this.codes.set(code.ticketHash, { ...code });
   }
+
+  async markConsumed(id: string, at: Date): Promise<boolean> {
+    const code = [...this.codes.values()].find((c) => c.id === id);
+    if (!code || code.consumedAt) return false;
+    code.consumedAt = at;
+    return true;
+  }
 }
 
 export class InMemoryKnownDeviceRepository implements IKnownDeviceRepository {
