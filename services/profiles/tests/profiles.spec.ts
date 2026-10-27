@@ -45,7 +45,7 @@ describe('N01 profile rules', () => {
   });
 
   it('reports completeness', () => {
-    expect(completeness({ skills: [], headline: 'Sales' } as never)).toEqual({ done: 1, missing: ['photo', 'city', 'about', 'skill'] });
+    expect(completeness({ skills: [], headline: 'Sales' } as Parameters<typeof completeness>[0])).toEqual({ done: 1, missing: ['photo', 'city', 'about', 'skill'] });
   });
 });
 

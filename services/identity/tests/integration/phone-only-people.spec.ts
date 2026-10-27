@@ -45,6 +45,7 @@ describe('Phone-only sign-ups', () => {
       otpSender: new FakeOtpSender(),
       eventBus: new FakeEventBus(),
       jwtSecret: 'test-secret-key-32-chars-long-12345',
+      fixedOtpCode: '123456',
     });
 
     for (const typed of ['98220 12345', '09822012345', '+919822012345']) {

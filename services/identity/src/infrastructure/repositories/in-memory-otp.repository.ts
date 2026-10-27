@@ -15,8 +15,10 @@ export class InMemoryOtpRepository {
   }
 
   async findLatestByPhone(phone: string): Promise<OtpChallenge | undefined> {
+    // Reverse first so that, on a createdAt tie, the challenge saved last wins (the sort is stable).
     const matching = this.challenges
       .filter(c => c.phone === phone)
+      .reverse()
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return matching[0];
   }

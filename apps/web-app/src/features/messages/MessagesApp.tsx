@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ActorRef, ChatMessage, Conversation } from '@onebridge/api-contracts';
 import { apiClient } from '../../api-client';
-import type { MemberSession } from '../profile';
+import type { MemberSession } from '../../member-session';
 import { ConversationList } from './ConversationList';
 import { OutboxItem, SeatOption, Thread } from './Thread';
 import { applyRead, isMine, mergeMessages, newClientId, otherSide } from './chat-state';
@@ -259,7 +259,6 @@ export function MessagesApp({
     window.addEventListener('online', flush);
     if (status === 'online') flush();
     return () => window.removeEventListener('online', flush);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, deliver]);
 
   const send = (text: string, replyToMessageId?: string) => {

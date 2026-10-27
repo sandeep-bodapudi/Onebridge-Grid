@@ -167,7 +167,7 @@ describe('N08 messages page', () => {
     const list = vi.spyOn(apiClient, 'listConversations').mockResolvedValue({ items: [companyConv] });
     vi.spyOn(apiClient, 'getConversation').mockResolvedValue(companyConv);
     vi.spyOn(apiClient, 'listMessages').mockResolvedValue({ items: [] });
-    vi.spyOn(apiClient, 'listSeats').mockResolvedValue({ items: [{ id: 'seat-1', title: 'Sales', personId: 'e1', status: 'active' }], total: 1, limit: 200, offset: 0 } as never);
+    vi.spyOn(apiClient, 'listSeats').mockResolvedValue({ items: [{ id: 'seat-1', title: 'Sales', personId: 'e1', status: 'active' }], total: 1, limit: 200, offset: 0 } as Awaited<ReturnType<typeof apiClient.listSeats>>);
     const done = vi.spyOn(apiClient, 'setConversationStatus').mockResolvedValue({ ...companyConv, status: 'done' });
     render(<MessagesApp session={{ ...session, hasCompany: true, companyId: 'co1', companyRole: 'owner' }} initialInbox="company" initialConversationId="c1" />);
 

@@ -22,7 +22,7 @@ describe('CI Script No-Op and Echo Checker (Condition 7 & Evidence Rule §13)', 
     }
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
-    expect(result.checkedCount).toBe(15);
+    expect(result.checkedCount).toBe(19);
   });
 
   it('should fail if any script defines echo', () => {

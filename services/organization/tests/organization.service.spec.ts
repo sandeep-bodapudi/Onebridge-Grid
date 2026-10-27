@@ -17,6 +17,7 @@ describe('OrganizationService (F06 Unit Tests)', () => {
     findById: ReturnType<typeof vi.fn>;
     findBySlug: ReturnType<typeof vi.fn>;
     findByAnySlug: ReturnType<typeof vi.fn>;
+    findByGstinGlobal: ReturnType<typeof vi.fn>;
   };
   let mockIssuedIdRepo: {
     claimId: ReturnType<typeof vi.fn>;
@@ -34,6 +35,7 @@ describe('OrganizationService (F06 Unit Tests)', () => {
       findById: vi.fn(),
       findBySlug: vi.fn(),
       findByAnySlug: vi.fn(),
+      findByGstinGlobal: vi.fn().mockResolvedValue(null),
     };
     mockIssuedIdRepo = {
       claimId: vi.fn().mockResolvedValue(true),

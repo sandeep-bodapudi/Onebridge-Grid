@@ -1,5 +1,5 @@
 import { GlobalRepository, MongoConnectionHandle, TenantContext, TenantScopedRepository } from '@onebridge/shared';
-import type { Filter } from 'mongodb';
+import type { Filter } from '@onebridge/shared';
 import type { ActorRef, ActorType } from '../domain/rules.js';
 import type { EncryptedText } from '../domain/crypto.js';
 

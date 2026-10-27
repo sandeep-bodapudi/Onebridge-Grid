@@ -47,6 +47,8 @@ export interface AuthServiceConfig {
   eventBus: FakeEventBus;
   jwtSecret: string;
   oauthVerifier?: IOAuthVerifier;
+  /** Demo and test builds only: every one-time code is this value instead of a random one. */
+  fixedOtpCode?: string;
 }
 
 export interface VerifyOtpResult {
@@ -81,7 +83,7 @@ export class AuthService {
 
     this.personRepo = personRepo;
     this.sessionRepo = sessionRepo;
-    this.otpService = new OtpService(otpRepo, config.otpSender);
+    this.otpService = new OtpService(otpRepo, config.otpSender, config.fixedOtpCode);
     this.tokenService = new TokenService(sessionRepo, config.jwtSecret);
     this.mfaService = new MfaService();
     this.eventBus = config.eventBus;

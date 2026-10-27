@@ -28,9 +28,14 @@ const company: PublicCompanyProfile = {
 
 afterEach(() => vi.unstubAllGlobals());
 
+type CompanyLd = {
+  '@type': string; identifier: string; taxID: string; department: unknown[]; sameAs: string[];
+  hasOfferCatalog: { itemListElement: Array<{ itemOffered: { name: string } }> };
+};
+
 describe('company page SEO (F26)', () => {
   it('describes the company as an Organization with branches and a catalogue', () => {
-    const ld = companyStructuredData(company, '/acme-steels') as Record<string, any>;
+    const ld = companyStructuredData(company, '/acme-steels') as CompanyLd;
     expect(ld['@type']).toBe('Organization');
     expect(ld.identifier).toBe('OB-7KQ2MX');
     expect(ld.taxID).toBe('36AABCA1234F1Z5');

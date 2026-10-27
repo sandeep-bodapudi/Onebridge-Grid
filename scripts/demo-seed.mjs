@@ -322,7 +322,8 @@ async function seedDirectory() {
     const T = { token, tenantId: org.id };
     await call('PATCH', `${ORGANIZATION}/orgs/${org.id}`, { ...T, body: { about: c.about } });
     const current = await call('GET', `${CARDS}/company-profile`, T);
-    const { limits: _limits, ...settings } = current;
+    const settings = { ...current };
+    delete settings.limits;
     await call('PUT', `${CARDS}/company-profile`, { ...T, body: { ...settings, products: c.products, services: c.services } });
     created++;
   }

@@ -1,5 +1,5 @@
 import { GlobalRepository, MongoConnectionHandle } from '@onebridge/shared';
-import type { Filter } from 'mongodb';
+import type { Filter } from '@onebridge/shared';
 
 export type ActorType = 'member' | 'company';
 

@@ -28,6 +28,7 @@ describe('Auth API Integration (AC-1 through AC-9 & Complete Controller Endpoint
       otpSender: fakeOtpSender,
       eventBus: fakeEventBus,
       jwtSecret: 'test-secret-key-32-chars-long-12345',
+      fixedOtpCode: '123456',
     });
     controller = new AuthController(authService);
   });

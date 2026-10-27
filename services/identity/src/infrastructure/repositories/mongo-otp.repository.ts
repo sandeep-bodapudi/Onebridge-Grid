@@ -51,7 +51,7 @@ export class MongoOtpRepository implements IOtpRepository {
   async findLatestByPhone(phone: string): Promise<OtpChallenge | undefined> {
     const results = await this.challengesRepo.find(
       { phone },
-      { sort: { createdAt: -1 }, limit: 1 }
+      { sort: { createdAt: -1, _id: -1 }, limit: 1 }
     );
     if (!results || results.length === 0) return undefined;
     return results[0] as OtpChallenge;

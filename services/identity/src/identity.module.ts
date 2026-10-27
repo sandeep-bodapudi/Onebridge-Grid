@@ -134,6 +134,8 @@ export class IdentityModule {
               eventBus: fakeEventBus,
               oauthVerifier: oauthVerifier,
               jwtSecret: config.jwtSecret,
+              // ENABLE_FAKE_OTP is refused in production, so real builds always send random codes.
+              fixedOtpCode: config.enableFakeOtp ? '123456' : undefined,
             });
           },
           inject: [MongoPersonRepository, MongoSessionRepository, MongoOtpRepository],

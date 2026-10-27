@@ -12,7 +12,9 @@ export interface OtpRequestResult {
 export class OtpService {
   constructor(
     private otpRepo: IOtpRepository,
-    private otpSender: FakeOtpSender
+    private otpSender: FakeOtpSender,
+    /** Demo and test builds only (ENABLE_FAKE_OTP, refused in production): every code is this value. */
+    private fixedCode?: string
   ) {}
 
   private hashCode(code: string): string {
@@ -43,9 +45,8 @@ export class OtpService {
     }
     this.checkRateLimits(ipLimit.requests, 5, 3600000, 'Rate limit exceeded: IP rate limit');
 
-    // 2. Generate 6-digit OTP
-    // For test consistency with FakeOtpSender default, generate 123456 or a cryptographically secure 6-digit OTP
-    const code = '123456';
+    // 2. Generate a cryptographically random 6-digit OTP
+    const code = this.fixedCode ?? crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
     const hashedCode = this.hashCode(code);
 
     // 3. Channel dispatch with fallback (SMS -> WhatsApp -> Email)

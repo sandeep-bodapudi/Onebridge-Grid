@@ -31,7 +31,6 @@ function NetworkSearch() {
   useEffect(() => {
     apiClient.industries().then(setIndustries).catch(() => setIndustries([]));
     void run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

@@ -256,3 +256,11 @@
 - Realtime: WebSocket at `/realtime?ticket=` with a 60-second single-use ticket from `POST /realtime/ticket`, so the access token never goes in a URL; the Origin must be the app's. Frames: message.new, message.updated, typing, read, presence, conversation.updated. Messages are sent over HTTP with a `clientMessageId` so retries never duplicate; the app keeps messages typed offline in an outbox ("Not sent yet") and sends them when the connection is back. Fan-out is in-process on one node (tested with 1,000 sockets, delivery under a second); Redis pub/sub is needed before a second node. The single-app server and demo API proxy WebSocket upgrades.
 - Edit and unsend window: 15 minutes (the proposed answer to the N08 open question). Retention: company conversations stay while the company exists (to be deleted with it under F28).
 - Not yet: attachments and malware scanning (no file storage yet; the API refuses attachment IDs with `attachments_unavailable`), link previews, voice notes, searching message text (text is encrypted; search covers the other side's name), blocking (N09), hiding read receipts and online status (N10), offline notifications (F22 consumes `message.sent`), routing to a branch contact (F26 routing; new enquiries wait unassigned for Owner and Admins), and creating a lead from a first message (cards will consume `conversation.started`).
+
+
+## D-OTP-RANDOM: one-time codes are random
+
+- Date: 2026-10-27
+- Sign-in codes (phone and email) were always `123456`. `OtpService` now draws each code with `crypto.randomInt` (6 digits, zero-padded).
+- The fixed code `123456` remains only when `ENABLE_FAKE_OTP=true` (dev, demo server, e2e launcher, tests), passed as `fixedOtpCode`. The env loader refuses `ENABLE_FAKE_OTP` in production, so a production build cannot issue the fixed code.
+- The newest challenge for a phone now wins a `createdAt` tie (`_id` tie-break in Mongo, insertion order in memory); before, two requests in the same millisecond could return the older, already-used code.

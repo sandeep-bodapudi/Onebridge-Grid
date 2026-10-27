@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import crypto from 'node:crypto';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { OtpService } from '../../src/application/otp.service';
 import { FakeOtpSender } from '@onebridge/shared';
 import { InMemoryOtpRepository } from '../../src/infrastructure/repositories/in-memory-otp.repository';
@@ -11,7 +12,17 @@ describe('OTP Service (AC-1, AC-2, AC-3, AC-9)', () => {
   beforeEach(() => {
     otpSender = new FakeOtpSender();
     otpRepo = new InMemoryOtpRepository();
-    otpService = new OtpService(otpRepo, otpSender);
+    otpService = new OtpService(otpRepo, otpSender, '123456');
+  });
+
+  it('sends a random 6-digit code when no fixed demo code is set', async () => {
+    const random = vi.spyOn(crypto, 'randomInt').mockImplementation(() => 4207);
+    const realService = new OtpService(otpRepo, otpSender);
+    await realService.requestOtp('+919876543210', '127.0.0.1');
+    random.mockRestore();
+    expect(otpSender.sentChannels[0].code).toBe('004207');
+    await expect(realService.verifyOtp('+919876543210', '123456', '127.0.0.1')).rejects.toThrow();
+    await expect(realService.verifyOtp('+919876543210', '004207', '127.0.0.1')).resolves.toBeTruthy();
   });
 
   describe('AC-1: Fallback channel order', () => {

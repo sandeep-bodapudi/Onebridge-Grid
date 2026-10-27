@@ -85,7 +85,7 @@ describe('N02 free company profiles', () => {
   });
 
   it('refuses unknown plans', async () => {
-    await expect(orgs.createOrganization({ name: 'X Co', industry: 'Services', size: '1-10', city: 'Hyderabad', plan: 'platinum' as never, creatorPersonId: 'p' })).rejects.toMatchObject({ status: 400 });
+    await expect(orgs.createOrganization({ name: 'X Co', industry: 'Services', size: '1-10', city: 'Hyderabad', plan: 'platinum' as unknown as 'free', creatorPersonId: 'p' })).rejects.toMatchObject({ status: 400 });
   });
 
   it('has no seats on the free plan, with an upgrade message', async () => {
@@ -98,8 +98,8 @@ describe('N02 free company profiles', () => {
 
   it('allows one branch on the free plan', async () => {
     const org = await createFree();
-    await structure.createBranch(org.id, { name: 'Balanagar works', address: { line1: 'Plot 5, IDA Balanagar', city: 'Hyderabad', state: 'Telangana', pincode: '500037' } } as never, 'owner-1');
-    await expect(structure.createBranch(org.id, { name: 'Second', address: { line1: 'Plot 5, IDA Balanagar', city: 'Hyderabad', state: 'Telangana', pincode: '500037' } } as never, 'owner-1')).rejects.toMatchObject({ status: 403 });
+    await structure.createBranch(org.id, { name: 'Balanagar works', address: { line1: 'Plot 5, IDA Balanagar', city: 'Hyderabad', state: 'Telangana', pincode: '500037' } } as Parameters<typeof structure.createBranch>[1], 'owner-1');
+    await expect(structure.createBranch(org.id, { name: 'Second', address: { line1: 'Plot 5, IDA Balanagar', city: 'Hyderabad', state: 'Telangana', pincode: '500037' } } as Parameters<typeof structure.createBranch>[1], 'owner-1')).rejects.toMatchObject({ status: 403 });
     expect(await access.limits(org.id)).toEqual({ plan: 'free', items: [{ key: 'seats', used: 0, limit: 0 }, { key: 'branches', used: 1, limit: 1 }] });
   });
 

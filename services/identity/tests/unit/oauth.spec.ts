@@ -26,6 +26,7 @@ describe('OAuth Account Linking (AC-4)', () => {
       otpSender: fakeOtpSender,
       eventBus: fakeEventBus,
       jwtSecret: 'test-secret-key-32-chars-long-12345',
+      fixedOtpCode: '123456',
     });
   });
 

@@ -4,15 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SpanMark } from '@onebridge/ui-kit';
 import { apiClient } from '../../api-client';
+import type { MemberSession } from '../../member-session';
 
-export interface MemberSession {
-  personId: string;
-  name?: string;
-  hasCompany: boolean;
-  /** The active company and the person's role in it (for the company inbox, N08). */
-  companyId?: string;
-  companyRole?: string;
-}
+export type { MemberSession };
 
 /**
  * Minimal signed-in frame for member pages (N01). Members do not need a
