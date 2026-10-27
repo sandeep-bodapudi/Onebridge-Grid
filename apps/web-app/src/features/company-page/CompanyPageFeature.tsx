@@ -195,6 +195,8 @@ export const CompanyPageFeature: React.FC<CompanyPageFeatureProps> = ({ tenantId
 
   const maxProducts = settings.limits?.maxProducts ?? null;
   const atLimit = maxProducts !== null && settings.products.length >= maxProducts;
+  const isFreePlan = (organization?.plan as string | undefined) === 'free';
+  const planName = isFreePlan ? 'the free profile' : 'Starter';
   const shownSeats = new Set(settings.directory.seatIds);
 
   return (
@@ -307,7 +309,7 @@ export const CompanyPageFeature: React.FC<CompanyPageFeatureProps> = ({ tenantId
                   Products
                 </h2>
                 <span data-testid="catalogue-limit" className={`text-xs font-bold rounded-full px-2.5 py-1 ${atLimit ? 'bg-bridge-orange text-[#241A10]' : 'bg-white/10 text-warm-paper/80'}`}>
-                  {maxProducts === null ? `${settings.products.length} items · unlimited` : `${settings.products.length} of ${maxProducts} on Starter`}
+                  {maxProducts === null ? `${settings.products.length} items · unlimited` : `${settings.products.length} of ${maxProducts} on ${planName}`}
                 </span>
               </div>
               <ul className="space-y-3">
@@ -355,7 +357,7 @@ export const CompanyPageFeature: React.FC<CompanyPageFeatureProps> = ({ tenantId
                 <AddButton disabled={atLimit} onClick={() => update({ products: [...settings.products, { id: newId('p'), name: '' }] })}>
                   Add product
                 </AddButton>
-                {atLimit ? <span className="text-xs text-warm-paper/60">Starter includes {maxProducts} items. Business has no limit.</span> : null}
+                {atLimit ? <span className="text-xs text-warm-paper/60">{isFreePlan ? `The free profile includes ${maxProducts} items. Starter allows 50.` : `Starter includes ${maxProducts} items. Business has no limit.`}</span> : null}
               </div>
             </section>
 

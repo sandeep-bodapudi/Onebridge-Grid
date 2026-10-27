@@ -37,6 +37,12 @@ export class MongoOrganizationRepository extends TenantScopedRepository<Organiza
     return doc ? (doc as unknown as OrganizationProps) : null;
   }
 
+  /** N02: GSTIN uniqueness across all companies (platform-level check, like slugs). */
+  async findByGstinGlobal(gstin: string): Promise<OrganizationProps | null> {
+    const doc = await this.collection.findOne({ gstin } as unknown as Parameters<typeof this.collection.findOne>[0]);
+    return doc ? (doc as unknown as OrganizationProps) : null;
+  }
+
   async save(org: OrganizationProps): Promise<OrganizationProps> {
     const activeTenantId = this.getActiveTenantId();
     if (org.tenantId && org.tenantId !== activeTenantId) {
@@ -76,5 +82,6 @@ export class MongoOrganizationRepository extends TenantScopedRepository<Organiza
     await this.collection.createIndex({ businessId: 1 }, { unique: true });
     await this.collection.createIndex({ slug: 1 }, { unique: true });
     await this.collection.createIndex({ previousSlugs: 1 });
+    await this.collection.createIndex({ gstin: 1 }, { sparse: true });
   }
 }

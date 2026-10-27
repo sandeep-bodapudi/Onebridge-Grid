@@ -106,9 +106,10 @@ paths:
           application/json:
             schema:
               type: object
-              required: [gstin]
+              required: [gstin, name]
               properties:
                 gstin: { type: string }
+                name: { type: string, maxLength: 80, description: The name the owner sees (contact details are never shared) }
                 message: { type: string, maxLength: 500 }
       responses:
         '202': { description: Request sent if the company exists (same response either way) }

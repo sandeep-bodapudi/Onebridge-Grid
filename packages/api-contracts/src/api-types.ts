@@ -3145,6 +3145,8 @@ export interface components {
         socialLinks?: components["schemas"]["SocialLinks"];
       };
       seoIndexable: boolean;
+      /** @description False when nobody can receive an enquiry yet (no published card */
+      acceptsEnquiries?: boolean;
       focusBranchId?: string;
       branches: {
           id: string;

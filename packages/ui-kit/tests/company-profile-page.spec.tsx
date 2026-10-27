@@ -111,6 +111,7 @@ describe('CompanyProfilePage (F26)', () => {
   it('omits the verified tag for unverified companies and switches to Hindi', () => {
     render(<CompanyProfilePage data={{ ...data, company: { ...data.company, verifiedBadge: false } }} />);
     expect(screen.queryByTestId('verified-tag')).toBeNull();
+    expect(screen.getByTestId('not-verified-tag').textContent).toBe('Not verified yet');
     fireEvent.click(screen.getByTestId('language-toggle'));
     expect(screen.getAllByText('पूछताछ भेजें').length).toBeGreaterThan(0);
   });
@@ -125,5 +126,12 @@ describe('CompanyProfilePage (F26)', () => {
     expect((await axe(container)).violations).toEqual([]);
     fireEvent.click(screen.getByTestId('enquiry-bar'));
     expect((await axe(document.body)).violations).toEqual([]);
+  });
+
+  it('hides every enquiry button when the company cannot receive enquiries yet (N02)', () => {
+    render(<CompanyProfilePage data={{ ...data, acceptsEnquiries: false }} />);
+    expect(screen.queryByTestId('enquiry-bar')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Enquire/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Send an enquiry' })).toBeNull();
   });
 });

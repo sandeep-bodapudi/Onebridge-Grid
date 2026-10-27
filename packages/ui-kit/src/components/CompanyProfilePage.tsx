@@ -37,6 +37,8 @@ export interface CompanyProfileData {
     socialLinks?: Record<string, string>;
   };
   seoIndexable: boolean;
+  /** False when nobody can receive an enquiry yet (N02 free profile without people); enquiry buttons are hidden. */
+  acceptsEnquiries?: boolean;
   focusBranchId?: string;
   branches: Array<{ id: string; name: string; address?: string; directionsUrl?: string }>;
   people: Array<{ name: string; designation: string; branchName?: string; photoUrl?: string; cardUrl: string }>;
@@ -74,6 +76,7 @@ const copy = {
   en: {
     verified: 'Verified',
     verifiedLabel: 'Verified business',
+    notVerified: 'Not verified yet',
     enquire: 'Send an enquiry',
     enquireShort: 'Enquire',
     website: 'Website',
@@ -124,6 +127,7 @@ const copy = {
   hi: {
     verified: 'सत्यापित',
     verifiedLabel: 'सत्यापित व्यवसाय',
+    notVerified: 'अभी सत्यापित नहीं',
     enquire: 'पूछताछ भेजें',
     enquireShort: 'पूछें',
     website: 'वेबसाइट',
@@ -294,6 +298,7 @@ export const CompanyProfilePage: React.FC<CompanyProfilePageProps> = ({
 
   const { company } = data;
   const lapsed = data.status === 'lapsed';
+  const canEnquire = !lapsed && data.acceptsEnquiries !== false;
   const focusBranch = data.branches.find((b) => b.id === data.focusBranchId);
   const primaryBranch = focusBranch ?? data.branches[0];
   const band = company.brandColours?.band || '#272425';
@@ -433,7 +438,11 @@ export const CompanyProfilePage: React.FC<CompanyProfilePageProps> = ({
                       className="bg-bridge-orange text-[#241A10] border-0 text-[11px] px-2 py-0.5 [&_svg]:fill-[#241A10]"
                     />
                   </span>
-                ) : null}
+                ) : (
+                  <span data-testid="not-verified-tag" className="rounded-md border border-current px-2 py-0.5 text-[11px] font-bold opacity-75">
+                    {t.notVerified}
+                  </span>
+                )}
                 {[company.industry, company.city].filter(Boolean).length ? (
                   <span className="opacity-90">{[company.industry, company.city].filter(Boolean).join(' · ')}</span>
                 ) : null}
@@ -444,7 +453,7 @@ export const CompanyProfilePage: React.FC<CompanyProfilePageProps> = ({
           {company.about ? <p className="mt-5 text-[15px] leading-relaxed opacity-90 max-w-[60ch]">{company.about}</p> : null}
 
           <div className="mt-6 flex flex-wrap gap-2">
-            {!lapsed ? (
+            {canEnquire ? (
               <button
                 type="button"
                 onClick={(e) => openSheet(e)}
@@ -539,7 +548,7 @@ export const CompanyProfilePage: React.FC<CompanyProfilePageProps> = ({
                     {p.description ? <p className="text-sm text-charcoal/75 leading-relaxed">{p.description}</p> : null}
                     <div className="mt-auto pt-3 flex items-center justify-between gap-3">
                       <span className="text-sm font-extrabold">{p.priceOnRequest || !p.price ? t.priceOnRequest : p.price}</span>
-                      {!lapsed ? (
+                      {canEnquire ? (
                         <button
                           type="button"
                           onClick={(e) => openSheet(e, p.id)}
@@ -763,7 +772,7 @@ export const CompanyProfilePage: React.FC<CompanyProfilePageProps> = ({
         </footer>
       </main>
 
-      {!lapsed ? (
+      {canEnquire ? (
         <div
           className="fixed bottom-0 inset-x-0 z-30 px-4 pt-6 bg-gradient-to-t from-warm-paper from-70% to-transparent pointer-events-none"
           style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}

@@ -1,5 +1,7 @@
 import type {
   CompanyProfileSettings,
+  AccessRequest,
+  PlanUsage,
   MyProfile,
   ProfileUpdate,
   PublicMemberProfile,
@@ -278,7 +280,10 @@ export const apiClient = {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || err.title || 'Failed to create organization');
+      const error = new Error(err.detail || err.title || 'Failed to create organization') as Error & { code?: string; status?: number };
+      error.code = err.code;
+      error.status = res.status;
+      throw error;
     }
 
     return res.json();
@@ -787,6 +792,29 @@ export const apiClient = {
   /** Public member profile page (apps/web-public). */
   publicMemberUrl(handle: string): string {
     return `${publicBase()}/in/${handle}`;
+  },
+
+  /** N02: ask the owner of an existing company (found by GSTIN) for access. Same answer whether or not it exists. */
+  async requestCompanyAccess(req: { gstin: string; name: string; message?: string }): Promise<{ status: string; detail: string }> {
+    return this.orgRequest(`/orgs/access-requests`, { method: 'POST', body: JSON.stringify(req) }, undefined, 'Could not send the request');
+  },
+
+  async listAccessRequests(tenantId: string): Promise<AccessRequest[]> {
+    const data = await this.orgRequest<{ items: AccessRequest[] }>(`/orgs/${tenantId}/access-requests`, { method: 'GET' }, tenantId, 'Could not load access requests');
+    return data.items || [];
+  },
+
+  async decideAccessRequest(tenantId: string, requestId: string, decision: 'approve' | 'decline', role: 'admin' | 'employee' = 'employee'): Promise<AccessRequest> {
+    return this.orgRequest<AccessRequest>(
+      `/orgs/${tenantId}/access-requests/${encodeURIComponent(requestId)}/decide`,
+      { method: 'POST', body: JSON.stringify({ decision, role }) },
+      tenantId,
+      'Could not save the decision'
+    );
+  },
+
+  async getPlanUsage(tenantId: string): Promise<PlanUsage> {
+    return this.orgRequest<PlanUsage>(`/orgs/${tenantId}/limits`, { method: 'GET' }, tenantId, 'Could not load plan usage');
   },
 
   /** F14: invite a person into a seat (replaces any open invite). */

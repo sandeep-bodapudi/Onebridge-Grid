@@ -214,3 +214,13 @@
 - Handles: 3 to 40 lowercase letters, digits and hyphens; reserved words refused; old handles redirect (301) and cannot be reused by others.
 - Public pages: web-public `/in/<handle>` (server-rendered, Person structured data only when indexable); signed-in view at web-app `/network/in/<handle>`; editor at web-app `/profile`, reachable from the user menu and from onboarding for people without a company.
 - Company slugs now also reserve network routes (directory, search, network, profile, invite, members, demo-access).
+
+## D-N02: free company profiles implementation
+
+- Date: 2026-10-26
+- `free` is a company plan. Limits live in `services/organization/src/domain/plan-limits.ts` (founder-approved samples, Q-NET-3) until F17 replaces them with the billing PlanLimits: free has no seats, 1 branch and 10 catalogue items; Starter's existing seat logic is unchanged until F17.
+- A free company is created through the normal onboarding (Business ID and Owner membership as for paid plans); onboarding offers "Free profile" first and skips the first-card step. Its dashboard shows Company page, Branches and teams, Brand kit and Audit log only.
+- GSTIN is now unique across companies (it was not checked before). The conflict response (`gstin_taken`) never names the existing company. Access requests answer the same way whether or not the GSTIN exists, so they cannot be used to probe. The requester types the name the owner sees; their phone and email are never shared. Only the Owner reviews requests; approval never lowers an existing role.
+- `GET /orgs/{id}/limits` reports the limits the organization service measures (seats, branches). Catalogue usage is reported by the cards company-page settings; later limits (posts, inbox, call requests) are reported by the services that own them.
+- Public company pages gain `acceptsEnquiries`: false when no published card can receive an enquiry (free companies until chat and call requests, N08 and N11) or when the plan has lapsed; enquiry buttons are hidden. Unverified companies show "Not verified yet".
+- Onboarding plan prices corrected to the F17 per-seat prices, and the plan cards became accessible radio buttons.

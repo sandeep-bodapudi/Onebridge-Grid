@@ -44,6 +44,13 @@ describe('company profile rules (F26)', () => {
     expect(validateCompanyProfile({ products: items }, 'business').products).toHaveLength(51);
   });
 
+  it('allows 10 catalogue items on the free profile (N02)', () => {
+    expect(catalogueLimitFor('free')).toBe(10);
+    const eleven = Array.from({ length: 11 }, (_, i) => ({ id: `p${i}`, name: `Item ${i}` }));
+    expect(() => validateCompanyProfile({ products: eleven }, 'free')).toThrow(/free profile includes 10/);
+    expect(validateCompanyProfile({ products: eleven.slice(0, 10) }, 'free').products).toHaveLength(10);
+  });
+
   it('embeds only YouTube and Vimeo videos', () => {
     expect(embeddableVideoUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
     expect(embeddableVideoUrl('https://youtu.be/dQw4w9WgXcQ')).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
@@ -176,6 +183,7 @@ describe('CompanyProfileService (F26)', () => {
     expect(page.people.map((p) => p.name)).toEqual(['Sneha Reddy', 'Arjun Rao']);
     expect(page.people[0].cardUrl).toBe('https://grid.example.test/c/acme-steels/ob-7kq2mx-e0001');
     expect(page.focusBranchId).toBe('br_hyd');
+    expect(page.acceptsEnquiries).toBe(true);
     expect(page.documents[0]).toMatchObject({ id: 'd1', title: 'Brochure', downloadUrl: '/acme-steels/documents/d1' });
     await expect(service.getPublicProfile('nobody')).rejects.toMatchObject({ status: 404 });
   });

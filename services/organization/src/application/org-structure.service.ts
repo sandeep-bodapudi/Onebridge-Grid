@@ -71,11 +71,12 @@ export class OrgStructureService {
       throw new NotFoundException(`Organization "${tenantId}" not found`);
     }
 
-    if (org.plan === 'starter') {
+    // N02: free profiles have the same single branch as Starter.
+    if (org.plan === 'starter' || org.plan === 'free') {
       const activeCount = await TenantContext.run(tenantId, () => this.branchRepo.countActiveBranches());
       if (activeCount >= 1) {
         throw new ForbiddenException(
-          'Starter plan allows a maximum of 1 branch. Please upgrade to Business for unlimited branches.'
+          `${org.plan === 'free' ? 'The free plan' : 'Starter plan'} allows a maximum of 1 branch. Please upgrade to Business for unlimited branches.`
         );
       }
     }

@@ -40,6 +40,9 @@ export interface OnboardingFlowLabels {
   optionalLabel?: string;
   gstinPlaceholder: string;
   slugPreviewLabel: string;
+  freePlanTitle: string;
+  freePlanPrice: string;
+  freePlanDescription: string;
   starterPlanTitle: string;
   starterPlanPrice: string;
   starterPlanDescription: string;
@@ -83,7 +86,7 @@ export interface OnboardingFormData {
   city: string;
   gstin?: string;
   slug?: string;
-  plan: 'starter' | 'business';
+  plan: 'free' | 'starter' | 'business';
   brandColours: {
     primary: string;
     secondary: string;
@@ -179,11 +182,13 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
   }, [formData.brandColours.primary]);
 
   const stepsOrder: OnboardingStep[] = useMemo(() => {
+    // N02: a free company profile has no seats, so there is no first card to set up.
+    if (formData.plan === 'free') return ['company_details', 'plan_selection', 'brand_setup', 'complete'];
     if (paymentAfterFirstCard) {
       return ['company_details', 'brand_setup', 'first_card', 'plan_selection', 'complete'];
     }
     return ['company_details', 'plan_selection', 'brand_setup', 'first_card', 'complete'];
-  }, [paymentAfterFirstCard]);
+  }, [paymentAfterFirstCard, formData.plan]);
 
   const stepProgressPercent = useMemo(() => {
     const idx = stepsOrder.indexOf(currentStep);
@@ -434,56 +439,35 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
                 {labels.stepPlanTitle}
               </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div
-                  data-testid="plan-starter-card"
-                  onClick={() => setFormData({ ...formData, plan: 'starter' })}
-                  className={`p-4 rounded-panel border-2 cursor-pointer transition-all motion-reduce:transition-none ${
-                    formData.plan === 'starter'
-                      ? 'border-bridge-orange bg-sand/30 dark:bg-charcoal-deep ring-1 ring-bridge-orange'
-                      : 'border-sand-border hover:border-bridge-orange/50'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-sm text-charcoal dark:text-warm-paper">
-                      {labels.starterPlanTitle}
-                    </h3>
-                    {formData.plan === 'starter' && (
-                      <StatusChip status="info">{labels.selectedLabel || 'Selected'}</StatusChip>
-                    )}
-                  </div>
-                  <p className="text-xl font-bold text-deep-orange dark:text-bridge-orange mb-2">
-                    {labels.starterPlanPrice}
-                  </p>
-                  <p className="text-xs text-charcoal/70 dark:text-warm-paper/70">
-                    {labels.starterPlanDescription}
-                  </p>
-                </div>
-
-                <div
-                  data-testid="plan-business-card"
-                  onClick={() => setFormData({ ...formData, plan: 'business' })}
-                  className={`p-4 rounded-panel border-2 cursor-pointer transition-all motion-reduce:transition-none ${
-                    formData.plan === 'business'
-                      ? 'border-bridge-orange bg-sand/30 dark:bg-charcoal-deep ring-1 ring-bridge-orange'
-                      : 'border-sand-border hover:border-bridge-orange/50'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-sm text-charcoal dark:text-warm-paper">
-                      {labels.businessPlanTitle}
-                    </h3>
-                    {formData.plan === 'business' && (
-                      <StatusChip status="info">{labels.selectedLabel || 'Selected'}</StatusChip>
-                    )}
-                  </div>
-                  <p className="text-xl font-bold text-deep-orange dark:text-bridge-orange mb-2">
-                    {labels.businessPlanPrice}
-                  </p>
-                  <p className="text-xs text-charcoal/70 dark:text-warm-paper/70">
-                    {labels.businessPlanDescription}
-                  </p>
-                </div>
+              <div role="radiogroup" aria-label={labels.stepPlanTitle} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(
+                  [
+                    ['free', labels.freePlanTitle, labels.freePlanPrice, labels.freePlanDescription],
+                    ['starter', labels.starterPlanTitle, labels.starterPlanPrice, labels.starterPlanDescription],
+                    ['business', labels.businessPlanTitle, labels.businessPlanPrice, labels.businessPlanDescription],
+                  ] as const
+                ).map(([plan, title, price, description]) => (
+                  <button
+                    key={plan}
+                    type="button"
+                    role="radio"
+                    aria-checked={formData.plan === plan}
+                    data-testid={`plan-${plan}-card`}
+                    onClick={() => setFormData({ ...formData, plan })}
+                    className={`text-left p-4 rounded-panel border-2 cursor-pointer transition-all motion-reduce:transition-none ${
+                      formData.plan === plan
+                        ? 'border-bridge-orange bg-sand/30 dark:bg-charcoal-deep ring-1 ring-bridge-orange'
+                        : 'border-sand-border hover:border-bridge-orange/50'
+                    }`}
+                  >
+                    <span className="flex justify-between items-start mb-2 gap-2">
+                      <span className="font-bold text-sm text-charcoal dark:text-warm-paper">{title}</span>
+                      {formData.plan === plan && <StatusChip status="info">{labels.selectedLabel || 'Selected'}</StatusChip>}
+                    </span>
+                    <span className="block text-lg font-bold text-charcoal dark:text-warm-paper mb-2">{price}</span>
+                    <span className="block text-xs text-charcoal/70 dark:text-warm-paper/70">{description}</span>
+                  </button>
+                ))}
               </div>
 
               <div className="pt-4 flex justify-between">
@@ -605,8 +589,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
                 <Button variant="secondary" onClick={goToPreviousStep}>
                   {labels.backButton}
                 </Button>
-                <Button data-testid="btn-next-brand" variant="primary" onClick={goToNextStep}>
-                  {labels.nextButton}
+                <Button data-testid="btn-next-brand" variant="primary" onClick={formData.plan === 'free' ? handleLaunch : goToNextStep}>
+                  {formData.plan === 'free' ? labels.launchButton : labels.nextButton}
                 </Button>
               </div>
             </SpanCard>

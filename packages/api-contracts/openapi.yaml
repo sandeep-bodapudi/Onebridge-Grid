@@ -3492,6 +3492,7 @@ components:
             gstin: { type: string }
             socialLinks: { $ref: '#/components/schemas/SocialLinks' }
         seoIndexable: { type: boolean }
+        acceptsEnquiries: { type: boolean, description: False when nobody can receive an enquiry yet (no published card, or lapsed) }
         focusBranchId: { type: string }
         branches:
           type: array

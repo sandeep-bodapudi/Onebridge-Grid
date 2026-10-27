@@ -31,6 +31,8 @@ import { InviteService } from './application/invite.service.js';
 import { MongoInviteRepository, MongoNoticeAcceptanceRepository } from './infrastructure/mongo-invite.repository.js';
 import { FakeInviteNotifier, InviteNotifier } from './infrastructure/invite-notifier.js';
 import { InvitesController, PublicInvitesController } from './presentation/invites.controller.js';
+import { AccessRequestService, MongoAccessRequestRepository } from './application/access-request.service.js';
+import { AccessRequestsController } from './presentation/access-requests.controller.js';
 
 export interface EventBusLike {
   publish: (event: unknown) => Promise<void>;
@@ -354,6 +356,21 @@ export class OrganizationModule implements OnModuleInit {
       ],
     };
 
+    const accessRepoProvider = { provide: MongoAccessRequestRepository, useFactory: () => new MongoAccessRequestRepository(requireHandle('MongoAccessRequestRepository')) };
+    const accessServiceProvider = {
+      provide: AccessRequestService,
+      useFactory: (
+        requests: MongoAccessRequestRepository,
+        orgRepo: MongoOrganizationRepository,
+        seatRepo: MongoSeatRepository,
+        branchRepo: MongoBranchRepository,
+        auditRepo: MongoAuditRepository,
+        identityClient: IdentityInternalClient,
+        eventBus: EventBus
+      ) => new AccessRequestService(requests, orgRepo, seatRepo, branchRepo, auditRepo, identityClient, eventBus),
+      inject: [MongoAccessRequestRepository, MongoOrganizationRepository, MongoSeatRepository, MongoBranchRepository, MongoAuditRepository, 'IDENTITY_INTERNAL_CLIENT', 'EVENT_BUS'],
+    };
+
     // D-SERVICE-AUTH: verifies identity access tokens and resolves the caller's role.
     const requestAuthenticatorProvider = {
       provide: REQUEST_AUTHENTICATOR,
@@ -376,6 +393,7 @@ export class OrganizationModule implements OnModuleInit {
         AuditController,
         InvitesController,
         PublicInvitesController,
+        AccessRequestsController,
       ],
       providers: [
         envProvider,
@@ -399,6 +417,8 @@ export class OrganizationModule implements OnModuleInit {
         inviteRepoProvider,
         noticeRepoProvider,
         inviteServiceProvider,
+        accessRepoProvider,
+        accessServiceProvider,
         requestAuthenticatorProvider,
         TenantAuthGuard,
       ],

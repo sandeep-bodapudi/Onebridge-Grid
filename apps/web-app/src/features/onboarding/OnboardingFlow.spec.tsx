@@ -220,4 +220,16 @@ describe('OnboardingFlow UI Feature Component', () => {
       expect(businessCard.className).toContain('motion-reduce:transition-none');
     });
   });
+
+  it('offers a free profile that skips the first card and launches from the brand step (N02)', async () => {
+    const onComplete = vi.fn();
+    render(<OnboardingFlow labels={enOnboardingLabels} onComplete={onComplete} initialStep="plan_selection" />);
+    const free = await screen.findByTestId('plan-free-card');
+    expect(free.getAttribute('role')).toBe('radio');
+    fireEvent.click(free);
+    expect(free.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByTestId('btn-next-plan'));
+    fireEvent.click(await screen.findByTestId('btn-next-brand'));
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ plan: 'free' }), expect.any(Number));
+  });
 });

@@ -114,6 +114,19 @@ export class SeatsService {
       });
     }
 
+    // N02: a free company profile has no seats (no employee cards). Checked before minting a seat ID.
+    const orgForPlan = await TenantContext.run(tenantId, () => this.orgRepo.findById(tenantId));
+    if (orgForPlan?.plan === 'free') {
+      throw new ForbiddenException({
+        type: 'https://tools.ietf.org/html/rfc7807',
+        title: 'Not on your plan',
+        status: 403,
+        detail: 'Free company profiles do not include employee cards. Upgrade to Starter to add people.',
+        code: 'plan_limit',
+        limit: 0,
+      });
+    }
+
     // AC-5: Derived Seat ID <BusinessID>-E<nnnn>
     const seatId = await this.counterService.generateDerivedId(tenantId, 'seat');
 

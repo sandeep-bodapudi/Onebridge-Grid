@@ -42,7 +42,7 @@ export interface OrganizationProps {
   logo?: string;
   cover?: string;
   socialLinks?: Record<string, string>;
-  plan: 'starter' | 'business';
+  plan: 'free' | 'starter' | 'business';
   verifiedBadge: boolean;
   onboardingStartedAt: string;
   firstCardCreatedAt?: string;

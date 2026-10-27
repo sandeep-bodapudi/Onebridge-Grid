@@ -33,4 +33,6 @@ export * from './domain/invite.js';
 export * from './infrastructure/mongo-invite.repository.js';
 export * from './infrastructure/invite-notifier.js';
 export * from './application/invite.service.js';
+export * from './domain/plan-limits.js';
+export * from './application/access-request.service.js';
 export * from './presentation/invites.controller.js';

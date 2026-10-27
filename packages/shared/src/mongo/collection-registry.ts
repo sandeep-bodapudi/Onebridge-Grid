@@ -140,6 +140,11 @@ export const KNOWN_COLLECTIONS: Record<string, CollectionMetadata> = {
     classification: 'global',
     description: 'Profiles read model: seat title and holder from seat.* events (ADR-0003)',
   },
+  access_requests: {
+    name: 'access_requests',
+    classification: 'tenant-scoped',
+    description: 'N02 requests to join an existing company (found by GSTIN); the requester chooses the name shown',
+  },
   notice_acceptances: {
     name: 'notice_acceptances',
     classification: 'tenant-scoped',

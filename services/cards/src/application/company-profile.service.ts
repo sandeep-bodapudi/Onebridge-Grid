@@ -158,6 +158,8 @@ export class CompanyProfileService {
           socialLinks: lapsed ? undefined : org.socialLinks,
         },
         seoIndexable: profile.seoIndexable,
+        // Enquiries are routed to a published card; until chat and call requests (N08, N11) a company without one cannot receive them.
+        acceptsEnquiries: !lapsed && cards.length > 0,
         focusBranchId: focus,
         branches: activeBranches.map((b) => ({
           id: b.branchId,

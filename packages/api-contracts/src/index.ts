@@ -84,6 +84,7 @@ export type ProfileUpdate = N['ProfileUpdate'];
 export type PublicMemberProfile = N['PublicMemberProfile'];
 export type WorkHistoryEntry = N['WorkHistoryEntry'];
 export type PlanUsage = N['PlanUsage'];
+export type AccessRequest = N['AccessRequest'];
 export type SearchResults = N['SearchResults'];
 export type SearchHit = N['SearchHit'];
 export type Industry = N['Industry'];

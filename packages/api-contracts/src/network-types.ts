@@ -175,6 +175,8 @@ export interface paths {
         content: {
           "application/json": {
             gstin: string;
+            /** @description The name the owner sees (contact details are never shared) */
+            name: string;
             message?: string;
           };
         };

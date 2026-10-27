@@ -65,7 +65,11 @@ export class InvalidCompanyProfileError extends Error {
 
 export class CatalogueLimitError extends Error {
   constructor(public readonly limit: number) {
-    super(`The Starter plan includes ${limit} catalogue items. Remove some or upgrade to Business for unlimited items.`);
+    super(
+      limit === FREE_CATALOGUE_LIMIT
+        ? `The free profile includes ${limit} catalogue items. Remove some or upgrade to Starter for more.`
+        : `The Starter plan includes ${limit} catalogue items. Remove some or upgrade to Business for unlimited items.`
+    );
     this.name = 'CatalogueLimitError';
   }
 }
@@ -73,8 +77,11 @@ export class CatalogueLimitError extends Error {
 export const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
 export const STARTER_CATALOGUE_LIMIT = 50;
 
-/** Catalogue items allowed on a plan: 50 on Starter, unlimited (null) on Business and above. */
+export const FREE_CATALOGUE_LIMIT = 10;
+
+/** Catalogue items allowed on a plan: 10 on the free profile (N02), 50 on Starter, unlimited (null) on Business and above. */
 export function catalogueLimitFor(plan: string | undefined): number | null {
+  if (plan === 'free') return FREE_CATALOGUE_LIMIT;
   return !plan || plan === 'starter' ? STARTER_CATALOGUE_LIMIT : null;
 }
 

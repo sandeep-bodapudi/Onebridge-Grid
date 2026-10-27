@@ -33,7 +33,7 @@ export interface CreateOrganizationDto {
   city: string;
   gstin?: string;
   slug?: string;
-  plan?: 'starter' | 'business';
+  plan?: 'free' | 'starter' | 'business';
   website?: string;
   idempotencyKey?: string;
   correlationId?: string;
@@ -103,11 +103,25 @@ export class OrganizationService {
       throw new BadRequestException('Creator person ID is required');
     }
 
+    if (dto.plan !== undefined && !['free', 'starter', 'business'].includes(dto.plan)) {
+      throw new BadRequestException('Choose the free profile, Starter or Business.');
+    }
+
     // Validate GSTIN if provided
     if (dto.gstin && dto.gstin.trim()) {
       const gstinVal = validateGstin(dto.gstin);
       if (!gstinVal.isValid) {
         throw new BadRequestException(gstinVal.reason);
+      }
+      // N02: one company, one listing. The response never names the existing company or its owner.
+      if (await this.orgRepo.findByGstinGlobal(dto.gstin.trim().toUpperCase())) {
+        throw new ConflictException({
+          type: 'https://tools.ietf.org/html/rfc7807',
+          title: 'Already on OneBridge Grid',
+          status: 409,
+          detail: 'This company is already on OneBridge Grid. You can ask its owner for access.',
+          code: 'gstin_taken',
+        });
       }
     }
 

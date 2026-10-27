@@ -15,6 +15,7 @@ import { QrFeature } from '../../src/features/qr-codes';
 import { OverviewFeature } from '../../src/features/overview';
 import { LeadsFeature } from '../../src/features/leads';
 import { CompanyPageFeature } from '../../src/features/company-page';
+import { AccessRequestsPanel, RequestAccessForm } from '../../src/features/access-requests';
 import { OnboardingFlow, enOnboardingLabels, type OnboardingFormData } from '../../src/features/onboarding';
 
 export interface UserProfile {
@@ -66,6 +67,7 @@ export default function DashboardPage() {
   const [cardSeatId, setCardSeatId] = useState<string | null>(null);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
   const [onboardingBusy, setOnboardingBusy] = useState(false);
+  const [takenGstin, setTakenGstin] = useState<string | null>(null);
 
   const loadProfile = useCallback(async () => {
     // Access token lives in memory only; after a reload, restore it from the
@@ -131,6 +133,12 @@ export default function DashboardPage() {
         plan: data.plan,
       });
       apiClient.setActiveTenantId(created.id);
+      if (data.plan === 'free') {
+        // N02: a free company profile has no seats or employee cards; the owner goes straight to the company page.
+        window.history.replaceState(null, '', '#company');
+        await loadProfile();
+        return;
+      }
       const seat = await apiClient.createSeat(created.id, {
         title: data.firstCardRole || 'Owner',
         personId: profile?.person?.id,
@@ -150,6 +158,10 @@ export default function DashboardPage() {
       );
       await loadProfile();
     } catch (err) {
+      if ((err as { code?: string }).code === 'gstin_taken' && data.gstin) {
+        setTakenGstin(data.gstin.trim().toUpperCase());
+        return;
+      }
       setOnboardingError(err instanceof Error ? err.message : 'Could not create your company. Try again.');
     } finally {
       setOnboardingBusy(false);
@@ -172,7 +184,7 @@ export default function DashboardPage() {
   const activeOrgId = profile.activeTenant?.tenantId || profile.activeTenant?.id || '';
   const role = profile.activeTenant?.role;
   const isAdmin = role === 'owner' || role === 'admin';
-  const plan = (org?.plan as 'starter' | 'business' | undefined) || profile.activeTenant?.plan || 'starter';
+  const plan = (org?.plan as 'free' | 'starter' | 'business' | undefined) || profile.activeTenant?.plan || 'starter';
   const businessId = org?.businessId || profile.activeTenant?.businessId || '';
   const companyName = org?.name || 'Your company';
   // Greeting uses the person's name, never their phone number.
@@ -204,16 +216,28 @@ export default function DashboardPage() {
             </span>
             <CircleUser className="w-6 h-6 shrink-0 text-warm-paper/70" aria-hidden="true" />
           </a>
-          <OnboardingFlow labels={enOnboardingLabels} isLoading={onboardingBusy} error={onboardingError} onComplete={handleOnboardingComplete} />
+          {takenGstin ? (
+            <RequestAccessForm gstin={takenGstin} suggestedName={profile.person?.name} onBack={() => setTakenGstin(null)} />
+          ) : (
+            <OnboardingFlow labels={enOnboardingLabels} isLoading={onboardingBusy} error={onboardingError} onComplete={handleOnboardingComplete} />
+          )}
         </div>
       </main>
     );
   }
 
-  const visible: Section[] = isAdmin
-    ? (['overview', 'cards', 'seats', ...(leadsEnabled ? (['leads'] as Section[]) : []), 'company', 'structure', 'brand', 'audit'] as Section[])
-    : ['overview', 'cards'];
-  const current = visible.includes(section) ? section : 'overview';
+  const isFree = plan === 'free';
+  // Seats and structure use Starter's limits for a free profile (one branch; seats are not offered).
+  const paidPlan = plan === 'free' ? 'starter' : plan;
+  // N02: a free company profile has no seats or cards, so only the company page and settings apply.
+  const visible: Section[] = isFree
+    ? isAdmin
+      ? ['company', 'structure', 'brand', 'audit']
+      : ['company']
+    : isAdmin
+      ? (['overview', 'cards', 'seats', ...(leadsEnabled ? (['leads'] as Section[]) : []), 'company', 'structure', 'brand', 'audit'] as Section[])
+      : ['overview', 'cards'];
+  const current = visible.includes(section) ? section : visible[0];
 
   const icons: Record<Section, React.ReactNode> = {
     overview: <LayoutGrid aria-hidden="true" />,
@@ -225,7 +249,7 @@ export default function DashboardPage() {
     brand: <Palette aria-hidden="true" />,
     audit: <FileClock aria-hidden="true" />,
   };
-  const primary: Section[] = leadsEnabled ? ['overview', 'cards', 'seats', 'leads'] : ['overview', 'cards', 'seats'];
+  const primary: Section[] = isFree ? ['company', 'structure', 'brand'] : leadsEnabled ? ['overview', 'cards', 'seats', 'leads'] : ['overview', 'cards', 'seats'];
   const navItems: NavItem[] = visible.map((id) => ({
     id,
     label: SECTION_META[id].title,
@@ -255,6 +279,8 @@ export default function DashboardPage() {
           <span data-testid="welcome-header">Welcome, {displayName}</span>
           <span data-testid="active-role">Your role: {role}</span>
         </div>
+
+        {role === 'owner' ? <AccessRequestsPanel tenantId={activeOrgId} /> : null}
 
         {current === 'overview' ? (
           <OverviewFeature
@@ -302,7 +328,7 @@ export default function DashboardPage() {
         {current === 'seats' && isAdmin ? (
           <SeatsFeature
             tenantId={activeOrgId}
-            plan={plan}
+            plan={paidPlan}
             onEditCard={(seatId) => {
               setCardSeatId(seatId);
               navigate('cards');
@@ -316,7 +342,7 @@ export default function DashboardPage() {
           <CompanyPageFeature tenantId={activeOrgId} organization={org} onOrganizationSaved={setOrg} />
         ) : null}
 
-        {current === 'structure' && isAdmin ? <OrgStructureFeature tenantId={activeOrgId} plan={plan} /> : null}
+        {current === 'structure' && isAdmin ? <OrgStructureFeature tenantId={activeOrgId} plan={paidPlan} /> : null}
 
         {current === 'brand' && isAdmin ? (
           <BrandKitFeature tenantId={activeOrgId} userRole={(role as 'owner' | 'admin') || 'admin'} companyName={companyName} />
