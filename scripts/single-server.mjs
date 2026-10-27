@@ -85,12 +85,12 @@ start('public site', process.execPath, [nextBin('web-public'), 'start', '-p', St
   ASSET_PREFIX: PUBLIC_ASSET_PREFIX,
 });
 
-const ADMIN_PATHS = [/^\/$/, /^\/(login|dashboard|demo-access|invite|profile|network)(\/|$)/, /^\/api\/demo-access(\/|$)/, /^\/_next\//, /^\/fonts\//, /^\/favicon\.ico$/];
+const ADMIN_PATHS = [/^\/$/, /^\/(login|dashboard|demo-access|invite|profile|network|messages)(\/|$)/, /^\/api\/demo-access(\/|$)/, /^\/_next\//, /^\/fonts\//, /^\/favicon\.ico$/];
 
 function route(url) {
   const pathname = url.split('?')[0];
   if (pathname === '/healthz' || pathname === '/demo/reset') return { port: API_PORT, path: url };
-  const svc = url.match(/^\/svc(\/(identity|organization|cards|profiles|social|search)(\/.*)?)$/);
+  const svc = url.match(/^\/svc(\/(identity|organization|cards|profiles|social|search|messaging)(\/.*)?)$/);
   if (svc) return { port: API_PORT, path: svc[1] };
   if (pathname.startsWith(`${PUBLIC_ASSET_PREFIX}/`)) return { port: PUBLIC_PORT, path: url.slice(PUBLIC_ASSET_PREFIX.length) };
   if (ADMIN_PATHS.some((re) => re.test(pathname))) return { port: ADMIN_PORT, path: url };
@@ -112,6 +112,36 @@ const server = http.createServer((req, res) => {
     res.end('OneBridge Grid is starting. Refresh in a few seconds.');
   });
   req.pipe(upstream);
+});
+
+/** WebSocket upgrades (N08 /svc/messaging/realtime): forwards the handshake, then pipes both sockets. */
+const CRLF = '\r\n';
+function proxyUpgrade(req, socket, head, port, upstreamPath) {
+  const headers = { ...req.headers, host: `127.0.0.1:${port}` };
+  headers['x-forwarded-for'] = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '');
+  const upstream = http.request({ host: '127.0.0.1', port, path: upstreamPath, method: req.method, headers });
+  upstream.on('upgrade', (res, upSocket, upHead) => {
+    const lines = [`HTTP/1.1 ${res.statusCode} ${res.statusMessage}`];
+    for (let i = 0; i < res.rawHeaders.length; i += 2) lines.push(`${res.rawHeaders[i]}: ${res.rawHeaders[i + 1]}`);
+    socket.write(`${lines.join(CRLF)}${CRLF}${CRLF}`);
+    if (upHead && upHead.length) socket.write(upHead);
+    if (head && head.length) upSocket.write(head);
+    upSocket.pipe(socket).pipe(upSocket);
+    upSocket.on('error', () => socket.destroy());
+    socket.on('error', () => upSocket.destroy());
+  });
+  upstream.on('response', (res) => {
+    // The service refused the upgrade (bad ticket or origin): pass its status on.
+    socket.end(`HTTP/1.1 ${res.statusCode} ${res.statusMessage}${CRLF}${CRLF}`);
+  });
+  upstream.on('error', () => socket.destroy());
+  upstream.end();
+}
+
+server.on('upgrade', (req, socket, head) => {
+  const target = route(req.url || '/');
+  if (target.port !== API_PORT) return socket.destroy();
+  proxyUpgrade(req, socket, head, target.port, target.path);
 });
 
 let stopping = false;

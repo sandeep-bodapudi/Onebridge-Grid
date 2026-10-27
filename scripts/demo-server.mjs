@@ -58,7 +58,7 @@ const DEFAULTS = {
 for (const [k, v] of Object.entries(DEFAULTS)) if (!process.env[k]) process.env[k] = v;
 
 const PORT = Number(process.env.PORT || 8080);
-const TARGETS = { identity: 4001, organization: 4002, cards: 4003, profiles: 4004, social: 4005, search: 4006 };
+const TARGETS = { identity: 4001, organization: 4002, cards: 4003, profiles: 4004, social: 4005, search: 4006, messaging: 4007 };
 const apps = [];
 let mongod = null;
 let handle = null;
@@ -85,6 +85,8 @@ async function startServices() {
   const socialEnv = await importDist('services/social/dist/config/env.js');
   const search = await importDist('services/search/dist/app.js');
   const searchEnv = await importDist('services/search/dist/config/env.js');
+  const messaging = await importDist('services/messaging/dist/app.js');
+  const messagingEnv = await importDist('services/messaging/dist/config/env.js');
 
   handle = await shared.connectMongo(process.env.MONGODB_URI);
   const eventBus = new shared.InMemoryEventBus();
@@ -137,6 +139,15 @@ async function startServices() {
   await searchApp.listen(TARGETS.search, '127.0.0.1');
   apps.push(searchApp);
 
+  // N08 messaging (company, seat and follow read models from events; WebSocket at /realtime).
+  const messagingApp = await messaging.createApp({
+    envConfig: { ...messagingEnv.loadAndValidateEnv(), port: TARGETS.messaging, profilesApiUrl: `http://127.0.0.1:${TARGETS.profiles}` },
+    connectionHandle: handle,
+    eventBus,
+  });
+  await messagingApp.listen(TARGETS.messaging, '127.0.0.1');
+  apps.push(messagingApp);
+
   const organizationApp = await organization.createApp({
     envConfig: { ...organizationEnv.loadAndValidateEnv(), port: TARGETS.organization },
     connectionHandle: handle,
@@ -144,7 +155,31 @@ async function startServices() {
   });
   await organizationApp.listen(TARGETS.organization, '127.0.0.1');
   apps.push(organizationApp);
-  log('identity, organization, cards, profiles, social and search are running (shared event bus)');
+  log('identity, organization, cards, profiles, social, search and messaging are running (shared event bus)');
+}
+
+/** WebSocket upgrades (N08 /messaging/realtime): forwards the handshake, then pipes both sockets. */
+const CRLF = '\r\n';
+function proxyUpgrade(req, socket, head, port, upstreamPath) {
+  const headers = { ...req.headers, host: `127.0.0.1:${port}` };
+  headers['x-forwarded-for'] = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '');
+  const upstream = http.request({ host: '127.0.0.1', port, path: upstreamPath, method: req.method, headers });
+  upstream.on('upgrade', (res, upSocket, upHead) => {
+    const lines = [`HTTP/1.1 ${res.statusCode} ${res.statusMessage}`];
+    for (let i = 0; i < res.rawHeaders.length; i += 2) lines.push(`${res.rawHeaders[i]}: ${res.rawHeaders[i + 1]}`);
+    socket.write(`${lines.join(CRLF)}${CRLF}${CRLF}`);
+    if (upHead && upHead.length) socket.write(upHead);
+    if (head && head.length) upSocket.write(head);
+    upSocket.pipe(socket).pipe(upSocket);
+    upSocket.on('error', () => socket.destroy());
+    socket.on('error', () => upSocket.destroy());
+  });
+  upstream.on('response', (res) => {
+    // The service refused the upgrade (bad ticket or origin): pass its status on.
+    socket.end(`HTTP/1.1 ${res.statusCode} ${res.statusMessage}${CRLF}${CRLF}`);
+  });
+  upstream.on('error', () => socket.destroy());
+  upstream.end();
 }
 
 function proxy(req, res, port, upstreamPath) {
@@ -205,7 +240,7 @@ const router = http.createServer(async (req, res) => {
     setTimeout(() => shutdown(0), 300);
     return;
   }
-  const match = url.match(/^\/(identity|organization|cards|profiles|social|search)(\/.*)?$/);
+  const match = url.match(/^\/(identity|organization|cards|profiles|social|search|messaging)(\/.*)?$/);
   if (!match) {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ title: 'Not Found', status: 404 }));
@@ -230,6 +265,7 @@ function runSeed() {
         CARDS_URL: `http://127.0.0.1:${TARGETS.cards}`,
         PROFILES_URL: `http://127.0.0.1:${TARGETS.profiles}`,
         SOCIAL_URL: `http://127.0.0.1:${TARGETS.social}`,
+        MESSAGING_URL: `http://127.0.0.1:${TARGETS.messaging}`,
       },
     });
     child.on('exit', (code) => resolve(code === 0));
@@ -246,6 +282,12 @@ async function shutdown(code = 0) {
 
 process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
+
+router.on('upgrade', (req, socket, head) => {
+  const match = (req.url || '/').match(/^\/messaging(\/realtime(\?.*)?)$/);
+  if (!ready || !match) return socket.destroy();
+  proxyUpgrade(req, socket, head, TARGETS.messaging, match[1]);
+});
 
 router.listen(PORT, () => log(`Listening on :${PORT}`));
 startServices()

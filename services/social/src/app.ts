@@ -32,6 +32,7 @@ export async function createApp(options: SocialModuleOptions = {}): Promise<INes
       'X-CSRF-Token',
       'Idempotency-Key',
       'X-Correlation-Id',
+      'X-Act-As-Company',
     ],
   });
 

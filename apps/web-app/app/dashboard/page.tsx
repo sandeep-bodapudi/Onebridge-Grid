@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, CircleUser, CreditCard, FileClock, Globe, Inbox, LayoutGrid, Palette, Users } from 'lucide-react';
+import { Building2, CircleUser, CreditCard, FileClock, Globe, Inbox, LayoutGrid, MessageSquare, Palette, Users } from 'lucide-react';
 import { AppShell, Button, SpanMark, type NavItem } from '@onebridge/ui-kit';
 import type { BrandKit, Organization } from '@onebridge/api-contracts';
 import { apiClient } from '../../src/api-client';
@@ -271,7 +271,10 @@ export default function DashboardPage() {
       navItems={navItems}
       onNavigate={(id) => navigate(id as Section)}
       onSignOut={handleLogout}
-      userMenuItems={[{ id: 'profile', label: 'My profile', href: '/profile', icon: <CircleUser className="w-4 h-4" aria-hidden="true" /> }]}
+      userMenuItems={[
+        { id: 'messages', label: 'Messages', href: '/messages?inbox=company', icon: <MessageSquare className="w-4 h-4" aria-hidden="true" /> },
+        { id: 'profile', label: 'My profile', href: '/profile', icon: <CircleUser className="w-4 h-4" aria-hidden="true" /> },
+      ]}
     >
       <div data-testid="dashboard-container">
         {/* Stable hooks for end-to-end tests; hidden from everyone (no IDs reach screen readers). */}

@@ -27,6 +27,12 @@ describe('Collection Classification Registry & Base Class Guard', () => {
       'social_company_refs',
       // N03 (D-N03): the directory spans companies and members, built from public profile text only.
       'search_documents',
+      // N08 (D-N08): conversations cross tenants (member to member, company to company); text encrypted at rest.
+      'conversations',
+      'messages',
+      'messaging_company_refs',
+      'messaging_seat_refs',
+      'messaging_follow_refs',
     ];
 
     expect(ALLOWLISTED_GLOBAL_COLLECTIONS.sort()).toEqual(expectedGlobals.sort());

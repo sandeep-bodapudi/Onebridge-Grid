@@ -293,6 +293,7 @@ paths:
       tags: [messaging]
       summary: One conversation (N08)
       security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ActAsCompany' }]
       responses:
         '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Conversation' } } } }
         '404': { description: Not a participant (same as not found) }
@@ -303,13 +304,14 @@ paths:
       tags: [messaging]
       summary: Messages, newest first (N08)
       security: [{ BearerAuth: [] }]
-      parameters: [{ $ref: '#/components/parameters/Cursor' }]
+      parameters: [{ $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/ActAsCompany' }]
       responses:
         '200': { content: { application/json: { schema: { $ref: '#/components/schemas/MessagePage' } } } }
     post:
       tags: [messaging]
       summary: Send a message. The client sends a clientMessageId so retries never duplicate (N08)
       security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ActAsCompany' }]
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/SendMessage' } } }
@@ -324,6 +326,7 @@ paths:
       tags: [messaging]
       summary: Edit my message within 15 minutes (N08)
       security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ActAsCompany' }]
       requestBody:
         required: true
         content: { application/json: { schema: { type: object, required: [text], properties: { text: { type: string, maxLength: 4000 } } } } }
@@ -334,6 +337,7 @@ paths:
       tags: [messaging]
       summary: Unsend my message within 15 minutes (N08)
       security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ActAsCompany' }]
       responses:
         '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
         '409': { description: Unsend window over (code window_closed) }
@@ -343,7 +347,7 @@ paths:
       tags: [messaging]
       summary: Accept a message request (N08)
       security: [{ BearerAuth: [] }]
-      parameters: [{ $ref: '#/components/parameters/ConversationId' }]
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }, { $ref: '#/components/parameters/ActAsCompany' }]
       responses:
         '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Conversation' } } } }
 
@@ -352,7 +356,7 @@ paths:
       tags: [messaging]
       summary: Ignore a message request silently (N08)
       security: [{ BearerAuth: [] }]
-      parameters: [{ $ref: '#/components/parameters/ConversationId' }]
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }, { $ref: '#/components/parameters/ActAsCompany' }]
       responses:
         '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Conversation' } } } }
 
@@ -361,7 +365,7 @@ paths:
       tags: [messaging]
       summary: Mark read up to a message (N08)
       security: [{ BearerAuth: [] }]
-      parameters: [{ $ref: '#/components/parameters/ConversationId' }]
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }, { $ref: '#/components/parameters/ActAsCompany' }]
       requestBody:
         required: true
         content: { application/json: { schema: { type: object, required: [upToMessageId], properties: { upToMessageId: { type: string } } } } }
@@ -393,6 +397,13 @@ paths:
         '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Conversation' } } } }
 
   /conversations/{conversationId}/notes:
+    get:
+      tags: [messaging]
+      summary: Internal notes on a company conversation, oldest first (company side only) (N08)
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }, { $ref: '#/components/parameters/ActAsCompany' }]
+      responses:
+        '200': { content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/InternalNote' } } } } } } }
     post:
       tags: [messaging]
       summary: Internal note on a company conversation, never shown to the other side (N08)
@@ -425,7 +436,10 @@ paths:
       summary: >
         Short-lived ticket (60 s, single use) to open the WebSocket at /realtime?ticket=<t>,
         so the access token never travels in a URL. Server-to-client frames are RealtimeEvent.
+        With X-Act-As-Company the socket receives the company inbox events the caller may see.
+        Client-to-server frames: { type: typing, conversationId } and { type: ping }.
       security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ActAsCompany' }]
       responses:
         '200': { content: { application/json: { schema: { type: object, required: [ticket, expiresAt], properties: { ticket: { type: string }, expiresAt: { type: string, format: date-time } } } } } }
 
@@ -964,6 +978,10 @@ components:
         status: { type: string, enum: [open, done] }
         assignedSeatId: { type: string }
         viaCardSeatId: { type: string, description: The employee card the visitor started from (member_card) }
+        viewer: { $ref: '#/components/schemas/ActorRef' }
+        requestDirection: { type: string, enum: [incoming, outgoing], description: Set while requestState is pending or ignored }
+        canSend: { type: boolean, description: False while my one message request waits for acceptance, or after an ignore }
+        otherOnline: { type: boolean, description: The other side is connected now (members can hide this, N10) }
         lastMessage: { $ref: '#/components/schemas/Message' }
         unreadCount: { type: integer }
         updatedAt: { type: string, format: date-time }

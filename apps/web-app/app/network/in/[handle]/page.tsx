@@ -60,7 +60,15 @@ function ProfileBody({ handle, session }: { handle: string; session: MemberSessi
       actions={
         follow ? (
           <span className="flex flex-col gap-1">
-            <FollowButton following={follow.following} followerCount={follow.followerCount} onToggle={toggle} busy={busy} targetName={profile.name} />
+            <span className="flex flex-wrap items-center gap-2">
+              <FollowButton following={follow.following} followerCount={follow.followerCount} onToggle={toggle} busy={busy} targetName={profile.name} />
+              <a
+                href={`/messages?to=member:${encodeURIComponent(profile.personId)}&name=${encodeURIComponent(profile.name)}`}
+                className="min-h-[48px] px-5 rounded-[14px] border border-sand-border bg-white text-sm font-bold inline-flex items-center"
+              >
+                Message
+              </a>
+            </span>
             {followError ? (
               <span role="alert" className="text-sm text-error">
                 {followError}

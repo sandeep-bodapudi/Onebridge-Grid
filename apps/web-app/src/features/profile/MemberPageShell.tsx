@@ -9,6 +9,9 @@ export interface MemberSession {
   personId: string;
   name?: string;
   hasCompany: boolean;
+  /** The active company and the person's role in it (for the company inbox, N08). */
+  companyId?: string;
+  companyRole?: string;
 }
 
 /**
@@ -22,8 +25,9 @@ export const MemberPageShell: React.FC<{ children: (session: MemberSession) => R
   useEffect(() => {
     (async () => {
       if (!apiClient.getAccessToken()) await apiClient.silentRefresh();
-      const me = (await apiClient.getMe()) as { person?: { id?: string; name?: string }; activeTenant?: { tenantId?: string; id?: string } };
-      setSession({ personId: me.person?.id ?? '', name: me.person?.name, hasCompany: Boolean(me.activeTenant?.tenantId || me.activeTenant?.id) });
+      const me = (await apiClient.getMe()) as { person?: { id?: string; name?: string }; activeTenant?: { tenantId?: string; id?: string; role?: string } };
+      const companyId = me.activeTenant?.tenantId || me.activeTenant?.id || undefined;
+      setSession({ personId: me.person?.id ?? '', name: me.person?.name, hasCompany: Boolean(companyId), companyId, companyRole: me.activeTenant?.role });
     })().catch(() => router.push('/login'));
   }, [router]);
 
@@ -46,6 +50,9 @@ export const MemberPageShell: React.FC<{ children: (session: MemberSession) => R
                 Company dashboard
               </a>
             ) : null}
+            <a href="/messages" className="min-h-[44px] px-3 inline-flex items-center rounded-[10px] hover:bg-white/10">
+              Messages
+            </a>
             <a href="/network/search" className="min-h-[44px] px-3 inline-flex items-center rounded-[10px] hover:bg-white/10">
               Search
             </a>

@@ -524,6 +524,9 @@ export interface paths {
     /** One conversation (N08) */
     get: {
       parameters: {
+        header?: {
+          "X-Act-As-Company"?: components["parameters"]["ActAsCompany"];
+        };
         path: {
           conversationId: components["parameters"]["ConversationId"];
         };
@@ -553,6 +556,9 @@ export interface paths {
         query?: {
           cursor?: components["parameters"]["Cursor"];
         };
+        header?: {
+          "X-Act-As-Company"?: components["parameters"]["ActAsCompany"];
+        };
         path: {
           conversationId: components["parameters"]["ConversationId"];
         };
@@ -568,6 +574,9 @@ export interface paths {
     /** Send a message. The client sends a clientMessageId so retries never duplicate (N08) */
     post: {
       parameters: {
+        header?: {
+          "X-Act-As-Company"?: components["parameters"]["ActAsCompany"];
+        };
         path: {
           conversationId: components["parameters"]["ConversationId"];
         };
@@ -603,6 +612,9 @@ export interface paths {
     /** Unsend my message within 15 minutes (N08) */
     delete: {
       parameters: {
+        header?: {
+          "X-Act-As-Company"?: components["parameters"]["ActAsCompany"];
+        };
         path: {
           messageId: string;
         };
@@ -622,6 +634,9 @@ export interface paths {
     /** Edit my message within 15 minutes (N08) */
     patch: {
       parameters: {
+        header?: {
+          "X-Act-As-Company"?: components["parameters"]["ActAsCompany"];
+        };
         path: {
           messageId: string;
         };
@@ -655,6 +670,9 @@ export interface paths {
     /** Accept a message request (N08) */
     post: {
       parameters: {
+        header?: {
+          "X-Act-As-Company"?: components["parameters"]["ActAsCompany"];
+        };
         path: {
           conversationId: components["parameters"]["ConversationId"];
         };
@@ -672,6 +690,9 @@ export interface paths {
     /** Ignore a message request silently (N08) */
     post: {
       parameters: {
+        header?: {
+          "X-Act-As-Company"?: components["parameters"]["ActAsCompany"];
+        };
         path: {
           conversationId: components["parameters"]["ConversationId"];
         };
@@ -689,6 +710,9 @@ export interface paths {
     /** Mark read up to a message (N08) */
     post: {
       parameters: {
+        header?: {
+          "X-Act-As-Company"?: components["parameters"]["ActAsCompany"];
+        };
         path: {
           conversationId: components["parameters"]["ConversationId"];
         };
@@ -764,6 +788,26 @@ export interface paths {
     };
   };
   "/conversations/{conversationId}/notes": {
+    /** Internal notes on a company conversation, oldest first (company side only) (N08) */
+    get: {
+      parameters: {
+        header?: {
+          "X-Act-As-Company"?: components["parameters"]["ActAsCompany"];
+        };
+        path: {
+          conversationId: components["parameters"]["ConversationId"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              items: components["schemas"]["InternalNote"][];
+            };
+          };
+        };
+      };
+    };
     /** Internal note on a company conversation, never shown to the other side (N08) */
     post: {
       parameters: {
@@ -819,8 +863,13 @@ export interface paths {
     };
   };
   "/realtime/ticket": {
-    /** Short-lived ticket (60 s, single use) to open the WebSocket at /realtime?ticket=<t>, so the access token never travels in a URL. Server-to-client frames are RealtimeEvent. */
+    /** Short-lived ticket (60 s, single use) to open the WebSocket at /realtime?ticket=<t>, so the access token never travels in a URL. Server-to-client frames are RealtimeEvent. With X-Act-As-Company the socket receives the company inbox events the caller may see. Client-to-server frames: { type: typing, conversationId } and { type: ping }. */
     post: {
+      parameters: {
+        header?: {
+          "X-Act-As-Company"?: components["parameters"]["ActAsCompany"];
+        };
+      };
       responses: {
         200: {
           content: {
@@ -1548,6 +1597,16 @@ export interface components {
       assignedSeatId?: string;
       /** @description The employee card the visitor started from (member_card) */
       viaCardSeatId?: string;
+      viewer?: components["schemas"]["ActorRef"];
+      /**
+       * @description Set while requestState is pending or ignored
+       * @enum {string}
+       */
+      requestDirection?: "incoming" | "outgoing";
+      /** @description False while my one message request waits for acceptance */
+      canSend?: boolean;
+      /** @description The other side is connected now (members can hide this */
+      otherOnline?: boolean;
       lastMessage?: components["schemas"]["Message"];
       unreadCount: number;
       /** Format: date-time */

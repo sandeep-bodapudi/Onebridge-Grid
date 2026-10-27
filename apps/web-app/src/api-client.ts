@@ -1,4 +1,10 @@
 import type {
+  ChatMessage,
+  Conversation,
+  ConversationPage,
+  InternalNote,
+  MessagePage,
+  StartConversation,
   CompanyProfileSettings,
   SearchResults,
   Industry,
@@ -65,6 +71,7 @@ const ORGANIZATION_API_URL = process.env.NEXT_PUBLIC_ORGANIZATION_API_URL || 'ht
 const PROFILES_API_URL = process.env.NEXT_PUBLIC_PROFILES_API_URL || 'http://localhost:4004';
 const SOCIAL_API_URL = process.env.NEXT_PUBLIC_SOCIAL_API_URL || 'http://localhost:4005';
 const SEARCH_API_URL = process.env.NEXT_PUBLIC_SEARCH_API_URL || 'http://localhost:4006';
+const MESSAGING_API_URL = process.env.NEXT_PUBLIC_MESSAGING_API_URL || 'http://localhost:4007';
 const CARDS_PUBLIC_API_URL = process.env.NEXT_PUBLIC_CARDS_API_URL || 'http://localhost:4003';
 const CARDS_API_URL = process.env.NEXT_PUBLIC_CARDS_API_URL || 'http://localhost:4003';
 // Empty means the public site shares this app's origin (single-service deployment, D-SINGLE-SERVICE).
@@ -802,6 +809,90 @@ export const apiClient = {
   async listFollowing(cursor?: string, asCompany?: string): Promise<ActorPage> {
     const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
     return this.socialRequest<ActorPage>(`/me/following${q}`, { method: 'GET' }, asCompany, 'Could not load who you follow');
+  },
+
+  /** N08 messaging request. asCompany sends X-Act-As-Company (the company inbox). */
+  async messagingRequest<T>(path: string, init: RequestInit, asCompany?: string, fallbackError = 'Request failed'): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (init.body) headers['Content-Type'] = 'application/json';
+    if (inMemoryAccessToken) headers['Authorization'] = `Bearer ${inMemoryAccessToken}`;
+    if (asCompany) headers['X-Act-As-Company'] = asCompany;
+    const res = await fetch(`${MESSAGING_API_URL}${path}`, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> | undefined) }, credentials: 'include' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const error = new Error(err.detail || err.title || fallbackError) as Error & { code?: string; status?: number };
+      error.code = err.code;
+      error.status = res.status;
+      throw error;
+    }
+    if (res.status === 204) return undefined as T;
+    return res.json() as Promise<T>;
+  },
+
+  async listConversations(options: { folder?: 'inbox' | 'requests' | 'done'; assigned?: 'me' | 'unassigned'; q?: string; cursor?: string }, asCompany?: string): Promise<ConversationPage> {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(options)) if (v) params.set(k, v);
+    const q = params.toString() ? `?${params.toString()}` : '';
+    return this.messagingRequest<ConversationPage>(`/conversations${q}`, { method: 'GET' }, asCompany, 'Could not load conversations');
+  },
+
+  async getConversation(id: string, asCompany?: string): Promise<Conversation> {
+    return this.messagingRequest<Conversation>(`/conversations/${encodeURIComponent(id)}`, { method: 'GET' }, asCompany, 'Could not load the conversation');
+  },
+
+  async startConversation(body: StartConversation, asCompany?: string): Promise<Conversation> {
+    return this.messagingRequest<Conversation>('/conversations', { method: 'POST', body: JSON.stringify(body) }, asCompany, 'Could not send the message');
+  },
+
+  async listMessages(id: string, cursor?: string, asCompany?: string): Promise<MessagePage> {
+    const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    return this.messagingRequest<MessagePage>(`/conversations/${encodeURIComponent(id)}/messages${q}`, { method: 'GET' }, asCompany, 'Could not load messages');
+  },
+
+  async sendMessage(id: string, body: { clientMessageId: string; text: string; replyToMessageId?: string }, asCompany?: string): Promise<ChatMessage> {
+    return this.messagingRequest<ChatMessage>(`/conversations/${encodeURIComponent(id)}/messages`, { method: 'POST', body: JSON.stringify(body) }, asCompany, 'Could not send the message');
+  },
+
+  async editMessage(messageId: string, text: string, asCompany?: string): Promise<ChatMessage> {
+    return this.messagingRequest<ChatMessage>(`/messages/${encodeURIComponent(messageId)}`, { method: 'PATCH', body: JSON.stringify({ text }) }, asCompany, 'Could not edit the message');
+  },
+
+  async unsendMessage(messageId: string, asCompany?: string): Promise<ChatMessage> {
+    return this.messagingRequest<ChatMessage>(`/messages/${encodeURIComponent(messageId)}`, { method: 'DELETE' }, asCompany, 'Could not unsend the message');
+  },
+
+  async conversationAction(id: string, action: 'accept' | 'ignore', asCompany?: string): Promise<Conversation> {
+    return this.messagingRequest<Conversation>(`/conversations/${encodeURIComponent(id)}/${action}`, { method: 'POST' }, asCompany, 'Could not update the request');
+  },
+
+  async markRead(id: string, upToMessageId: string, asCompany?: string): Promise<void> {
+    await this.messagingRequest<void>(`/conversations/${encodeURIComponent(id)}/read`, { method: 'POST', body: JSON.stringify({ upToMessageId }) }, asCompany, 'Could not mark as read');
+  },
+
+  async setConversationStatus(id: string, status: 'open' | 'done', asCompany: string): Promise<Conversation> {
+    return this.messagingRequest<Conversation>(`/conversations/${encodeURIComponent(id)}/status`, { method: 'POST', body: JSON.stringify({ status }) }, asCompany, 'Could not update the conversation');
+  },
+
+  async assignConversation(id: string, seatId: string, asCompany: string): Promise<Conversation> {
+    return this.messagingRequest<Conversation>(`/conversations/${encodeURIComponent(id)}/assign`, { method: 'POST', body: JSON.stringify({ seatId }) }, asCompany, 'Could not assign the conversation');
+  },
+
+  async listNotes(id: string, asCompany: string): Promise<{ items: InternalNote[] }> {
+    return this.messagingRequest<{ items: InternalNote[] }>(`/conversations/${encodeURIComponent(id)}/notes`, { method: 'GET' }, asCompany, 'Could not load notes');
+  },
+
+  async addNote(id: string, text: string, asCompany: string): Promise<InternalNote> {
+    return this.messagingRequest<InternalNote>(`/conversations/${encodeURIComponent(id)}/notes`, { method: 'POST', body: JSON.stringify({ text }) }, asCompany, 'Could not save the note');
+  },
+
+  /** Opens the N08 realtime socket: a single-use ticket keeps the access token out of the URL. */
+  async openRealtime(asCompany?: string): Promise<WebSocket> {
+    const { ticket } = await this.messagingRequest<{ ticket: string }>('/realtime/ticket', { method: 'POST' }, asCompany, 'Could not connect');
+    const base = new URL(MESSAGING_API_URL, window.location.href);
+    base.protocol = base.protocol === 'https:' ? 'wss:' : 'ws:';
+    base.pathname = `${base.pathname.replace(/\/+$/, '')}/realtime`;
+    base.search = `?ticket=${encodeURIComponent(ticket)}`;
+    return new WebSocket(base.toString());
   },
 
   /** N03: search as the signed-in member (members-only profiles included). */

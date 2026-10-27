@@ -16,6 +16,7 @@ const ORGANIZATION = process.env.ORGANIZATION_URL || 'http://localhost:4002';
 const CARDS = process.env.CARDS_URL || 'http://localhost:4003';
 const PROFILES = process.env.PROFILES_URL || 'http://localhost:4004';
 const SOCIAL = process.env.SOCIAL_URL || 'http://localhost:4005';
+const MESSAGING = process.env.MESSAGING_URL || 'http://localhost:4007';
 const WEB_PUBLIC = process.env.WEB_PUBLIC_URL || 'http://localhost:3001';
 const APP_ORIGIN = process.env.APP_URL || 'http://localhost:3000';
 const OWNER_PHONE = process.env.DEMO_OWNER_PHONE || '+919988776655';
@@ -23,8 +24,9 @@ const OTP = process.env.DEMO_OTP || '123456';
 
 const log = (msg) => console.log(`[demo-seed] ${msg}`);
 
-async function call(method, url, { token, tenantId, body, origin = APP_ORIGIN } = {}) {
+async function call(method, url, { token, tenantId, body, origin = APP_ORIGIN, actAsCompany } = {}) {
   const headers = { Origin: origin };
+  if (actAsCompany) headers['X-Act-As-Company'] = actAsCompany;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
   if (tenantId) headers['X-Tenant-Id'] = tenantId;
@@ -42,10 +44,14 @@ async function call(method, url, { token, tenantId, body, origin = APP_ORIGIN } 
   return data;
 }
 
+// One sign-in per phone per run: identity allows only a few codes an hour per network.
+const tokens = new Map();
 async function signIn(phone) {
+  if (tokens.has(phone)) return tokens.get(phone);
   await call('POST', `${IDENTITY}/auth/otp`, { body: { phone } });
   const verified = await call('POST', `${IDENTITY}/auth/verify`, { body: { phone, code: OTP } });
   if (!verified?.accessToken) throw new Error('Sign-in failed: is ENABLE_FAKE_OTP=true on identity?');
+  tokens.set(phone, verified.accessToken);
   return verified.accessToken;
 }
 
@@ -221,6 +227,48 @@ async function seedMemberProfiles(ownerToken, orgId, ownerPersonId) {
   return created;
 }
 
+/**
+ * N08: a few conversations so the inboxes are not empty. Fixed client IDs make
+ * re-runs harmless (the service de-duplicates them).
+ */
+async function seedMessages(ownerToken, orgId, ownerPersonId) {
+  const [ravi, fatima] = MEMBERS;
+  const raviToken = await signIn(ravi.phone);
+  const fatimaToken = await signIn(fatima.phone);
+  let started = 0;
+  const start = (token, to, clientMessageId, text) =>
+    call('POST', `${MESSAGING}/conversations`, { token, body: { to, message: { clientMessageId, text } } }).then((c) => {
+      started++;
+      return c;
+    });
+
+  // An enquiry to the company inbox, answered by the company.
+  if (orgId) {
+    const enquiry = await start(raviToken, { type: 'company', id: orgId }, 'seed-ravi-company-1',
+      'Hello, we need about 120 MT of Fe 550D TMT bars (12 and 16 mm) for the Uppal metro package. Can you quote delivered to Hyderabad?');
+    await call('POST', `${MESSAGING}/conversations/${enquiry.id}/messages`, {
+      token: ownerToken,
+      actAsCompany: orgId,
+      body: { clientMessageId: 'seed-company-ravi-1', text: 'Thanks Ravi. We can supply both sizes from our Chakan works. I will send a quote with freight to Uppal by this evening.' },
+    }).catch((err) => log(`Company reply skipped: ${err.message}`));
+  }
+  if (ownerPersonId) {
+    // Ravi follows Priya, so her message to him skips the request step.
+    const raviPersonId = (await call('GET', `${IDENTITY}/me`, { token: raviToken })).person?.id;
+    if (raviPersonId) {
+      await start(ownerToken, { type: 'member', id: raviPersonId }, 'seed-priya-ravi-1', 'Good to meet you at the Pune steel expo, Ravi. I will send our vendor registration documents this week.').catch(
+        (err) => log(`Member message skipped: ${err.message}`)
+      );
+    }
+    // Priya does not follow Fatima: this one arrives as a message request.
+    await start(fatimaToken, { type: 'member', id: ownerPersonId }, 'seed-fatima-priya-1',
+      'Hello Priya, I audit CNC and fabrication shops for ISO 9001. Happy to help your Chakan works prepare for its next surveillance audit.').catch(
+      (err) => log(`Message request skipped: ${err.message}`)
+    );
+  }
+  return started;
+}
+
 // N03 directory: fictional Hyderabad businesses (free profiles) owned by one fictional person,
 // so seeding stays within the sign-in code limit (5 an hour per network).
 const DIRECTORY_OWNER_PHONE = '+919700070001';
@@ -299,6 +347,9 @@ async function main() {
     await seedMemberProfiles(token, existing, me.person?.id)
       .then((n) => n && log(`Created ${n} member profiles`))
       .catch((err) => log(`Member profiles skipped: ${err.message}`));
+    await seedMessages(token, existing, me.person?.id)
+      .then((n) => n && log(`Started ${n} demo conversations`))
+      .catch((err) => log(`Demo conversations skipped: ${err.message}`));
     log(`Demo company already exists: ${org.name} (${org.businessId}).${filled ? ' Filled in its company page.' : ' Nothing to do.'}`);
     log(`Company page: ${WEB_PUBLIC}/${org.slug}`);
     await seedDirectory()
@@ -417,6 +468,10 @@ async function main() {
   await seedMemberProfiles(token, org.id, me.person?.id)
     .then((n) => log(`Created ${n} member profiles and their follows`))
     .catch((err) => log(`Member profiles skipped: ${err.message}`));
+
+  await seedMessages(token, org.id, me.person?.id)
+    .then((n) => log(`Started ${n} demo conversations`))
+    .catch((err) => log(`Demo conversations skipped: ${err.message}`));
 
   // A company page enquiry about a product, so the company_enquiry source shows up in leads.
   await call('POST', `${CARDS}/public/o/${org.slug}/enquiry`, {

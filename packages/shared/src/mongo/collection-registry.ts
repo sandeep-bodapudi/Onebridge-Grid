@@ -160,6 +160,36 @@ export const KNOWN_COLLECTIONS: Record<string, CollectionMetadata> = {
     classification: 'global',
     description: 'N03 search index: public company and member profile text only; never contact details',
   },
+  conversations: {
+    name: 'conversations',
+    classification: 'global',
+    description: 'N08 conversations between members and companies (participants are IDs; no message text)',
+  },
+  messages: {
+    name: 'messages',
+    classification: 'global',
+    description: 'N08 chat messages; text encrypted at rest (company conversations with the tenant key, others per conversation)',
+  },
+  messaging_company_refs: {
+    name: 'messaging_company_refs',
+    classification: 'global',
+    description: 'Messaging read model: public company name, slug, logo, plan and verification from org events (ADR-0003)',
+  },
+  messaging_seat_refs: {
+    name: 'messaging_seat_refs',
+    classification: 'global',
+    description: 'Messaging read model: seat holder and status from seat events, for inbox assignment (IDs only)',
+  },
+  messaging_follow_refs: {
+    name: 'messaging_follow_refs',
+    classification: 'global',
+    description: 'Messaging read model: follow edges from follow events, for the message request rule (IDs only)',
+  },
+  conversation_notes: {
+    name: 'conversation_notes',
+    classification: 'tenant-scoped',
+    description: 'N08 internal notes on company conversations; never shown to the other side; text encrypted',
+  },
   notice_acceptances: {
     name: 'notice_acceptances',
     classification: 'tenant-scoped',
