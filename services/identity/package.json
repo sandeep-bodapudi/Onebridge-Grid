@@ -19,6 +19,7 @@
     "@onebridge/shared": "workspace:*",
     "cookie-parser": "1.4.6",
     "dotenv": "16.4.5",
+    "jose": "5.9.6",
     "mongodb": "6.9.0",
     "reflect-metadata": "0.2.2",
     "ulid": "2.3.0"

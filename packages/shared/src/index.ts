@@ -17,3 +17,5 @@ export * from './lead-encryption.js';
 export * from './rate-limiter.js';
 export * from './key-vault.js';
 export * from './request-auth.js';
+export * from './email/index.js';
+export * from './production-guard.js';
