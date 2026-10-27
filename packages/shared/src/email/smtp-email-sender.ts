@@ -23,6 +23,11 @@ function isTransient(err: unknown): boolean {
   return (e.code !== undefined && TRANSIENT.has(e.code)) || (e.responseCode !== undefined && e.responseCode >= 400 && e.responseCode < 500);
 }
 
+/** The provider's error text can quote the recipient; mask any address before the error travels on. */
+function scrubAddresses(err: unknown): void {
+  if (err instanceof Error) err.message = err.message.replace(/[^\s<>"']+@[^\s<>"']+/g, (m) => maskEmail(m));
+}
+
 /** D-AUTH-EMAIL D1: any SMTP provider (ZeptoMail, SES SMTP, ...). One retry on a transient failure. */
 export class SmtpEmailSender implements EmailSender {
   private readonly transport: MailTransport;
@@ -55,12 +60,14 @@ export class SmtpEmailSender implements EmailSender {
       const res = await this.transport.sendMail(mail);
       return { id: res.messageId ?? '' };
     } catch (err) {
-      if (!isTransient(err)) throw new Error(`Email ${msg.tag} to ${maskEmail(msg.to)} failed`);
+      scrubAddresses(err);
+      if (!isTransient(err)) throw new Error(`Email ${msg.tag} to ${maskEmail(msg.to)} failed`, { cause: err });
       try {
         const res = await this.transport.sendMail(mail);
         return { id: res.messageId ?? '' };
-      } catch {
-        throw new Error(`Email ${msg.tag} to ${maskEmail(msg.to)} failed after a retry`);
+      } catch (retryErr) {
+        scrubAddresses(retryErr);
+        throw new Error(`Email ${msg.tag} to ${maskEmail(msg.to)} failed after a retry`, { cause: retryErr });
       }
     }
   }

@@ -95,6 +95,8 @@ describe('D-AUTH-EMAIL email sending', () => {
     const err = await sender.send(renderEmail('password_changed', 'meera@example.com')).catch((e: Error) => e);
     expect(count).toBe(1);
     expect(String(err)).not.toContain('meera@example.com');
+    expect(String((err as Error).cause)).not.toContain('meera@example.com');
+    expect(String((err as Error).cause)).toContain('m•••@example.com');
   });
 
   it('refuses stand-in adapters in production only', () => {
