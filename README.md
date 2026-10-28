@@ -48,6 +48,10 @@ pnpm test:e2e      # Run Playwright end-to-end tests
 
 Local development uses deterministic fake provider adapters (such as `FakeOtpSender` and `FakeEventBus`) and automatically starts with seeded demo tenants, persons, and memberships.
 
+## Production deployment
+
+Production runs on one VPS with Docker Compose behind Caddy (HTTPS on `onebridgecard.com`): one `api` container with every service (`scripts/prod-api.mjs`), the two Next apps, and MongoDB as a single-node replica set. Settings live in `.env` (template: `.env.production.example`). Deploy with `./deploy/deploy.sh`; everything else (server setup, backups, restore, rollback, monitoring) is in [deploy/RUNBOOK.md](deploy/RUNBOOK.md). The hosted Render demo (`render.yaml`, `scripts/single-*.mjs`) keeps working until the VPS is live.
+
 ## Documentation & Contributing
 
 - [Implementation Plan](docs/onebridge-spec-pack/docs/PLAN.md): Phase 1 build order, dependency graph, and exit gates.

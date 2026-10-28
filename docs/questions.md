@@ -74,3 +74,18 @@ Why it matters: Hosting cost and operations. Meilisearch is simpler and cheaper 
 Options: Meilisearch for N-1, revisit at 100,000 profiles (recommended); OpenSearch from the start.
 Blocked work: N03 implementation choice.
 Decision: Resolved 2026-10-26: Meilisearch for N-1; revisit at 100,000 profiles.
+
+## Q-17: Cloudflare Turnstile on the card share-back form (Class C)
+**Context:** The card page sends no Turnstile token (there is no widget), so production share-backs are protected by rate limits only (5 per network per 15 minutes, 20 per card per hour). Setting `TURNSTILE_SECRET` today would block every share-back.
+**Question:** Add the Turnstile widget to the visitor card (site key, privacy notice line) before launch, or launch on rate limits and watch for spam?
+**Status:** **Open (founder)**
+
+## Q-18: Terms of Service and Privacy Policy pages (Class A)
+**Context:** Sign-up records consent to versioned terms and privacy documents and links to `/terms` and `/privacy` on the public site, which do not exist.
+**Question:** Who writes them, and what are the legal entity, address and grievance officer to show? (Legal text must come from the founder or a lawyer.)
+**Status:** **Open (founder); blocks launch**
+
+## Q-19: Accounts needed for the VPS launch (Class A)
+**Context:** The stack refuses to start without them.
+**Question:** Google OAuth Web client ID; SMTP provider and credentials with SPF/DKIM/DMARC on onebridgecard.com; the server (IP, SSH access for the senior engineer); an S3-compatible backup bucket for rclone; which GitHub repository the server pulls from.
+**Status:** **Open (founder)**

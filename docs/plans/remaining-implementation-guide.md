@@ -61,6 +61,10 @@ A new service is wired in **all** of these places, or it works locally and break
 | `apps/web-app/next.config.mjs` | the service name in the rewrites list |
 | `apps/web-app/src/api-client.ts` | `<NAME>_API_URL` constant and a `<name>Request` helper |
 | `app.ts` CORS | `X-Act-As-Company` and any new custom header in `allowedHeaders` |
+| `scripts/prod-api.mjs` (VPS) | `TARGETS`, the service name in the loader list, `start(...)` **before organization** if it listens to org events, the route regex, and the upgrade regex if it uses WebSockets |
+| `scripts/lib/next-public-env.mjs` | the name in `SERVICES` (feeds both the Render and the VPS builds) |
+| `config/env.ts` | secrets through `resolveSecret` / `resolveInternalServiceKey` / `resolveEncryptionKey` from shared, so production refuses development values; new variables also go in `.env.production.example` |
+| `deploy/Caddyfile` | only if the app gets a new top-level path (copy it into the `@admin` matcher) |
 | `pnpm-lock.yaml` | run `pnpm install` and commit the lockfile |
 
 Next free ports: notifications 4008, moderation 4009, payments 4010, analytics 4011, media 4012, calls 4013, graph 4014, posts 4015.
