@@ -1,0 +1,11 @@
+# OneBridge Grid scheduled jobs (D-VPS-DEPLOY B7). Install on the server:
+#   sudo cp /opt/onebridge/deploy/cron/onebridge /etc/cron.d/onebridge && sudo chmod 644 /etc/cron.d/onebridge
+# The server's timezone is Asia/Kolkata (see deploy/RUNBOOK.md), so times are IST.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Daily encrypted backup at 02:30.
+30 2 * * * deploy cd /opt/onebridge && ./deploy/backup.sh >> /var/log/onebridge-backup.log 2>&1
+
+# Sunday 04:00: remove Docker images older than a week (old builds) to keep the disk free.
+0 4 * * 0 deploy docker image prune -af --filter "until=168h" >> /var/log/onebridge-prune.log 2>&1
