@@ -2,6 +2,7 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { MapPin, MessageCircle, Phone, Search, ShieldCheck } from 'lucide-react';
+import { ScanToLead } from '../src/landing/ScanToLead';
 
 export const metadata: Metadata = {
   title: 'OneBridge Grid | Business cards your company owns',
@@ -10,9 +11,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * Landing page (redesign, 2026-10-28). Concept: two sides of one card. Dark sections are the
- * company's side (where you run it); warm paper sections are the visitor's side (what customers
- * see). The one moving element is the hero card, where the person changes and the seat stays.
+ * Landing page (D-UI-REDESIGN). Concept: two sides of one card. Dark sections are the company's
+ * side (where you run it); warm paper sections are the visitor's side (what customers see). The
+ * hero plays the scan-to-lead story; the seat section shows a card changing hands.
  */
 
 const WEB_PUBLIC_URL = process.env.NEXT_PUBLIC_WEB_PUBLIC_URL ?? 'http://localhost:3001';
@@ -88,7 +89,7 @@ function HandoverCard() {
           </dl>
         </div>
       </div>
-      <figcaption className="mt-5 text-center text-sm leading-relaxed text-warm-paper/70">
+      <figcaption className="mt-5 text-center text-sm leading-relaxed text-warm-paper/65">
         People change jobs. The seat, its link, its QR code and its 214 leads stay with the company.
       </figcaption>
     </figure>
@@ -208,14 +209,12 @@ export default function HomePage() {
 
       <main id="main">
         {/* Hero: the company's side */}
-        <section className="mx-auto grid max-w-6xl items-center gap-14 px-4 pb-20 pt-14 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:pt-24">
-          <div>
-            <h1 className="max-w-[13ch] text-[44px] font-bold leading-[0.98] tracking-[-0.045em] sm:text-[64px] lg:text-[76px]">
-              Business cards your company owns.
-            </h1>
-            <p className="mt-6 max-w-[48ch] text-lg leading-relaxed text-warm-paper/75">
-              Give every employee a verified digital card and your company a page that brings in enquiries. The card belongs to the seat, so when someone moves on, the
-              link, the QR codes and the leads stay with you.
+        <section className="mx-auto grid max-w-7xl items-center gap-10 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12 lg:pt-20">
+          <div className="ob-rise">
+            <h1 className="max-w-[11ch] text-[44px] font-bold leading-[0.96] tracking-[-0.05em] sm:text-[64px] lg:text-[72px]">From a scan to a lead in seconds.</h1>
+            <p className="mt-6 max-w-[46ch] text-lg leading-relaxed text-warm-paper/75">
+              Every employee gets a verified digital card that belongs to your company. Customers scan, save and share their details, and the lead lands with the right
+              person, and stays with the company.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link href="/signup" data-testid="home-sign-up" className={primaryButton}>
@@ -227,19 +226,26 @@ export default function HomePage() {
             </div>
             <p className="mt-5 text-sm text-warm-paper/60">Invited by your company? Open the link in your invite email to claim your card.</p>
           </div>
-          <HandoverCard />
+          <ScanToLead />
         </section>
 
         {/* The seat's history: a real sequence, so it is a dated timeline */}
-        <section id="seat" aria-labelledby="seat-title" className="scroll-mt-16 border-t border-white/[0.06] bg-[#232021]">
+        <section id="seat" aria-labelledby="seat-title" className="scroll-mt-16 border-t border-white/[0.06] bg-[#171516]">
           <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:py-24">
-            <h2 id="seat-title" className="max-w-[22ch] text-3xl font-bold leading-tight tracking-[-0.03em] sm:text-[40px]">
-              One seat, two people, nothing lost.
-            </h2>
-            <p className="mt-4 max-w-[60ch] text-warm-paper/70">
-              Each card lives on a seat in your company: a role at a branch. People are invited into seats and leave them; the seat keeps its history.
-            </p>
-            <ol className="mt-12 grid gap-0 md:grid-cols-4">
+            <div className="grid items-center gap-12 lg:grid-cols-[1.2fr_1fr]">
+              <div>
+                <h2 id="seat-title" className="max-w-[16ch] text-3xl font-bold leading-tight tracking-[-0.03em] sm:text-[44px]">
+                  Business cards your company owns.
+                </h2>
+                <p className="mt-4 max-w-[52ch] text-lg leading-relaxed text-warm-paper/70">
+                  Each card lives on a seat in your company: a role at a branch. People are invited into seats and leave them; the seat keeps its link, its QR codes and
+                  every lead.
+                </p>
+              </div>
+              <HandoverCard />
+            </div>
+            <h3 className="mt-16 text-lg font-bold">One seat, two people, nothing lost</h3>
+            <ol className="mt-6 grid gap-0 md:grid-cols-4">
               {TIMELINE.map((step, i) => (
                 <li key={step.when} className="relative border-l border-white/15 pb-10 pl-6 last:pb-0 md:border-l-0 md:border-t md:pb-0 md:pl-0 md:pr-8 md:pt-6">
                   <span
@@ -247,7 +253,7 @@ export default function HomePage() {
                     className={`absolute -left-[5px] top-1 h-[9px] w-[9px] rounded-full md:-top-[5px] md:left-0 ${i === 3 ? 'bg-bridge-orange' : 'bg-warm-paper/60'}`}
                   />
                   <p className="text-sm font-semibold text-warm-paper/60">{step.when}</p>
-                  <h3 className="mt-1 text-lg font-bold leading-snug">{step.title}</h3>
+                  <h4 className="mt-1 text-lg font-bold leading-snug">{step.title}</h4>
                   <p className="mt-2 text-sm leading-relaxed text-warm-paper/70">{step.body}</p>
                 </li>
               ))}
@@ -343,7 +349,7 @@ export default function HomePage() {
         </section>
       </main>
 
-      <footer className="border-t border-white/[0.06] bg-[#191717]">
+      <footer className="border-t border-white/[0.06] bg-[#0F0E0F]">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 text-sm text-warm-paper/65 sm:px-6 md:flex-row md:items-center md:justify-between">
           <span className="flex items-center gap-2.5 font-semibold text-warm-paper">
             <SpanMark className="h-6 w-6" />
