@@ -1,10 +1,11 @@
 // Run by deploy/mongo/init.sh with mongosh as the root user. Idempotent.
-/* global rs, db, process, sleep, print */
+/* global rs, db, sleep, print */
 
 let status;
 try {
   status = rs.status();
-} catch (err) {
+} catch {
+  // Not initiated yet.
   status = null;
 }
 
