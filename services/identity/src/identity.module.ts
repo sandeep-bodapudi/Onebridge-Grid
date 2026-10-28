@@ -1,7 +1,7 @@
 import { APP_GUARD } from '@nestjs/core';
 import { Module, DynamicModule, Global } from '@nestjs/common';
 import crypto from 'node:crypto';
-import { MongoConnectionHandle, connectMongo, FakeOtpSender, FakeEventBus, EmailSender, createEmailSender, assertNotFakeInProduction } from '@onebridge/shared';
+import { MongoConnectionHandle, connectMongo, FakeOtpSender, FakeEventBus, InMemoryEventBus, PublishableEventBus, EmailSender, createEmailSender, assertNotFakeInProduction } from '@onebridge/shared';
 import { IdentityEnvConfig, loadAndValidateEnv } from './config/env.js';
 import { KeyService } from './application/key.service.js';
 import { TokenService } from './application/token.service.js';
@@ -33,6 +33,8 @@ export interface IdentityModuleOptions {
   emailSender?: EmailSender;
   /** Tests pass a Google verifier backed by a local key set. */
   oauthVerifier?: IOAuthVerifier;
+  /** The runner's shared in-process bus (D-VPS-DEPLOY B2). */
+  eventBus?: PublishableEventBus;
 }
 
 /**
@@ -152,7 +154,8 @@ export class IdentityModule {
         },
         {
           provide: IDENTITY_EVENT_BUS,
-          useFactory: () => new FakeEventBus(),
+          // The recording stand-in keeps every event in memory, so production uses a real bus.
+          useFactory: () => options.eventBus ?? (config.nodeEnv === 'production' ? new InMemoryEventBus() : new FakeEventBus()),
         },
         {
           provide: MongoEmailCodeRepository,
@@ -180,7 +183,7 @@ export class IdentityModule {
             devices: MongoKnownDeviceRepository,
             email: EmailSender,
             auth: AuthService,
-            events: FakeEventBus
+            events: PublishableEventBus
           ) =>
             new PasswordAuthService({
               persons,
@@ -201,7 +204,7 @@ export class IdentityModule {
             personRepo: MongoPersonRepository,
             sessionRepo: MongoSessionRepository,
             otpRepo: MongoOtpRepository,
-            fakeEventBus: FakeEventBus
+            fakeEventBus: PublishableEventBus
           ) => {
             const fakeOtpSender = new FakeOtpSender();
             return new AuthService({
@@ -232,11 +235,9 @@ export class IdentityModule {
         },
         {
           provide: RbacService,
-          useFactory: (membershipRepo: MongoMembershipRepository, personRepo: MongoPersonRepository) => {
-            const fakeEventBus = new FakeEventBus();
-            return new RbacService(membershipRepo, personRepo, fakeEventBus);
-          },
-          inject: [MongoMembershipRepository, MongoPersonRepository],
+          useFactory: (membershipRepo: MongoMembershipRepository, personRepo: MongoPersonRepository, events: PublishableEventBus) =>
+            new RbacService(membershipRepo, personRepo, events),
+          inject: [MongoMembershipRepository, MongoPersonRepository, IDENTITY_EVENT_BUS],
         },
       ],
       exports: [AuthService, PasswordAuthService, MfaService, RbacService, TokenService, 'IDENTITY_ENV_CONFIG', MongoConnectionHandle, EMAIL_SENDER],

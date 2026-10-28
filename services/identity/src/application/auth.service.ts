@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { FakeOtpSender, FakeEventBus, ProblemException, normalizePhoneToE164 } from '@onebridge/shared';
+import { FakeOtpSender, PublishableEventBus, ProblemException, normalizePhoneToE164 } from '@onebridge/shared';
 import { OtpService } from './otp.service.js';
 import { TokenService } from './token.service.js';
 import { MfaService } from './mfa.service.js';
@@ -44,7 +44,7 @@ export interface AuthServiceConfig {
   otpRepo?: IOtpRepository;
   otpChallenges?: IOtpRepository;
   otpSender: FakeOtpSender;
-  eventBus: FakeEventBus;
+  eventBus: PublishableEventBus;
   jwtSecret: string;
   /** Demo and test builds only: every one-time code is this value instead of a random one. */
   fixedOtpCode?: string;
@@ -67,7 +67,7 @@ export class AuthService {
   public otpService: OtpService;
   public tokenService: TokenService;
   public mfaService: MfaService;
-  private eventBus: FakeEventBus;
+  private eventBus: PublishableEventBus;
 
   constructor(config: AuthServiceConfig) {
     const personRepo = config.persons || config.personRepo;

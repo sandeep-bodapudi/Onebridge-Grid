@@ -8,6 +8,8 @@ import {
   InMemoryRateLimiter,
   KeyVaultProvider,
   RateLimiter,
+  assertNotFakeInProduction,
+  createEmailSender,
 } from '@onebridge/shared';
 import { CardsEnvConfig, loadAndValidateEnv } from './config/env.js';
 import { MongoCardRepository } from './infrastructure/mongo-card.repository.js';
@@ -27,9 +29,11 @@ import {
 import {
   EdgeShortLinkNotifier,
   FakeEdgeShortLinkNotifier,
+  NoopEdgeShortLinkNotifier,
 } from './infrastructure/edge-kv-sync.js';
-import { TurnstileValidator, BypassTurnstileValidator } from './application/turnstile-validator.js';
+import { TurnstileValidator, selectTurnstileValidator } from './application/turnstile-validator.js';
 import { LeadNotifier, FakeLeadNotifier } from './domain/notifier.js';
+import { EmailLeadNotifier, HttpOwnerEmailLookup } from './infrastructure/email-lead-notifier.js';
 import { CardsService } from './application/cards.service.js';
 import { ShortLinkService } from './application/short-link.service.js';
 import { SharebackService } from './application/shareback.service.js';
@@ -117,18 +121,19 @@ export class CardsModule implements OnModuleInit {
       useValue:
         options.revalidationNotifier ||
         (config.nodeEnv === 'production' || config.revalidateWebPublic
-          ? new HttpRevalidationNotifier(config.webPublicUrl, config.revalidationSigningSecret)
+          ? new HttpRevalidationNotifier(config.webPublicInternalUrl || config.webPublicUrl, config.revalidationSigningSecret)
           : new FakeRevalidationNotifier()),
     };
 
     const edgeNotifierProvider = {
       provide: 'EDGE_SHORTLINK_NOTIFIER',
-      useValue: options.edgeNotifier || new FakeEdgeShortLinkNotifier(),
+      useValue: options.edgeNotifier || (config.nodeEnv === 'production' ? new NoopEdgeShortLinkNotifier() : new FakeEdgeShortLinkNotifier()),
     };
 
     const keyVaultProvider = {
       provide: 'KEY_VAULT_PROVIDER',
-      useValue: options.keyVault || new LocalKeyVaultProvider(),
+      // Leads are encrypted with keys derived from ENCRYPTION_KEY (required in production).
+      useValue: options.keyVault || new LocalKeyVaultProvider(config.encryptionKey),
     };
 
     const rateLimiterProvider = {
@@ -138,12 +143,27 @@ export class CardsModule implements OnModuleInit {
 
     const turnstileValidatorProvider = {
       provide: 'TURNSTILE_VALIDATOR',
-      useValue: options.turnstileValidator || new BypassTurnstileValidator(),
+      useValue: options.turnstileValidator || selectTurnstileValidator(config.nodeEnv, config.turnstileSecret),
     };
 
+    // D-VPS-DEPLOY B1: real lead emails in production or when EMAIL_PROVIDER is set.
     const leadNotifierProvider = {
       provide: 'LEAD_NOTIFIER',
-      useValue: options.leadNotifier || new FakeLeadNotifier(),
+      useFactory: (seats: MongoSeatReadModelRepository) => {
+        if (options.leadNotifier) return options.leadNotifier;
+        const realEmail = config.nodeEnv === 'production' || Boolean(config.emailEnv?.EMAIL_PROVIDER);
+        const notifier = realEmail
+          ? new EmailLeadNotifier(
+              seats,
+              new HttpOwnerEmailLookup(config.identityApiUrl || 'http://localhost:4001', config.internalServiceKey || ''),
+              createEmailSender(config.emailEnv ?? {}, config.nodeEnv),
+              `${config.appUrl.replace(/\/+$/, '')}/dashboard`
+            )
+          : new FakeLeadNotifier();
+        assertNotFakeInProduction('Lead notifier', notifier, config.nodeEnv);
+        return notifier;
+      },
+      inject: [MongoSeatReadModelRepository],
     };
 
     const cardRepoProvider = {

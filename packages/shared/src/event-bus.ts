@@ -51,7 +51,9 @@ function isDomainEvent(event: unknown): event is DomainEvent {
 
 export class InMemoryEventBus implements SubscribableEventBus {
   private readonly handlersByType = new Map<string, EventHandler[]>();
+  /** The most recent events (tests read it). Bounded: production runs one long-lived process. */
   public readonly published: DomainEvent[] = [];
+  private static readonly KEEP = 1000;
 
   async publish(event: unknown): Promise<void> {
     if (!isDomainEvent(event)) {
@@ -60,6 +62,7 @@ export class InMemoryEventBus implements SubscribableEventBus {
       return;
     }
     this.published.push(event);
+    if (this.published.length > InMemoryEventBus.KEEP) this.published.splice(0, this.published.length - InMemoryEventBus.KEEP);
     const handlers = this.handlersByType.get(event.type) ?? [];
     for (const handler of handlers) {
       try {

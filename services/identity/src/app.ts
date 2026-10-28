@@ -15,6 +15,7 @@ export async function createApp(options: IdentityModuleOptions = {}): Promise<IN
       connectionHandle: options.connectionHandle,
       emailSender: options.emailSender,
       oauthVerifier: options.oauthVerifier,
+      eventBus: options.eventBus,
     })
   );
 

@@ -19,3 +19,4 @@ export * from './key-vault.js';
 export * from './request-auth.js';
 export * from './email/index.js';
 export * from './production-guard.js';
+export * from './secrets.js';

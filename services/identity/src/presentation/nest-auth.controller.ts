@@ -102,6 +102,10 @@ export class NestAuthController {
     }
 
     const response = await execute();
+    // Entries live a day; drop finished ones so the cache cannot grow without end.
+    if (this.idempotencyCache.size >= 10_000) {
+      for (const [key, entry] of this.idempotencyCache) if (entry.expiresAt <= now) this.idempotencyCache.delete(key);
+    }
     this.idempotencyCache.set(idempotencyKey, {
       value: { requestBody, response },
       expiresAt: now + 86400 * 1000,

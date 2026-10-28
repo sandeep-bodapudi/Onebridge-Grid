@@ -1,5 +1,5 @@
 import { Module, DynamicModule, Global, OnModuleInit } from '@nestjs/common';
-import { MongoConnectionHandle, FakeEventBus, EventBus, KeyVaultProvider, LocalKeyVaultProvider, assertNotFakeInProduction, createEmailSender } from '@onebridge/shared';
+import { MongoConnectionHandle, FakeEventBus, InMemoryEventBus, EventBus, KeyVaultProvider, LocalKeyVaultProvider, assertNotFakeInProduction, createEmailSender } from '@onebridge/shared';
 import { OrganizationEnvConfig, loadAndValidateEnv } from './config/env.js';
 import { OrganizationService } from './application/organization.service.js';
 import { MongoOrganizationRepository } from './infrastructure/mongo-organization.repository.js';
@@ -23,7 +23,17 @@ import { StructureController } from './presentation/structure.controller.js';
 import { MongoSeatRepository } from './infrastructure/mongo-seat.repository.js';
 import { SeatsService } from './application/seats.service.js';
 import { SeatsController } from './presentation/seats.controller.js';
-import { FakeMediaStorageService } from './infrastructure/media-storage.service.js';
+import { FakeMediaStorageService, LocalDiskMediaStorage, MediaStorageService } from './infrastructure/media-storage.service.js';
+import { MediaController, MEDIA_DIR } from './presentation/media.controller.js';
+
+export const MEDIA_STORAGE = 'MEDIA_STORAGE';
+
+/** D-VPS-DEPLOY B1: logos on disk when MEDIA_DIR is set (required in production); the checking stand-in otherwise. */
+export function selectMediaStorage(config: OrganizationEnvConfig): MediaStorageService {
+  if (config.mediaDir) return new LocalDiskMediaStorage(config.mediaDir, config.mediaPublicBase || '/svc/organization');
+  if (config.nodeEnv === 'production') throw new Error('MEDIA_DIR is required in production (logo uploads are stored there)');
+  return new FakeMediaStorageService();
+}
 import { BrandKitService } from './application/brand-kit.service.js';
 import { AuditLogService } from './application/audit-log.service.js';
 import { AuditController } from './presentation/audit.controller.js';
@@ -102,7 +112,8 @@ export class OrganizationModule implements OnModuleInit {
 
     const eventBusProvider = {
       provide: 'EVENT_BUS',
-      useValue: options.eventBus || new FakeEventBus(),
+      // The runner passes the shared in-process bus; the recording stand-in is for tests only.
+      useValue: options.eventBus || (config.nodeEnv === 'production' ? new InMemoryEventBus() : new FakeEventBus()),
     };
 
     const identityClientProvider = {
@@ -285,8 +296,8 @@ export class OrganizationModule implements OnModuleInit {
     };
 
     const mediaStorageServiceProvider = {
-      provide: FakeMediaStorageService,
-      useFactory: () => new FakeMediaStorageService(),
+      provide: MEDIA_STORAGE,
+      useFactory: () => selectMediaStorage(config),
     };
 
     const brandKitServiceProvider = {
@@ -294,7 +305,7 @@ export class OrganizationModule implements OnModuleInit {
       useFactory: (
         orgRepo: MongoOrganizationRepository,
         auditRepo: MongoAuditRepository,
-        mediaStorage: FakeMediaStorageService,
+        mediaStorage: MediaStorageService,
         eventBus: EventBus
       ) => {
         return new BrandKitService(orgRepo, auditRepo, mediaStorage, eventBus);
@@ -302,7 +313,7 @@ export class OrganizationModule implements OnModuleInit {
       inject: [
         MongoOrganizationRepository,
         MongoAuditRepository,
-        FakeMediaStorageService,
+        MEDIA_STORAGE,
         'EVENT_BUS',
       ],
     };
@@ -348,7 +359,7 @@ export class OrganizationModule implements OnModuleInit {
           orgRepo,
           auditRepo,
           identityClient,
-          options.keyVault || new LocalKeyVaultProvider(),
+          options.keyVault || new LocalKeyVaultProvider(config.encryptionKey),
           options.inviteNotifier || selectInviteNotifier(config),
           eventBus as EventBus,
           config.appUrl,
@@ -407,9 +418,11 @@ export class OrganizationModule implements OnModuleInit {
         InvitesController,
         PublicInvitesController,
         AccessRequestsController,
+        MediaController,
       ],
       providers: [
         envProvider,
+        { provide: MEDIA_DIR, useValue: config.mediaDir },
         eventBusProvider,
         identityClientProvider,
         orgRepoProvider,
@@ -442,7 +455,7 @@ export class OrganizationModule implements OnModuleInit {
         SeatsService,
         BrandKitService,
         AuditLogService,
-        FakeMediaStorageService,
+        MEDIA_STORAGE,
         MongoOrganizationRepository,
         MongoIssuedIdRepository,
         MongoCounterRepository,

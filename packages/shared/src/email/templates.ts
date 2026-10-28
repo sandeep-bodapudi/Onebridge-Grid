@@ -10,7 +10,8 @@ export type EmailTemplate =
   | 'new_device_sign_in'
   | 'password_changed'
   | 'google_linked'
-  | 'seat_invite';
+  | 'seat_invite'
+  | 'new_lead';
 
 export type EmailLanguage = 'en' | 'hi';
 
@@ -84,6 +85,11 @@ const en: Strings = {
     intro: `${v.companyName} has set up a digital business card for you as ${v.seatTitle}. Open the invite to claim it, signing in with this email address.`,
     note: `The invite works for ${v.days} days.`,
   }),
+  new_lead: () => ({
+    subject: 'You have a new lead on OneBridge',
+    intro: 'Someone shared their details from your digital business card.',
+    note: 'Open your dashboard to see who it is. For their privacy, the details are only in your dashboard, never in email.',
+  }),
 };
 
 const hi: Strings = {
@@ -135,6 +141,11 @@ const hi: Strings = {
     intro: `${v.companyName} ने ${v.seatTitle} के रूप में आपके लिए एक डिजिटल बिज़नेस कार्ड बनाया है। इसे लेने के लिए आमंत्रण खोलें और इसी ईमेल पते से साइन इन करें।`,
     note: `यह आमंत्रण ${v.days} दिन तक काम करेगा।`,
   }),
+  new_lead: () => ({
+    subject: 'OneBridge पर आपके लिए एक नया लीड',
+    intro: 'किसी ने आपके डिजिटल बिज़नेस कार्ड से अपनी जानकारी साझा की है।',
+    note: 'यह कौन है, देखने के लिए अपना डैशबोर्ड खोलें। उनकी निजता के लिए जानकारी सिर्फ़ डैशबोर्ड में होती है, ईमेल में नहीं।',
+  }),
 };
 
 const STRINGS: Record<EmailLanguage, Strings> = { en, hi };
@@ -156,7 +167,8 @@ export function renderEmail(template: EmailTemplate, to: string, vars: TemplateV
   const codeBlock = v.code
     ? `<p style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:32px;letter-spacing:6px;font-weight:700;margin:24px 0;color:#111827">${e(v.code)}</p>`
     : '';
-  const linkLabel = language === 'hi' ? 'आमंत्रण खोलें' : 'Open the invite';
+  const linkLabel =
+    template === 'new_lead' ? (language === 'hi' ? 'डैशबोर्ड खोलें' : 'Open your dashboard') : language === 'hi' ? 'आमंत्रण खोलें' : 'Open the invite';
   const linkBlock = v.url
     ? `<p style="margin:24px 0"><a href="${e(v.url)}" style="display:inline-block;padding:12px 20px;background:#111827;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:700">${e(linkLabel)}</a></p>`
     : '';

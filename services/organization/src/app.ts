@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import { GlobalExceptionFilter, correlationIdMiddleware } from '@onebridge/shared';
 import { OrganizationModule, OrganizationModuleOptions } from './organization.module.js';
@@ -9,7 +10,7 @@ import { loadAndValidateEnv } from './config/env.js';
 export async function createApp(options: OrganizationModuleOptions = {}): Promise<INestApplication> {
   const config = options.envConfig || loadAndValidateEnv();
 
-  const app = await NestFactory.create(
+  const app = await NestFactory.create<NestExpressApplication>(
     OrganizationModule.register({
       envConfig: config,
       connectionHandle: options.connectionHandle,
@@ -21,6 +22,8 @@ export async function createApp(options: OrganizationModuleOptions = {}): Promis
     })
   );
 
+  // Logos arrive as base64 JSON (up to 5 MB, about 6.7 MB encoded); Express's default limit is 100 KB.
+  app.useBodyParser('json', { limit: '8mb' });
   app.use(correlationIdMiddleware);
   app.use(cookieParser());
 

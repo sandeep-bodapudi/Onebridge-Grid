@@ -91,3 +91,12 @@ describe('InMemoryEventBus', () => {
     expect(lateHandler).not.toHaveBeenCalled();
   });
 });
+
+describe('InMemoryEventBus memory', () => {
+  it('keeps only the most recent 1000 events', async () => {
+    const bus = new InMemoryEventBus();
+    for (let i = 0; i < 1500; i++) await bus.publish({ type: 'x.happened', tenantId: 't', eventId: String(i) });
+    expect(bus.published).toHaveLength(1000);
+    expect((bus.published[999] as unknown as { eventId: string }).eventId).toBe('1499');
+  });
+});

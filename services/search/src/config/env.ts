@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { resolveServiceJwtSecret } from '@onebridge/shared';
+import { resolveServiceJwtSecret, resolveInternalServiceKey } from '@onebridge/shared';
 
 dotenv.config();
 
@@ -28,7 +28,7 @@ export function loadAndValidateEnv(): SearchEnvConfig {
     mongoUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/onebridge_dev',
     jwtSecret: resolveServiceJwtSecret(nodeEnv, process.env.JWT_SECRET),
     identityApiUrl: process.env.IDENTITY_API_URL || 'http://localhost:4001',
-    internalServiceKey: process.env.INTERNAL_SERVICE_KEY || 'test-internal-service-key-at-least-32-chars-12345',
+    internalServiceKey: resolveInternalServiceKey(process.env.INTERNAL_SERVICE_KEY, nodeEnv),
     cardsApiUrl: process.env.CARDS_API_URL || 'http://localhost:4003',
     profilesApiUrl: process.env.PROFILES_API_URL || 'http://localhost:4004',
     anonSearchPerMinute: parseInt(process.env.ANON_SEARCH_PER_MINUTE || '60', 10),

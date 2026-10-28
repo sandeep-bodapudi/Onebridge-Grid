@@ -19,3 +19,8 @@ export class FakeEdgeShortLinkNotifier implements EdgeShortLinkNotifier {
     this.syncedLinks.clear();
   }
 }
+
+/** D-VPS-DEPLOY B1: on the VPS, web-public serves /r/<code> itself; there is no edge cache to update. */
+export class NoopEdgeShortLinkNotifier implements EdgeShortLinkNotifier {
+  async syncShortLink(_link: ShortLinkProps): Promise<void> {}
+}

@@ -25,7 +25,7 @@ export const DEVICE_CODE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
 const FIFTEEN_MIN = 15 * 60 * 1000;
 
-/** An event bus that takes IDs-only events (identity uses the shared fake in-process bus). */
+/** An event bus that takes IDs-only events (the runner's shared in-process bus in production). */
 interface EventPublisher {
   publish(event: { eventId: string; type: string; version: string; tenantId: string; occurredAt: string; correlationId: string; payload?: Record<string, unknown> }): Promise<void>;
 }

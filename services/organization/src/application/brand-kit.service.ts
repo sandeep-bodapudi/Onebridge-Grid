@@ -12,7 +12,7 @@ import {
 } from '@onebridge/shared';
 import { MongoOrganizationRepository } from '../infrastructure/mongo-organization.repository.js';
 import { MongoAuditRepository } from '../infrastructure/mongo-audit.repository.js';
-import { FakeMediaStorageService } from '../infrastructure/media-storage.service.js';
+import { MediaStorageService } from '../infrastructure/media-storage.service.js';
 import {
   BrandKitProps,
   FieldLocksProps,
@@ -32,7 +32,7 @@ export class BrandKitService {
   constructor(
     private readonly orgRepo: MongoOrganizationRepository,
     private readonly auditRepo: MongoAuditRepository,
-    private readonly mediaStorageService: FakeMediaStorageService,
+    private readonly mediaStorageService: MediaStorageService,
     @Inject('EVENT_BUS') private readonly eventBus: EventBus
   ) {}
 

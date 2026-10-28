@@ -3,7 +3,15 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import crypto from 'node:crypto';
 
 export async function POST(request: NextRequest) {
-  const secret = process.env.REVALIDATION_SIGNING_SECRET || 'dev-secret-minimum-32-characters-for-testing';
+  const configured = process.env.REVALIDATION_SIGNING_SECRET;
+  // Production never falls back to the public development secret (D-VPS-DEPLOY B1).
+  if (!configured && process.env.NODE_ENV === 'production') {
+    return new Response(
+      JSON.stringify({ type: 'https://tools.ietf.org/html/rfc7807', title: 'Service Unavailable', status: 503, detail: 'Revalidation is not configured.' }),
+      { status: 503, headers: { 'Content-Type': 'application/problem+json' } }
+    );
+  }
+  const secret = configured || 'dev-secret-minimum-32-characters-for-testing';
 
   const signature = request.headers.get('x-signature') || request.headers.get('x-revalidate-signature');
   const timestamp = request.headers.get('x-timestamp');
