@@ -17,9 +17,10 @@ describe('Tailwind Design Token Scale Guards (Span Language)', () => {
   it('defines the strict Span corner radii tokens (control, panel, sheet)', () => {
     const extend = config.theme?.extend as Record<string, unknown> | undefined;
     const borderRadius = extend?.borderRadius as Record<string, string> | undefined;
-    expect(borderRadius?.control).toBe('6px');
-    expect(borderRadius?.panel).toBe('10px');
-    expect(borderRadius?.sheet).toBe('14px');
+    // D-UI-REDESIGN (2026-10-28, founder-approved concept): softer corners.
+    expect(borderRadius?.control).toBe('10px');
+    expect(borderRadius?.panel).toBe('16px');
+    expect(borderRadius?.sheet).toBe('20px');
   });
 
   it('does NOT include font weight 800 (extrabold) in font weights', () => {

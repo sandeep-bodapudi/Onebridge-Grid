@@ -295,3 +295,11 @@
 - Backups: nightly mongodump plus the media volume, gpg AES-256 with BACKUP_PASSPHRASE, rclone to an S3-compatible bucket, 14 daily and 8 weekly kept; restore checks into a separate database before any live restore.
 - The code-hash key for email codes is derived from JWT_SECRET, so the plan's CODE_HMAC_SECRET is not needed.
 - `render.yaml` and the Render demo stay until the VPS is live (D8).
+
+## D-UI-REDESIGN: deeper, calmer, motion with meaning
+
+- Date: 2026-10-28. The founder approved the concept canvas (style tile, landing hero with motion, dashboard, company inbox, phone chat) and asked for every page to follow it, with each company's public page feeling like that company's own website.
+- Same brand: Bridge Orange (fill only, never text) and Manrope. Dark canvas deepened to #131213 with #1B191A panels and #322E31 hairlines; one new token, steel (#8DB4E2 dark, #3B6AA0 light), for trust and network states (verified, online, team notes).
+- Corners softened: control 10 px, panel 16 px, sheet 20 px (were 6 / 10 / 14; the token test now pins the new values).
+- Motion: four kinds only, as shared classes in the UI kit tokens: arrive (`ob-rise`), alive (`ob-pulse`), waiting (`ob-dot`) and the span (`ob-span`). Reduced motion ends each at its final frame.
+- Rollout order: foundations, landing page, company website, messages, dashboard and admin pages, sign-in, profiles, search and the visitor card.

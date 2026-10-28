@@ -17,16 +17,18 @@ const config: Config = {
         error: 'rgb(var(--color-error) / <alpha-value>)',
         info: 'rgb(var(--color-info) / <alpha-value>)',
         'sand-border': 'rgb(var(--color-sand-border) / <alpha-value>)',
+        steel: 'rgb(var(--color-steel) / <alpha-value>)',
       },
       borderRadius: {
-        control: '6px',
-        panel: '10px',
-        sheet: '14px',
+        // D-UI-REDESIGN: softer corners (was 6 / 10 / 14).
+        control: '10px',
+        panel: '16px',
+        sheet: '20px',
         // Transition aliases mapped strictly to Span tokens (no arches)
-        '12': '6px',
-        '16': '10px',
-        '22': '14px',
-        arch: '10px',
+        '12': '10px',
+        '16': '16px',
+        '22': '20px',
+        arch: '16px',
       },
       fontSize: {
         xs: ['12px', { lineHeight: '16px' }],

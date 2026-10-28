@@ -58,25 +58,29 @@
     --color-error: 194 54 43;              /* #C2362B */
     --color-info: 59 110 168;              /* #3B6EA8 */
     --color-sand-border: 227 217 200;      /* #E3D9C8 */
+    /* D-UI-REDESIGN: steel blue marks trust and network states (verified, online, team notes). */
+    --color-steel: 59 106 160;             /* #3B6AA0 on light surfaces */
 
-    /* Span Design Tokens */
+    /* Span Design Tokens (D-UI-REDESIGN: softer corners) */
     --span-line-height: 1.5px;
     --span-node-size: 5px;
-    --radius-control: 6px;
-    --radius-panel: 10px;
-    --radius-sheet: 14px;
+    --radius-control: 10px;
+    --radius-panel: 16px;
+    --radius-sheet: 20px;
   }
 
   /* Dark mode: ensure text and surfaces pass WCAG AA contrast (fixing sign-in invisible heading) */
   .dark {
-    /* Charcoal-led dashboard (D-UI-PREMIUM): panels sit one step above the Charcoal Deep canvas. */
-    --color-charcoal: 39 36 37;            /* #272425 panel */
+    /* D-UI-REDESIGN: a deeper graphite canvas; panels sit one step above it. */
+    --color-charcoal-deep: 19 18 19;       /* #131213 canvas */
+    --color-charcoal: 27 25 26;            /* #1B191A panel */
+    --color-steel: 141 180 226;            /* #8DB4E2 on dark surfaces */
     --color-deep-orange: 255 159 51;       /* #FF9F33: readable on dark surfaces */
     --color-success: 52 168 83;            /* #34A853 */
     --color-warning: 251 188 4;            /* #FBBC04 */
     --color-error: 234 67 53;              /* #EA4335 */
     --color-info: 66 133 244;              /* #4285F4 */
-    --color-sand-border: 58 54 56;         /* #3A3638 */
+    --color-sand-border: 50 46 49;         /* #322E31 hairlines */
   }
   .dark body {
     background-color: rgb(var(--color-charcoal-deep));
@@ -123,6 +127,35 @@
 .animate-span-fill {
   animation: span-fill 600ms cubic-bezier(0.2, 0, 0, 1) forwards;
 }
+
+/* D-UI-REDESIGN motion: four kinds only. Arrive (new things rise in), alive (a pulse on live
+   things), waiting (typing dots) and the span (the logo's line drawing across). The reduced-motion
+   rule below ends each at its final frame. */
+@keyframes ob-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ob-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(76 195 138 / 0.55); }
+  70% { box-shadow: 0 0 0 7px rgb(76 195 138 / 0); }
+}
+@keyframes ob-dots {
+  0%, 80%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+@keyframes ob-span {
+  0% { transform: scaleX(0); }
+  60%, 100% { transform: scaleX(1); }
+}
+.ob-rise { animation: ob-rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.ob-rise-1 { animation-delay: 60ms; }
+.ob-rise-2 { animation-delay: 120ms; }
+.ob-rise-3 { animation-delay: 180ms; }
+.ob-pulse { animation: ob-pulse 2s ease-out infinite; }
+.ob-dot { animation: ob-dots 1.2s infinite; }
+.ob-dot:nth-child(2) { animation-delay: 150ms; }
+.ob-dot:nth-child(3) { animation-delay: 300ms; }
+.ob-span { transform-origin: left; animation: ob-span 2.4s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
 
 /* Reduced Motion: All animations switch to 150ms fades or static display */
 @media (prefers-reduced-motion: reduce) {
