@@ -10,7 +10,7 @@ source "$(dirname "$0")/lib.sh"
 load_env
 require_env BACKUP_PASSPHRASE BACKUP_RCLONE_REMOTE
 command -v gpg >/dev/null || die "gpg is not installed: sudo apt install -y gnupg"
-command -v rclone >/dev/null || die "rclone is not installed (see deploy/RUNBOOK.md, Backups)"
+command -v rclone >/dev/null || die "rclone is not installed (see deploy/DEPLOYMENT-GUIDE.md, section 10)"
 
 STAMP="$(date +%Y-%m-%d_%H%M)"
 LOCAL_DIR="$ROOT/deploy/backups"

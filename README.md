@@ -50,7 +50,7 @@ Local development uses deterministic fake provider adapters (such as `FakeOtpSen
 
 ## Production deployment
 
-Production runs on one VPS with Docker Compose behind Caddy (HTTPS on `onebridgecard.com`): one `api` container with every service (`scripts/prod-api.mjs`), the two Next apps, and MongoDB as a single-node replica set. Settings live in `.env` (template: `.env.production.example`). Deploy with `./deploy/deploy.sh`; everything else (server setup, backups, restore, rollback, monitoring) is in [deploy/RUNBOOK.md](deploy/RUNBOOK.md). The hosted Render demo (`render.yaml`, `scripts/single-*.mjs`) keeps working until the VPS is live.
+Production runs on one VPS with Docker Compose behind Caddy (HTTPS on `onebridgecard.com`): one `api` container with every service (`scripts/prod-api.mjs`), the two Next apps, and MongoDB as a single-node replica set. Settings live in `.env` (template: `.env.production.example`). Deploy with `./deploy/deploy.sh`; the first deployment is in [deploy/DEPLOYMENT-GUIDE.md](deploy/DEPLOYMENT-GUIDE.md) and day-to-day operations (backups, restore, rollback, monitoring) in [deploy/RUNBOOK.md](deploy/RUNBOOK.md). What is still pending, with instructions: [docs/plans/pending-work.md](docs/plans/pending-work.md). The hosted Render demo (`render.yaml`, `scripts/single-*.mjs`) keeps working until the VPS is live.
 
 ## Documentation & Contributing
 

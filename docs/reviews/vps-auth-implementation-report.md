@@ -130,7 +130,7 @@ In `docs/decisions.md`: D-OTP-RANDOM, D-AUTH-EMAIL (with the D11 and code-only a
 ## 10. Known risks and shortcuts
 
 - B4, B5, B7 and B9 are not proven with Docker (section 5).
-- MFA setup screen shows a fixed authenticator secret instead of the server's (`apps/web-app/src/features/auth/AuthFlow.tsx`, mfa_setup step); older bug, not fixed here. Fix before any owner turns MFA on.
+- **Security, older bug, launch blocker:** `POST /auth/mfa/setup` accepts an unverified `mfaTicket` (it takes the user ID from the text), so anyone who knows a user ID can turn that person's MFA off and get the new secret; and the MFA setup screen shows a fixed secret. Fix instructions: `docs/plans/pending-work.md`, P1.
 - No common-password list (founder's choice).
 - In-memory rate limits reset on restart (single process; acceptable at launch).
 - Access tokens stay valid up to 15 minutes after a password reset (refresh is revoked at once).

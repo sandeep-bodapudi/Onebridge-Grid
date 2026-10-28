@@ -1,6 +1,6 @@
 # OneBridge Grid scheduled jobs (D-VPS-DEPLOY B7). Install on the server:
 #   sudo cp /opt/onebridge/deploy/cron/onebridge /etc/cron.d/onebridge && sudo chmod 644 /etc/cron.d/onebridge
-# The server's timezone is Asia/Kolkata (see deploy/RUNBOOK.md), so times are IST.
+# The server's timezone is Asia/Kolkata (see deploy/DEPLOYMENT-GUIDE.md, section 4), so times are IST.
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 

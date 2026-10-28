@@ -5,7 +5,7 @@
 #   web-public  next start (apps/web-public)    -p 3200    (public site, assets under /_cards)
 #
 # Build:  docker compose build            (PUBLIC_URL comes from .env)
-# The build needs about 3 GB of memory: add a 2 GB swap file on a 4 GB server (see deploy/RUNBOOK.md).
+# The build needs about 3 GB of memory: add a 2 GB swap file on a 4 GB server (see deploy/DEPLOYMENT-GUIDE.md, section 4).
 # Node 20 and pnpm 9 match CI (.github/workflows/ci.yml) and the lockfile format (9.0).
 
 # ---------------------------------------------------------------- build stage

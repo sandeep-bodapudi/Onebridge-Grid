@@ -14,7 +14,7 @@ die()  { printf '\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 # Reads KEY=value lines from .env into the environment WITHOUT running the file as shell code.
 # Surrounding single or double quotes are removed. Lines starting with # are comments.
 load_env() {
-  [ -f "$ROOT/.env" ] || die ".env is missing. Copy .env.production.example to .env and fill it in (see deploy/RUNBOOK.md)."
+  [ -f "$ROOT/.env" ] || die ".env is missing. Copy .env.production.example to .env and fill it in (see deploy/DEPLOYMENT-GUIDE.md, section 7)."
   local line key value
   while IFS= read -r line || [ -n "$line" ]; do
     line="${line%$'\r'}"

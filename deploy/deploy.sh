@@ -10,7 +10,7 @@ require_env "${REQUIRED_SETTINGS[@]}"
 [ "${NODE_ENV:-}" = "production" ] || die "NODE_ENV must be production in .env"
 [[ "${MONGODB_URI}" != *CHANGE_ME* ]] || die "MONGODB_URI still says CHANGE_ME: put MONGO_APP_PASSWORD in it"
 if [[ ",${AUTH_METHODS:-google,email}," == *",google,"* ]]; then require_env GOOGLE_CLIENT_ID; fi
-command -v docker >/dev/null || die "Docker is not installed (see deploy/RUNBOOK.md, section 3)"
+command -v docker >/dev/null || die "Docker is not installed (see deploy/DEPLOYMENT-GUIDE.md, section 4)"
 
 PREVIOUS="$(git rev-parse HEAD)"
 
