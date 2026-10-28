@@ -4,16 +4,12 @@ import { AuthService } from '../application/auth.service.js';
 import { PasswordAuthService, PasswordSignInResult, SignupInput } from '../application/password-auth.service.js';
 import { getRefreshTokenCookieOptions } from '../config/cookie.config.js';
 import { AuthMethod, IdentityEnvConfig, defaultAuthMethods } from '../config/env.js';
-import type { HttpRequest, HttpResponse } from './nest-auth.controller.js';
+import { getClientIp, type HttpRequest, type HttpResponse } from './nest-auth.controller.js';
 
 export const DEVICE_COOKIE = 'ob_device';
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
-function clientIp(req?: HttpRequest): string {
-  const fwd = req?.headers?.['x-forwarded-for'];
-  const raw = req?.ip || (typeof fwd === 'string' ? fwd : Array.isArray(fwd) ? fwd[0] : undefined) || '127.0.0.1';
-  return raw.split(',')[0].trim();
-}
+const clientIp = getClientIp;
 
 function userAgent(req?: HttpRequest): string {
   const ua = req?.headers?.['user-agent'];

@@ -1,0 +1,57 @@
+# OneBridge Grid behind Caddy (D-VPS-DEPLOY B5). HTTPS certificates are automatic.
+# SITE_DOMAIN comes from .env (default onebridgecard.com). With SITE_DOMAIN=localhost Caddy uses
+# its own local certificate authority, for testing the stack on a laptop.
+
+# Caddy is the first hop and trusts no proxy, so it replaces any X-Forwarded-For a visitor sends
+# with the real address. The services' rate limits (sign-in, codes, search, share-back) rely on it.
+
+www.{$SITE_DOMAIN:onebridgecard.com} {
+	redir https://{$SITE_DOMAIN:onebridgecard.com}{uri} permanent
+}
+
+{$SITE_DOMAIN:onebridgecard.com} {
+	encode zstd gzip
+
+	request_body {
+		max_size 25MB
+	}
+
+	# Only Cloudflare may set this; Caddy is not behind Cloudflare, so a visitor's copy is dropped.
+	request_header -Cf-Connecting-Ip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# APIs: /svc/<service>/... -> api:8080/<service>/... (WebSocket upgrades pass through, so
+	# /svc/messaging/realtime works).
+	handle_path /svc/* {
+		reverse_proxy api:8080
+	}
+
+	handle /healthz {
+		reverse_proxy api:8080
+	}
+
+	# The public site's own assets (its assetPrefix is /_cards).
+	handle_path /_cards/* {
+		reverse_proxy web-public:3200
+	}
+
+	# The admin app (same list as ADMIN_PATHS in scripts/single-server.mjs).
+	@admin {
+		path / /login /login/* /signup /signup/* /forgot-password /forgot-password/* /dashboard /dashboard/* /demo-access /demo-access/* /invite /invite/* /profile /profile/* /network /network/* /messages /messages/* /api/demo-access /api/demo-access/* /_next/* /fonts/* /favicon.ico
+	}
+	handle @admin {
+		reverse_proxy web-app:3100
+	}
+
+	# Everything else is the public site: cards (/c/...), company pages, members, search, short links (/r/...).
+	handle {
+		reverse_proxy web-public:3200
+	}
+}

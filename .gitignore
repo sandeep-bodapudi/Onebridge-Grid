@@ -13,3 +13,9 @@ src/**/*.js
 src/**/*.d.ts
 src/**/*.js.map
 
+
+# VPS (D-VPS-DEPLOY): secrets, deploy state and local backups never go in git
+.env.production
+deploy/secrets/
+deploy/.last-good
+deploy/backups/

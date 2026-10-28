@@ -1,0 +1,145 @@
+# OneBridge Grid on one VPS (D-VPS-DEPLOY B5). Run from the repo root with a filled-in .env:
+#   ./deploy/deploy.sh          (or: docker compose up -d --build)
+# Only Caddy publishes ports (80, 443). MongoDB is never reachable from outside this network.
+
+name: onebridge
+
+x-app: &app
+  image: onebridge/app:latest
+  build:
+    context: .
+    args:
+      PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL in .env}
+  env_file: .env
+  restart: unless-stopped
+  networks: [internal]
+  logging:
+    driver: json-file
+    options: { max-size: 10m, max-file: '5' }
+
+services:
+  caddy:
+    image: caddy:2.8.4
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-onebridgecard.com}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    # Started, not healthy: Caddy gets its certificates at once, and a failed deploy shows 502, not nothing.
+    depends_on: [api, web-app, web-public]
+    networks: [internal]
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '5' }
+
+  mongo:
+    image: mongo:7.0.14
+    restart: unless-stopped
+    entrypoint: ['/bin/bash', '/deploy/mongo/entrypoint-keyfile.sh']
+    command: ['mongod', '--replSet', 'rs0', '--bind_ip_all', '--keyFile', '/data/keyfile/mongo-keyfile']
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:?Set MONGO_ROOT_USER in .env}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
+      MONGO_KEYFILE_CONTENT: ${MONGO_KEYFILE_CONTENT:?Set MONGO_KEYFILE_CONTENT in .env}
+    volumes:
+      - mongo_data:/data/db
+      - ./deploy/mongo:/deploy/mongo:ro
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand("ping").ok']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    # No "ports:" on purpose: MongoDB is only reachable inside the Docker network.
+    networks: [internal]
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '5' }
+
+  mongo-init:
+    image: mongo:7.0.14
+    restart: 'no'
+    depends_on:
+      mongo: { condition: service_healthy }
+    environment:
+      MONGO_ROOT_USER: ${MONGO_ROOT_USER}
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_APP_USER: ${MONGO_APP_USER:?Set MONGO_APP_USER in .env}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env}
+    volumes:
+      - ./deploy/mongo:/deploy/mongo:ro
+    entrypoint: ['/bin/bash', '/deploy/mongo/init.sh']
+    networks: [internal]
+
+  api:
+    <<: *app
+    command: ['node', 'scripts/prod-api.mjs']
+    environment:
+      PORT: '8080'
+      MEDIA_DIR: /data/media
+      # The api reaches web-public inside this network to refresh cached card pages.
+      WEB_PUBLIC_INTERNAL_URL: http://web-public:3200
+    volumes:
+      - media_data:/data/media
+    depends_on:
+      mongo-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 40s
+    deploy:
+      resources:
+        limits: { memory: 1536m }
+
+  web-app:
+    <<: *app
+    working_dir: /app/apps/web-app
+    command: ['node', 'node_modules/next/dist/bin/next', 'start', '-p', '3100', '-H', '0.0.0.0']
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3100/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+    deploy:
+      resources:
+        limits: { memory: 512m }
+
+  web-public:
+    <<: *app
+    working_dir: /app/apps/web-public
+    command: ['node', 'node_modules/next/dist/bin/next', 'start', '-p', '3200', '-H', '0.0.0.0']
+    environment:
+      ASSET_PREFIX: /_cards
+      # Server-side rendering reads the api inside this network.
+      CARDS_SERVICE_URL: http://api:8080/cards
+      PROFILES_SERVICE_URL: http://api:8080/profiles
+      SEARCH_SERVICE_URL: http://api:8080/search
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3200/search').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+    deploy:
+      resources:
+        limits: { memory: 512m }
+
+networks:
+  internal: {}
+
+volumes:
+  mongo_data: {}
+  media_data: {}
+  caddy_data: {}
+  caddy_config: {}

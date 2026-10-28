@@ -1,0 +1,8 @@
+# Files that run inside Linux containers or on the server must keep LF line endings,
+# even when the repo is checked out on Windows (core.autocrlf=true). (D-VPS-DEPLOY)
+*.sh            text eol=lf
+deploy/**       text eol=lf
+Dockerfile      text eol=lf
+.dockerignore   text eol=lf
+docker-compose.yml text eol=lf
+.env.production.example text eol=lf

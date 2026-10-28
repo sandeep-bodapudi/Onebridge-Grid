@@ -1,0 +1,22 @@
+# Keep the build context small and free of secrets (D-VPS-DEPLOY B4).
+.git
+.github
+.claude
+.tmp
+**/node_modules
+**/.next
+**/dist
+**/storybook-static
+**/test-results
+**/playwright-report
+**/*.tsbuildinfo
+**/vitest.noswc.config.ts
+.env
+.env.*
+!.env.production.example
+deploy/secrets
+deploy/backups
+deploy/.last-good
+docs
+tests/e2e
+*.log

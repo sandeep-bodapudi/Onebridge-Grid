@@ -40,9 +40,14 @@ function getClientUserAgent(req?: HttpRequest): string {
   return 'Unknown';
 }
 
-function getClientIp(req?: HttpRequest): string {
+/**
+ * The visitor's address. Behind the one-port router every request comes from 127.0.0.1, so
+ * req.ip alone would put all visitors in one rate-limit bucket. The edge proxy (Caddy) replaces
+ * X-Forwarded-For with the real address, so its first entry is used (as cards and search do).
+ */
+export function getClientIp(req?: HttpRequest): string {
   const fwd = req?.headers?.['x-forwarded-for'];
-  const raw = req?.ip || (typeof fwd === 'string' ? fwd : Array.isArray(fwd) ? fwd[0] : undefined) || '127.0.0.1';
+  const raw = (typeof fwd === 'string' ? fwd : Array.isArray(fwd) ? fwd[0] : undefined) || req?.ip || '127.0.0.1';
   return raw.split(',')[0].trim();
 }
 
