@@ -99,7 +99,9 @@ const copy = {
     download: 'Download',
     scannedHere: 'You scanned this branch',
     lapsed: 'This page is showing basic details only.',
-    madeWith: 'Made with OneBridge Grid',
+    madeWith: 'Website by OneBridge Grid',
+    contactTitle: 'Talk to us',
+    contactBody: (company: string) => `Tell ${company} what you need and the right person will call you back.`,
     sheetTitle: 'Send an enquiry',
     sheetSubtitle: (company: string) => `${company} will get your details and call you back.`,
     about_item: 'About',
@@ -150,7 +152,9 @@ const copy = {
     download: 'डाउनलोड',
     scannedHere: 'आपने इस शाखा का कोड स्कैन किया',
     lapsed: 'यह पेज अभी केवल बुनियादी जानकारी दिखा रहा है।',
-    madeWith: 'OneBridge Grid से बना',
+    madeWith: 'वेबसाइट: OneBridge Grid',
+    contactTitle: 'हमसे बात करें',
+    contactBody: (company: string) => `${company} को बताएँ कि आपको क्या चाहिए, सही व्यक्ति आपको कॉल करेगा।`,
     sheetTitle: 'पूछताछ भेजें',
     sheetSubtitle: (company: string) => `${company} को आपका विवरण मिलेगा और वे आपको कॉल करेंगे।`,
     about_item: 'विषय',
@@ -211,8 +215,14 @@ function formatSize(bytes?: number): string | null {
   return bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-const sectionTitle = 'text-[13px] font-extrabold uppercase tracking-[0.04em] text-charcoal/60 mb-3';
-const surface = 'rounded-2xl bg-white border border-sand-border';
+/** Dark or light text for a fill colour, by relative brightness (hex only; anything else gets dark text). */
+export function readableOn(hex: string): string {
+  const m = /^#?([\da-f]{6})$/i.exec(hex.trim());
+  if (!m) return '#241A10';
+  const n = parseInt(m[1], 16);
+  const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  return lum > 0.6 ? '#241A10' : '#FFFFFF';
+}
 
 /* ------------------------------------------------------------------ */
 /* Component                                                           */
@@ -402,384 +412,474 @@ export const CompanyProfilePage: React.FC<CompanyProfilePageProps> = ({
     );
   };
 
+  const accent = company.brandColours?.accent || '#F68713';
+  const accentText = readableOn(accent);
+  const sectionPad = 'scroll-mt-32 py-14 sm:py-20';
+  const wrap = 'max-w-[1120px] mx-auto px-4 sm:px-6';
+  const h2 = 'text-[28px] sm:text-[36px] leading-tight font-bold tracking-[-0.03em]';
+  const facts = [
+    { label: t.products, value: data.products.length },
+    { label: t.branches, value: data.branches.length },
+    { label: t.people, value: data.people.length },
+  ].filter((f) => f.value > 0);
+  const logoTile = (size: string, pad: string) => (
+    <span className={`${size} rounded-[22%] bg-white overflow-hidden flex items-center justify-center shrink-0 shadow-[0_10px_30px_rgba(0,0,0,0.18)]`}>
+      {company.logo ? (
+        <img src={company.logo} alt={`${company.name} logo`} className={`w-full h-full object-contain ${pad}`} />
+      ) : (
+        <span className="font-bold text-[#2B2728]" aria-hidden="true">
+          {initialsOf(company.name)}
+        </span>
+      )}
+    </span>
+  );
+
   return (
-    <div className="min-h-screen w-full bg-warm-paper text-charcoal font-body" lang={lang}>
-      {/* Hero */}
-      <header className="relative" style={{ background: band, color: bandText }} data-testid="company-hero">
-        <div className="max-w-[760px] mx-auto px-5 pt-5 pb-8">
-          <div className="flex items-center justify-between gap-3 min-h-[44px]">
-            <span className="text-[11px] font-bold tracking-[0.08em] uppercase opacity-80">{company.businessId}</span>
+    <div className="min-h-screen w-full bg-[#FAF7F2] text-[#2B2728] font-body" lang={lang}>
+      {/* Site header: the company's own top bar */}
+      <div className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-[#E9E1D3]">
+        <div className={`${wrap} h-16 flex items-center gap-3`}>
+          <a href="#about" className="flex items-center gap-2.5 min-h-[44px] min-w-0 font-bold">
+            {logoTile('w-9 h-9 text-xs', 'p-1')}
+            <span className="truncate">{company.name}</span>
+          </a>
+          {nav.length > 0 ? (
+            <nav aria-label="Page sections" className="hidden lg:flex items-center ml-6">
+              {nav.map((n) => (
+                <a key={n.id} href={`#${n.id}`} className="min-h-[44px] px-3 inline-flex items-center text-sm font-semibold text-[#5E5758] hover:text-[#2B2728]">
+                  {n.label}
+                </a>
+              ))}
+            </nav>
+          ) : null}
+          <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
               data-testid="language-toggle"
               onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
               aria-label={t.switchLang}
-              className="min-h-[44px] min-w-[44px] px-3 rounded-lg bg-black/15 text-current text-xs font-bold hover:bg-black/25"
+              className="min-h-[44px] min-w-[44px] px-3 rounded-control border border-[#E3D9C8] text-xs font-bold hover:bg-[#F4EFE6]"
             >
               {lang === 'en' ? 'हिन्दी' : 'EN'}
             </button>
-          </div>
-
-          <div className="mt-4 flex items-center gap-4">
-            <div className="w-[76px] h-[76px] rounded-[22px] bg-white overflow-hidden flex items-center justify-center shrink-0 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
-              {company.logo ? (
-                <img src={company.logo} alt={`${company.name} logo`} className="w-full h-full object-contain p-2" />
-              ) : (
-                <span className="text-2xl font-extrabold text-charcoal" aria-hidden="true">
-                  {initialsOf(company.name)}
-                </span>
-              )}
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-[28px] sm:text-[34px] leading-[1.05] font-bold tracking-[-0.03em] break-words">{company.name}</h1>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] font-semibold">
-                {company.verifiedBadge ? (
-                  <span data-testid="verified-tag" className="inline-flex">
-                    <KeystoneTag
-                      label={t.verified}
-                      aria-label={t.verifiedLabel}
-                      role="img"
-                      className="bg-bridge-orange text-[#241A10] border-0 text-[11px] px-2 py-0.5 [&_svg]:fill-[#241A10]"
-                    />
-                  </span>
-                ) : (
-                  <span data-testid="not-verified-tag" className="rounded-md border border-current px-2 py-0.5 text-[11px] font-bold opacity-75">
-                    {t.notVerified}
-                  </span>
-                )}
-                {[company.industry, company.city].filter(Boolean).length ? (
-                  <span className="opacity-90">{[company.industry, company.city].filter(Boolean).join(' · ')}</span>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          {company.about ? <p className="mt-5 text-[15px] leading-relaxed opacity-90 max-w-[60ch]">{company.about}</p> : null}
-
-          <div className="mt-6 flex flex-wrap gap-2">
             {canEnquire ? (
               <button
                 type="button"
                 onClick={(e) => openSheet(e)}
-                className="min-h-[48px] px-5 rounded-[14px] bg-bridge-orange text-[#241A10] font-extrabold text-sm inline-flex items-center gap-2 hover:bg-[#E5790C]"
+                className="hidden sm:inline-flex min-h-[44px] px-4 rounded-control text-sm font-bold items-center gap-2 hover:opacity-90"
+                style={{ background: accent, color: accentText }}
               >
                 <Send className="w-4 h-4" aria-hidden="true" />
                 {t.enquire}
               </button>
             ) : null}
-            {company.website ? (
-              <a
-                href={company.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="min-h-[48px] px-4 rounded-[14px] bg-white/10 border border-white/20 font-bold text-sm inline-flex items-center gap-2 hover:bg-white/20"
-              >
-                <Globe className="w-4 h-4" aria-hidden="true" />
-                {t.website}
-              </a>
-            ) : null}
-            {primaryBranch?.directionsUrl ? (
-              <a
-                href={primaryBranch.directionsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="min-h-[48px] px-4 rounded-[14px] bg-white/10 border border-white/20 font-bold text-sm inline-flex items-center gap-2 hover:bg-white/20"
-              >
-                <Navigation className="w-4 h-4" aria-hidden="true" />
-                {t.directions}
-              </a>
-            ) : null}
-            {heroActions}
           </div>
         </div>
-        <span aria-hidden="true" data-span-line="true" className="absolute inset-x-0 bottom-0 h-[5px] bg-bridge-orange" />
+        {nav.length > 1 ? (
+          <nav aria-label="Page sections, scrolling" className="lg:hidden border-t border-[#F0E9DD]">
+            <ul className="max-w-[1120px] mx-auto px-2 flex gap-1 overflow-x-auto">
+              {nav.map((n) => (
+                <li key={n.id} className="shrink-0">
+                  <a href={`#${n.id}`} className="min-h-[44px] px-3 inline-flex items-center text-sm font-semibold text-[#5E5758] hover:text-[#2B2728]">
+                    {n.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ) : null}
+      </div>
+
+      {/* Hero, in the company's colours */}
+      <header id="about" className="relative overflow-hidden scroll-mt-32" style={{ background: band, color: bandText }} data-testid="company-hero">
+        <div className={`${wrap} grid lg:grid-cols-[1.5fr_1fr] gap-10 items-center pt-12 pb-14 sm:pt-16 sm:pb-20`}>
+          <div className="ob-rise min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold">
+              {company.verifiedBadge ? (
+                <span data-testid="verified-tag" className="inline-flex">
+                  <KeystoneTag
+                    label={t.verified}
+                    aria-label={t.verifiedLabel}
+                    role="img"
+                    className="bg-white text-[#10233A] border-0 text-[11px] px-2 py-0.5 [&_svg]:fill-[#3B6AA0]"
+                  />
+                </span>
+              ) : (
+                <span data-testid="not-verified-tag" className="rounded-md border border-current px-2 py-0.5 text-[11px] font-bold opacity-75">
+                  {t.notVerified}
+                </span>
+              )}
+              {[company.industry, company.city].filter(Boolean).length ? (
+                <span className="opacity-90">{[company.industry, company.city].filter(Boolean).join(', ')}</span>
+              ) : null}
+            </div>
+            <h1 className="mt-4 text-[40px] sm:text-[56px] lg:text-[64px] leading-[0.98] font-bold tracking-[-0.045em] break-words">{company.name}</h1>
+            {company.about ? <p className="mt-5 text-[17px] leading-relaxed opacity-90 max-w-[56ch]">{company.about}</p> : null}
+            <div className="mt-8 flex flex-wrap gap-2.5">
+              {canEnquire ? (
+                <button
+                  type="button"
+                  onClick={(e) => openSheet(e)}
+                  className="min-h-[52px] px-6 rounded-[14px] font-bold text-[15px] inline-flex items-center gap-2 shadow-[0_10px_30px_rgba(0,0,0,0.2)] hover:opacity-90"
+                  style={{ background: accent, color: accentText }}
+                >
+                  <Send className="w-4 h-4" aria-hidden="true" />
+                  {t.enquire}
+                </button>
+              ) : null}
+              {primaryBranch?.directionsUrl ? (
+                <a
+                  href={primaryBranch.directionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-h-[52px] px-5 rounded-[14px] bg-white/10 border border-white/25 font-bold text-sm inline-flex items-center gap-2 hover:bg-white/20"
+                >
+                  <Navigation className="w-4 h-4" aria-hidden="true" />
+                  {t.directions}
+                </a>
+              ) : null}
+              {company.website ? (
+                <a
+                  href={company.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-h-[52px] px-5 rounded-[14px] bg-white/10 border border-white/25 font-bold text-sm inline-flex items-center gap-2 hover:bg-white/20"
+                >
+                  <Globe className="w-4 h-4" aria-hidden="true" />
+                  {t.website}
+                </a>
+              ) : null}
+              {heroActions}
+            </div>
+          </div>
+          <div className="ob-rise ob-rise-1 flex lg:flex-col items-center lg:items-end gap-6">
+            <span className="hidden lg:flex">{logoTile('w-40 h-40 text-4xl', 'p-5')}</span>
+            {facts.length ? (
+              <dl className="flex gap-8 lg:gap-10">
+                {facts.map((f) => (
+                  <div key={f.label} className="flex flex-col">
+                    <dt className="order-2 text-xs font-semibold opacity-75">{f.label}</dt>
+                    <dd className="order-1 text-3xl font-bold tracking-tight tabular-nums">{f.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+          </div>
+        </div>
+        <span aria-hidden="true" data-span-line="true" className="absolute inset-x-0 bottom-0 h-[6px]" style={{ background: accent }} />
       </header>
 
       {lapsed ? (
-        <div className="max-w-[760px] mx-auto px-4 sm:px-5 mt-4">
-          <div role="status" className="px-4 py-3 rounded-xl bg-sand text-sm flex items-center gap-2">
+        <div className={`${wrap} mt-4`}>
+          <div role="status" className="px-4 py-3 rounded-xl bg-[#EFE8DC] text-sm flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true" />
             {t.lapsed}
           </div>
         </div>
       ) : null}
 
-      {nav.length > 1 ? (
-        <nav aria-label="Page sections" className="sticky top-0 z-20 bg-warm-paper/95 backdrop-blur border-b border-sand-border">
-          <ul className="max-w-[760px] mx-auto px-3 flex gap-1 overflow-x-auto">
-            {nav.map((n) => (
-              <li key={n.id} className="shrink-0">
-                <a href={`#${n.id}`} className="min-h-[44px] px-3 inline-flex items-center text-sm font-bold text-charcoal/75 hover:text-charcoal">
-                  {n.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      ) : null}
-
-      <main className="max-w-[760px] mx-auto px-4 sm:px-5 pt-6 pb-32 space-y-9">
+      <main className="pb-28 lg:pb-0">
         {data.products.length > 0 ? (
-          <section id="products" aria-labelledby="products-title" className="scroll-mt-14">
-            <h2 id="products-title" className={sectionTitle}>
-              {t.products}
-            </h2>
-            {categories.length > 1 ? (
-              <div role="group" aria-label="Filter by category" className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1">
-                {[null, ...categories].map((c) => (
-                  <button
-                    key={c ?? 'all'}
-                    type="button"
-                    aria-pressed={category === c}
-                    onClick={() => setCategory(c)}
-                    className={`shrink-0 min-h-[40px] px-4 rounded-full text-sm font-bold border ${
-                      category === c ? 'bg-charcoal text-warm-paper border-charcoal' : 'bg-white border-sand-border hover:border-charcoal/40'
-                    }`}
-                  >
-                    {c ?? t.all}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {products.map((p) => (
-                <li key={p.id} className={`${surface} overflow-hidden flex flex-col`}>
-                  {p.imageUrl ? (
-                    <img src={p.imageUrl} alt="" className="w-full aspect-[4/3] object-cover bg-sand" loading="lazy" />
-                  ) : null}
-                  <div className="p-4 flex flex-col gap-1 flex-1">
-                    {p.category ? <span className="text-[11px] font-bold uppercase tracking-[0.04em] text-charcoal/55">{p.category}</span> : null}
-                    <h3 className="text-base font-bold leading-snug">{p.name}</h3>
-                    {p.description ? <p className="text-sm text-charcoal/75 leading-relaxed">{p.description}</p> : null}
-                    <div className="mt-auto pt-3 flex items-center justify-between gap-3">
-                      <span className="text-sm font-extrabold">{p.priceOnRequest || !p.price ? t.priceOnRequest : p.price}</span>
-                      {canEnquire ? (
-                        <button
-                          type="button"
-                          onClick={(e) => openSheet(e, p.id)}
-                          aria-label={`${t.enquireShort}: ${p.name}`}
-                          className="min-h-[44px] px-4 rounded-xl bg-charcoal text-warm-paper text-sm font-bold hover:bg-[#1E1E1E]"
-                        >
-                          {t.enquireShort}
-                        </button>
-                      ) : null}
+          <section id="products" aria-labelledby="products-title" className={`${sectionPad} bg-[#FAF7F2]`}>
+            <div className={wrap}>
+              <h2 id="products-title" className={h2}>
+                {t.products}
+              </h2>
+              {categories.length > 1 ? (
+                <div role="group" aria-label="Filter by category" className="mt-6 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                  {[null, ...categories].map((c) => (
+                    <button
+                      key={c ?? 'all'}
+                      type="button"
+                      aria-pressed={category === c}
+                      onClick={() => setCategory(c)}
+                      className={`shrink-0 min-h-[40px] px-4 rounded-full text-sm font-bold border ${
+                        category === c ? 'bg-[#2B2728] text-[#FAF7F2] border-[#2B2728]' : 'bg-white border-[#E3D9C8] hover:border-[#2B2728]/40'
+                      }`}
+                    >
+                      {c ?? t.all}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <ul className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {products.map((p) => (
+                  <li key={p.id} className="rounded-[20px] bg-white border border-[#E9E1D3] overflow-hidden flex flex-col hover:shadow-[0_14px_40px_rgba(43,39,40,0.10)] transition-shadow">
+                    {p.imageUrl ? <img src={p.imageUrl} alt="" className="w-full aspect-[4/3] object-cover bg-[#EFE8DC]" loading="lazy" /> : null}
+                    <div className="p-5 flex flex-col gap-1.5 flex-1">
+                      {p.category ? <span className="text-xs font-semibold text-[#6B6466]">{p.category}</span> : null}
+                      <h3 className="text-lg font-bold leading-snug">{p.name}</h3>
+                      {p.description ? <p className="text-sm text-[#5E5758] leading-relaxed">{p.description}</p> : null}
+                      <div className="mt-auto pt-4 flex items-center justify-between gap-3">
+                        <span className="text-base font-bold">{p.priceOnRequest || !p.price ? t.priceOnRequest : p.price}</span>
+                        {canEnquire ? (
+                          <button
+                            type="button"
+                            onClick={(e) => openSheet(e, p.id)}
+                            aria-label={`${t.enquireShort}: ${p.name}`}
+                            className="min-h-[44px] px-4 rounded-xl text-sm font-bold hover:opacity-90"
+                            style={{ background: band, color: bandText }}
+                          >
+                            {t.enquireShort}
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
         ) : null}
 
         {data.services.length > 0 ? (
-          <section id="services" aria-labelledby="services-title" className="scroll-mt-14">
-            <h2 id="services-title" className={sectionTitle}>
-              {t.services}
-            </h2>
-            <ul className={`${surface} divide-y divide-sand-border`}>
-              {data.services.map((s) => (
-                <li key={s.id} className="p-4 flex gap-3">
-                  <span aria-hidden="true" className="mt-1.5 w-2 h-2 rounded-full bg-bridge-orange shrink-0" />
-                  <div>
-                    <h3 className="font-bold">{s.name}</h3>
-                    {s.description ? <p className="text-sm text-charcoal/75 mt-0.5 leading-relaxed">{s.description}</p> : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
+          <section id="services" aria-labelledby="services-title" className={`${sectionPad} bg-white`}>
+            <div className={wrap}>
+              <h2 id="services-title" className={h2}>
+                {t.services}
+              </h2>
+              <ul className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-x-10">
+                {data.services.map((s) => (
+                  <li key={s.id} className="py-5 border-t border-[#E9E1D3] flex gap-4">
+                    <span aria-hidden="true" className="mt-2 w-2.5 h-2.5 rounded-full shrink-0" style={{ background: accent }} />
+                    <div>
+                      <h3 className="text-lg font-bold">{s.name}</h3>
+                      {s.description ? <p className="text-[15px] text-[#5E5758] mt-1 leading-relaxed">{s.description}</p> : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
         ) : null}
 
         {data.portfolio.length > 0 ? (
-          <section id="work" aria-labelledby="work-title" className="scroll-mt-14">
-            <h2 id="work-title" className={sectionTitle}>
-              {t.work}
-            </h2>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {data.portfolio.map((w) => {
-                const embed = videoEmbedUrl(w.videoUrl);
-                const cover = w.imageUrls?.[0];
-                return (
-                  <li key={w.id} className={`${surface} overflow-hidden`}>
-                    {playing === w.id && embed ? (
-                      <iframe
-                        src={embed}
-                        title={w.title}
-                        className="w-full aspect-video"
-                        allow="autoplay; encrypted-media; picture-in-picture"
-                        allowFullScreen
-                      />
-                    ) : embed ? (
-                      <button
-                        type="button"
-                        onClick={() => setPlaying(w.id)}
-                        className="relative w-full aspect-video bg-charcoal flex items-center justify-center group"
-                        aria-label={`${t.playVideo}: ${w.title}`}
-                      >
-                        {cover ? <img src={cover} alt="" className="absolute inset-0 w-full h-full object-cover opacity-70" loading="lazy" /> : null}
-                        <span className="relative w-14 h-14 rounded-full bg-bridge-orange flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform motion-reduce:transition-none">
-                          <Play className="w-6 h-6 text-[#241A10] ml-0.5" aria-hidden="true" />
-                        </span>
-                      </button>
-                    ) : cover ? (
-                      <img src={cover} alt="" className="w-full aspect-video object-cover bg-sand" loading="lazy" />
-                    ) : null}
-                    {w.imageUrls && w.imageUrls.length > 1 ? (
-                      <div className="flex gap-1 px-1 pt-1 overflow-x-auto">
-                        {w.imageUrls.slice(1).map((src) => (
-                          <img key={src} src={src} alt="" className="h-14 w-20 object-cover rounded-md bg-sand shrink-0" loading="lazy" />
-                        ))}
+          <section id="work" aria-labelledby="work-title" className={`${sectionPad} bg-[#FAF7F2]`}>
+            <div className={wrap}>
+              <h2 id="work-title" className={h2}>
+                {t.work}
+              </h2>
+              <ul className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-5">
+                {data.portfolio.map((w) => {
+                  const embed = videoEmbedUrl(w.videoUrl);
+                  const cover = w.imageUrls?.[0];
+                  return (
+                    <li key={w.id} className="rounded-[20px] bg-white border border-[#E9E1D3] overflow-hidden">
+                      {playing === w.id && embed ? (
+                        <iframe src={embed} title={w.title} className="w-full aspect-video" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
+                      ) : embed ? (
+                        <button
+                          type="button"
+                          onClick={() => setPlaying(w.id)}
+                          className="relative w-full aspect-video bg-[#2B2728] flex items-center justify-center group"
+                          aria-label={`${t.playVideo}: ${w.title}`}
+                        >
+                          {cover ? <img src={cover} alt="" className="absolute inset-0 w-full h-full object-cover opacity-70" loading="lazy" /> : null}
+                          <span
+                            className="relative w-16 h-16 rounded-full flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform motion-reduce:transition-none"
+                            style={{ background: accent }}
+                          >
+                            <Play className="w-6 h-6 ml-0.5" style={{ color: accentText }} aria-hidden="true" />
+                          </span>
+                        </button>
+                      ) : cover ? (
+                        <img src={cover} alt="" className="w-full aspect-video object-cover bg-[#EFE8DC]" loading="lazy" />
+                      ) : null}
+                      {w.imageUrls && w.imageUrls.length > 1 ? (
+                        <div className="flex gap-1 px-1 pt-1 overflow-x-auto">
+                          {w.imageUrls.slice(1).map((src) => (
+                            <img key={src} src={src} alt="" className="h-14 w-20 object-cover rounded-md bg-[#EFE8DC] shrink-0" loading="lazy" />
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="p-5">
+                        <h3 className="text-lg font-bold leading-snug">{w.title}</h3>
+                        {w.client ? <p className="text-sm font-semibold text-[#6B6466] mt-0.5">{w.client}</p> : null}
+                        {w.description ? <p className="text-[15px] text-[#5E5758] mt-2 leading-relaxed">{w.description}</p> : null}
                       </div>
-                    ) : null}
-                    <div className="p-4">
-                      <h3 className="font-bold leading-snug">{w.title}</h3>
-                      {w.client ? <p className="text-xs font-semibold text-charcoal/60 mt-0.5">{w.client}</p> : null}
-                      {w.description ? <p className="text-sm text-charcoal/75 mt-2 leading-relaxed">{w.description}</p> : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </section>
         ) : null}
 
         {data.clientLogos.length > 0 ? (
-          <section aria-labelledby="clients-title">
-            <h2 id="clients-title" className={sectionTitle}>
-              {t.clients}
-            </h2>
-            <ul className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {data.clientLogos.map((c) => (
-                <li key={c.id} className={`${surface} h-20 flex items-center justify-center p-3 text-center`}>
-                  {c.imageUrl ? (
-                    <img src={c.imageUrl} alt={c.name} className="max-h-10 max-w-full object-contain" loading="lazy" />
-                  ) : (
-                    <span className="text-xs font-bold text-charcoal/75 leading-tight">{c.name}</span>
-                  )}
-                </li>
-              ))}
-            </ul>
+          <section aria-labelledby="clients-title" className="py-12 bg-white border-y border-[#F0E9DD]">
+            <div className={wrap}>
+              <h2 id="clients-title" className="text-sm font-semibold text-[#6B6466]">
+                {t.clients}
+              </h2>
+              <ul className="mt-5 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                {data.clientLogos.map((c) => (
+                  <li key={c.id} className="h-20 rounded-2xl bg-[#FAF7F2] flex items-center justify-center p-3 text-center">
+                    {c.imageUrl ? (
+                      <img src={c.imageUrl} alt={c.name} className="max-h-10 max-w-full object-contain" loading="lazy" />
+                    ) : (
+                      <span className="text-xs font-bold text-[#5E5758] leading-tight">{c.name}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
         ) : null}
 
         {data.people.length > 0 ? (
-          <section id="people" aria-labelledby="people-title" className="scroll-mt-14">
-            <h2 id="people-title" className={sectionTitle}>
-              {t.people}
-            </h2>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {data.people.map((p) => (
-                <li key={p.cardUrl}>
-                  <a href={p.cardUrl} className={`${surface} p-3 flex items-center gap-3 hover:border-charcoal/30 min-h-[64px]`}>
-                    <span
-                      className="w-11 h-11 rounded-xl overflow-hidden flex items-center justify-center shrink-0 text-sm font-extrabold text-[#241A10]"
-                      style={{ background: p.photoUrl ? undefined : avatarColour(p.name) }}
-                    >
-                      {p.photoUrl ? <img src={p.photoUrl} alt="" className="w-full h-full object-cover" /> : <span aria-hidden="true">{initialsOf(p.name)}</span>}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-bold truncate">{p.name}</span>
-                      <span className="block text-xs text-charcoal/65 truncate">
-                        {[p.designation, p.branchName].filter(Boolean).join(' · ')}
+          <section id="people" aria-labelledby="people-title" className={`${sectionPad} bg-[#FAF7F2]`}>
+            <div className={wrap}>
+              <h2 id="people-title" className={h2}>
+                {t.people}
+              </h2>
+              <ul className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {data.people.map((p) => (
+                  <li key={p.cardUrl}>
+                    <a href={p.cardUrl} className="h-full rounded-[20px] bg-white border border-[#E9E1D3] p-5 flex flex-col gap-3 hover:shadow-[0_14px_40px_rgba(43,39,40,0.10)] transition-shadow">
+                      <span
+                        className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 text-lg font-bold text-[#241A10]"
+                        style={{ background: p.photoUrl ? undefined : avatarColour(p.name) }}
+                      >
+                        {p.photoUrl ? <img src={p.photoUrl} alt="" className="w-full h-full object-cover" /> : <span aria-hidden="true">{initialsOf(p.name)}</span>}
                       </span>
-                    </span>
-                    <span className="text-xs font-bold text-charcoal/70 shrink-0">{t.viewCard}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
+                      <span className="min-w-0">
+                        <span className="block font-bold text-lg leading-snug">{p.name}</span>
+                        <span className="block text-sm text-[#5E5758]">{p.designation}</span>
+                        {p.branchName ? <span className="block text-sm text-[#6B6466]">{p.branchName}</span> : null}
+                      </span>
+                      <span className="mt-auto text-sm font-bold underline underline-offset-4">{t.viewCard}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
         ) : null}
 
         {data.branches.length > 0 ? (
-          <section id="branches" aria-labelledby="branches-title" className="scroll-mt-14">
-            <h2 id="branches-title" className={sectionTitle}>
-              {t.branches}
-            </h2>
-            <ul className="space-y-2">
-              {[...data.branches]
-                .sort((a, b) => Number(b.id === data.focusBranchId) - Number(a.id === data.focusBranchId))
-                .map((b) => {
-                  const focused = b.id === data.focusBranchId;
-                  return (
-                    <li
-                      key={b.id}
-                      data-focused={focused || undefined}
-                      className={`${surface} p-4 flex items-start gap-3 ${focused ? 'border-charcoal ring-1 ring-charcoal' : ''}`}
-                    >
-                      <span className="w-10 h-10 rounded-xl bg-sand flex items-center justify-center shrink-0">
-                        <MapPin className="w-5 h-5" aria-hidden="true" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        {focused ? (
-                          <span className="inline-block mb-1 text-[11px] font-bold uppercase tracking-[0.04em] bg-bridge-orange text-[#241A10] rounded px-1.5 py-0.5">
-                            {t.scannedHere}
-                          </span>
+          <section id="branches" aria-labelledby="branches-title" className={`${sectionPad} bg-white`}>
+            <div className={wrap}>
+              <h2 id="branches-title" className={h2}>
+                {t.branches}
+              </h2>
+              <ul className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[...data.branches]
+                  .sort((a, b) => Number(b.id === data.focusBranchId) - Number(a.id === data.focusBranchId))
+                  .map((b) => {
+                    const focused = b.id === data.focusBranchId;
+                    return (
+                      <li
+                        key={b.id}
+                        data-focused={focused || undefined}
+                        className={`rounded-[20px] bg-[#FAF7F2] border p-5 flex items-start gap-4 ${focused ? 'border-[#2B2728] ring-1 ring-[#2B2728]' : 'border-[#E9E1D3]'}`}
+                      >
+                        <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: band, color: bandText }}>
+                          <MapPin className="w-5 h-5" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          {focused ? (
+                            <span className="inline-block mb-1.5 text-xs font-bold rounded px-1.5 py-0.5" style={{ background: accent, color: accentText }}>
+                              {t.scannedHere}
+                            </span>
+                          ) : null}
+                          <h3 className="text-lg font-bold">{b.name}</h3>
+                          {b.address ? <p className="text-[15px] text-[#5E5758] mt-0.5">{b.address}</p> : null}
+                        </div>
+                        {b.directionsUrl ? (
+                          <a
+                            href={b.directionsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`${t.directions}: ${b.name}`}
+                            className="min-h-[44px] px-3 rounded-xl bg-white border border-[#E3D9C8] text-sm font-bold inline-flex items-center gap-1.5 hover:bg-[#F4EFE6] shrink-0"
+                          >
+                            <Navigation className="w-4 h-4" aria-hidden="true" />
+                            {t.directions}
+                          </a>
                         ) : null}
-                        <h3 className="font-bold">{b.name}</h3>
-                        {b.address ? <p className="text-sm text-charcoal/70 mt-0.5">{b.address}</p> : null}
-                      </div>
-                      {b.directionsUrl ? (
-                        <a
-                          href={b.directionsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={`${t.directions}: ${b.name}`}
-                          className="min-h-[44px] px-3 rounded-xl bg-[#F4EFE6] text-xs font-bold inline-flex items-center gap-1.5 hover:bg-[#ECE4D6] shrink-0"
-                        >
-                          <Navigation className="w-4 h-4" aria-hidden="true" />
-                          {t.directions}
-                        </a>
-                      ) : null}
-                    </li>
-                  );
-                })}
-            </ul>
+                      </li>
+                    );
+                  })}
+              </ul>
+            </div>
           </section>
         ) : null}
 
         {data.documents.length > 0 ? (
-          <section id="documents" aria-labelledby="documents-title" className="scroll-mt-14">
-            <h2 id="documents-title" className={sectionTitle}>
-              {t.documents}
-            </h2>
-            <ul className={`${surface} divide-y divide-sand-border`}>
-              {data.documents.map((d) => (
-                <li key={d.id}>
-                  <a
-                    href={d.downloadUrl}
-                    onClick={() => onDocumentClick?.(d.id)}
-                    className="p-4 flex items-center gap-3 min-h-[64px] hover:bg-[#FBF8F3]"
-                  >
-                    <span className="w-10 h-10 rounded-xl bg-sand flex items-center justify-center shrink-0">
-                      <FileText className="w-5 h-5" aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-bold truncate">{d.title}</span>
-                      <span className="block text-xs text-charcoal/60">{['PDF', formatSize(d.sizeBytes)].filter(Boolean).join(' · ')}</span>
-                    </span>
-                    <span className="text-xs font-bold inline-flex items-center gap-1 shrink-0">
-                      <Download className="w-4 h-4" aria-hidden="true" />
-                      {t.download}
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
+          <section id="documents" aria-labelledby="documents-title" className={`${sectionPad} bg-[#FAF7F2]`}>
+            <div className={wrap}>
+              <h2 id="documents-title" className={h2}>
+                {t.documents}
+              </h2>
+              <ul className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-3">
+                {data.documents.map((d) => (
+                  <li key={d.id}>
+                    <a
+                      href={d.downloadUrl}
+                      onClick={() => onDocumentClick?.(d.id)}
+                      className="rounded-[18px] bg-white border border-[#E9E1D3] p-4 flex items-center gap-4 min-h-[72px] hover:shadow-[0_10px_30px_rgba(43,39,40,0.08)] transition-shadow"
+                    >
+                      <span className="w-11 h-11 rounded-xl bg-[#EFE8DC] flex items-center justify-center shrink-0">
+                        <FileText className="w-5 h-5" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-bold truncate">{d.title}</span>
+                        <span className="block text-sm text-[#6B6466]">{['PDF', formatSize(d.sizeBytes)].filter(Boolean).join(' · ')}</span>
+                      </span>
+                      <span className="text-sm font-bold inline-flex items-center gap-1 shrink-0">
+                        <Download className="w-4 h-4" aria-hidden="true" />
+                        {t.download}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
         ) : null}
 
-        <footer className="pt-2 flex flex-col items-center gap-2 text-center">
-          <span className="font-mono text-[11px] text-charcoal/60 border border-sand-border rounded-md px-2 py-1 inline-flex items-center gap-1.5">
-            <Building2 className="w-3 h-3" aria-hidden="true" />
-            {[company.businessId, company.gstin ? `GSTIN ${company.gstin}` : null, t.madeWith].filter(Boolean).join(' · ')}
-          </span>
-        </footer>
+        {canEnquire ? (
+          <section aria-labelledby="contact-title" className="py-16 sm:py-20" style={{ background: band, color: bandText }}>
+            <div className={`${wrap} flex flex-col md:flex-row md:items-center md:justify-between gap-6`}>
+              <div>
+                <h2 id="contact-title" className="text-[28px] sm:text-[40px] leading-tight font-bold tracking-[-0.03em]">
+                  {t.contactTitle}
+                </h2>
+                <p className="mt-2 text-[17px] opacity-90 max-w-[48ch]">{t.contactBody(company.name)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => openSheet(e)}
+                className="shrink-0 min-h-[56px] px-7 rounded-[16px] font-bold text-base inline-flex items-center gap-2 hover:opacity-90"
+                style={{ background: accent, color: accentText }}
+              >
+                <Send className="w-5 h-5" aria-hidden="true" />
+                {t.enquire}
+              </button>
+            </div>
+          </section>
+        ) : null}
       </main>
+
+      <footer className="bg-[#1B191A] text-[#FAF7F2]">
+        <div className={`${wrap} py-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4`}>
+          <div className="flex items-center gap-3">
+            {logoTile('w-10 h-10 text-xs', 'p-1')}
+            <div>
+              <p className="font-bold">{company.name}</p>
+              <p className="text-sm text-[#B9B1AC] inline-flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5" aria-hidden="true" />
+                {[company.businessId, company.gstin ? `GSTIN ${company.gstin}` : null].filter(Boolean).join(', ')}
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-[#B9B1AC]">{t.madeWith}</p>
+        </div>
+      </footer>
 
       {canEnquire ? (
         <div
-          className="fixed bottom-0 inset-x-0 z-30 px-4 pt-6 bg-gradient-to-t from-warm-paper from-70% to-transparent pointer-events-none"
+          className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pt-6 bg-gradient-to-t from-[#FAF7F2] from-70% to-transparent pointer-events-none"
           style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
         >
           <div className="max-w-[760px] mx-auto pointer-events-auto">
@@ -787,7 +887,8 @@ export const CompanyProfilePage: React.FC<CompanyProfilePageProps> = ({
               type="button"
               data-testid="enquiry-bar"
               onClick={(e) => openSheet(e)}
-              className="w-full min-h-[52px] bg-bridge-orange text-charcoal font-extrabold text-[15px] rounded-[14px] flex items-center justify-center gap-2 hover:bg-[#E5790C] shadow-[0_8px_24px_rgba(246,135,19,0.35)]"
+              className="w-full min-h-[52px] font-bold text-[15px] rounded-[14px] flex items-center justify-center gap-2 shadow-[0_8px_24px_rgba(0,0,0,0.18)] hover:opacity-90"
+              style={{ background: accent, color: accentText }}
             >
               <Send className="w-5 h-5" aria-hidden="true" />
               {t.enquire}

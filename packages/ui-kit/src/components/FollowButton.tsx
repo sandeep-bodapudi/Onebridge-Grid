@@ -27,7 +27,9 @@ export const FollowButton: React.FC<FollowButtonProps> = ({ following, followerC
     ? tone === 'band'
       ? 'bg-white/10 border border-white/30 hover:bg-white/20'
       : 'bg-white border border-sand-border text-charcoal hover:bg-sand'
-    : 'bg-bridge-orange text-[#241A10] hover:bg-[#E5790C]';
+    : tone === 'band'
+      ? 'bg-white text-[#241A10] hover:bg-white/90'
+      : 'bg-bridge-orange text-[#241A10] hover:bg-[#E5790C]';
   const content = (
     <>
       {following ? <Check className="w-4 h-4" aria-hidden="true" /> : <Plus className="w-4 h-4" aria-hidden="true" />}
