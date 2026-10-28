@@ -22,6 +22,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { MongoMemoryServer } from 'mongodb-memory-server';
+import { proxy, proxyUpgrade, servicesAnswer } from './lib/proxy.mjs';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const log = (msg) => console.log(`[demo-server] ${msg}`);
@@ -158,63 +159,8 @@ async function startServices() {
   log('identity, organization, cards, profiles, social, search and messaging are running (shared event bus)');
 }
 
-/** WebSocket upgrades (N08 /messaging/realtime): forwards the handshake, then pipes both sockets. */
-const CRLF = '\r\n';
-function proxyUpgrade(req, socket, head, port, upstreamPath) {
-  const headers = { ...req.headers, host: `127.0.0.1:${port}` };
-  headers['x-forwarded-for'] = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '');
-  const upstream = http.request({ host: '127.0.0.1', port, path: upstreamPath, method: req.method, headers });
-  upstream.on('upgrade', (res, upSocket, upHead) => {
-    const lines = [`HTTP/1.1 ${res.statusCode} ${res.statusMessage}`];
-    for (let i = 0; i < res.rawHeaders.length; i += 2) lines.push(`${res.rawHeaders[i]}: ${res.rawHeaders[i + 1]}`);
-    socket.write(`${lines.join(CRLF)}${CRLF}${CRLF}`);
-    if (upHead && upHead.length) socket.write(upHead);
-    if (head && head.length) upSocket.write(head);
-    upSocket.pipe(socket).pipe(upSocket);
-    upSocket.on('error', () => socket.destroy());
-    socket.on('error', () => upSocket.destroy());
-  });
-  upstream.on('response', (res) => {
-    // The service refused the upgrade (bad ticket or origin): pass its status on.
-    socket.end(`HTTP/1.1 ${res.statusCode} ${res.statusMessage}${CRLF}${CRLF}`);
-  });
-  upstream.on('error', () => socket.destroy());
-  upstream.end();
-}
-
-function proxy(req, res, port, upstreamPath) {
-  const headers = { ...req.headers, host: `127.0.0.1:${port}` };
-  const forwardedFor = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
-  headers['x-forwarded-for'] = String(forwardedFor);
-  const upstream = http.request({ host: '127.0.0.1', port, path: upstreamPath, method: req.method, headers }, (up) => {
-    res.writeHead(up.statusCode || 502, up.headers);
-    up.pipe(res);
-  });
-  upstream.on('error', () => {
-    if (!res.headersSent) res.writeHead(502, { 'Content-Type': 'application/problem+json' });
-    res.end(JSON.stringify({ title: 'Bad Gateway', status: 502, detail: 'The service is starting. Try again in a moment.' }));
-  });
-  req.pipe(upstream);
-}
-
 async function healthy() {
-  const checks = await Promise.all(
-    Object.values(TARGETS).map(
-      (port) =>
-        new Promise((resolve) => {
-          const r = http.get({ host: '127.0.0.1', port, path: '/health', timeout: 2000 }, (res) => {
-            res.resume();
-            resolve(res.statusCode !== undefined && res.statusCode < 500);
-          });
-          r.on('error', () => resolve(false));
-          r.on('timeout', () => {
-            r.destroy();
-            resolve(false);
-          });
-        })
-    )
-  );
-  return checks.every(Boolean);
+  return (await servicesAnswer(Object.values(TARGETS))).every(Boolean);
 }
 
 let ready = false;
